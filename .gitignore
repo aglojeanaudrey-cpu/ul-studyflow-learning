@@ -1,0 +1,60 @@
+# =========================
+# Frontend / Node
+# =========================
+node_modules/
+dist/
+build/
+coverage/
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Python / Django
+# =========================
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Django local database
+*.sqlite3
+db.sqlite3
+
+# Django generated files
+media/
+staticfiles/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+
+# =========================
+# Local legacy data
+# =========================
+data/database.json

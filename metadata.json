@@ -1,0 +1,6 @@
+{
+  "name": "UL STUDY FLOW LEARNING",
+  "description": "Plateforme EdTech mobile-first créée par les étudiants pour les étudiants (Togo) : cours organisés, vidéos, podcasts, PDF, questionnaires interactifs et assistant pédagogique IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
