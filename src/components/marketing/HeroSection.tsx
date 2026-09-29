@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight, BookOpen, Smartphone, CheckCircle2, Play, Award } from 'lucide-react';
 import { UlStudyFlowLogo } from '../brand/UlStudyFlowLogo';
+import heroImage from '@/src/assets/images/hero_ul_student_1790533845064.jpg';
 
 interface HeroSectionProps {
   onGetStarted: () => void;
@@ -66,7 +67,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted, onExplor
           <div className="lg:col-span-5 relative">
             <div className="relative mx-auto max-w-sm sm:max-w-md rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-[#222E35] bg-white dark:bg-[#111B21]">
               <img
-                src="/src/assets/images/hero_ul_student_1790533845064.jpg"
+                src={heroImage}
                 alt="Étudiant apprenant sur UL Study Flow"
                 className="w-full h-72 sm:h-96 object-cover"
                 referrerPolicy="no-referrer"
@@ -127,7 +128,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted, onExplor
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-rose-500 font-bold">✕</span>
-                  <span>Des polycopiés photocopiés flous, sans explications pas-à-pas ni vidéos de démonstration.</span>
+                  <span>Des polycopiés photocopiés longs, sans format vidéos ou audios de démonstration.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-rose-500 font-bold">✕</span>

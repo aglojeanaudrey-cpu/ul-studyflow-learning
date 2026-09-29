@@ -1,5 +1,6 @@
 import React from 'react';
 import { Target, Compass, Sparkles, BookOpen } from 'lucide-react';
+import campusImage from '@/src/assets/images/campus_university_lome_1790533866163.jpg'
 
 export const AboutSection: React.FC = () => {
   return (
@@ -20,7 +21,7 @@ export const AboutSection: React.FC = () => {
       {/* Campus Image Banner */}
       <div className="rounded-2xl overflow-hidden shadow-lg border-4 border-white bg-white">
         <img
-          src="/src/assets/images/campus_university_lome_1790533866163.jpg"
+          src={campusImage}
           alt="Campus étudiant de Lomé, Togo"
           className="w-full h-64 sm:h-80 object-cover"
           referrerPolicy="no-referrer"
