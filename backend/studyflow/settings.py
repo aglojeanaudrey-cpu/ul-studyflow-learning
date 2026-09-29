@@ -145,12 +145,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Headers configuration
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^http://localhost:\d+$",
-    r"^http://127\.0\.0\.1:\d+$",
+APP_URL = os.getenv('APP_URL', 'http://localhost:5173').rstrip('/')
+CORS_ALLOWED_ORIGINS = [
+    APP_URL,
 ]
+CORS_ALLOW_CREDENTIALS = True
 
 # Django REST Framework configuration
 REST_FRAMEWORK = {

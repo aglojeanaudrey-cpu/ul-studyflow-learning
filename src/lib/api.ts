@@ -14,6 +14,8 @@ import {
 
 const TOKEN_KEY = 'ulsf_token';
 
+const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -37,7 +39,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(endpoint, {
+  const res = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers
   });
