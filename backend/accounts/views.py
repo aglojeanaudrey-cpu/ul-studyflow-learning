@@ -1,3 +1,4 @@
+from django.conf import settings as django_settings
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -64,10 +65,20 @@ class RegisterView(APIView):
             pass
 
         token = AuthToken.create_for_user(user)
-        return Response({
+        response = Response({
             'token': token.key,
             'user': UserSerializer(user).data
         }, status=status.HTTP_201_CREATED)
+        response.set_cookie(
+            'ulsf_session',
+            token.key,
+            httponly=True,
+            secure=not django_settings.DEBUG,
+            samesite='Lax',
+            max_age=7 * 24 * 60 * 60,
+            path='/'
+        )
+        return response
 
 
 class LoginView(APIView):
@@ -132,10 +143,20 @@ class LoginView(APIView):
             pass
 
         token = AuthToken.create_for_user(user)
-        return Response({
+        response = Response({
             'token': token.key,
             'user': UserSerializer(user).data
         })
+        response.set_cookie(
+            'ulsf_session',
+            token.key,
+            httponly=True,
+            secure=not django_settings.DEBUG,
+            samesite='Lax',
+            max_age=7 * 24 * 60 * 60,
+            path='/'
+        )
+        return response
 
 
 class MeView(APIView):
@@ -143,6 +164,18 @@ class MeView(APIView):
 
     def get(self, request):
         return Response({'user': UserSerializer(request.user).data})
+
+
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # Delete the token from DB
+        if hasattr(request, 'auth') and request.auth:
+            request.auth.delete()
+        response = Response({'success': True})
+        response.delete_cookie('ulsf_session', path='/')
+        return response
 
 
 class AdminUsersListView(APIView):
@@ -174,6 +207,10 @@ class AdminUsersListView(APIView):
         if role == 'SUPERUSER' and actor.role != 'SUPERUSER':
             return Response({'error': 'Seul le Super-Administrateur peut créer un autre Superuser.'}, status=status.HTTP_403_FORBIDDEN)
 
+        admin_perms = data.get('adminPermissions') or data.get('admin_permissions')
+        if not isinstance(admin_perms, list):
+            admin_perms = ['dashboard', 'courses', 'progress'] if role == 'STAFF' else []
+
         new_user = User.objects.create_user(
             phone=canonical,
             password=password,
@@ -187,6 +224,7 @@ class AdminUsersListView(APIView):
             role=role if role in ('USER', 'STAFF', 'SUPERUSER') else 'USER',
             is_sponsored=bool(data.get('isSponsored')) if actor.role == 'SUPERUSER' else False,
             is_ai_suspended=bool(data.get('isAiSuspended')) if actor.role == 'SUPERUSER' else False,
+            admin_permissions=admin_perms if actor.role == 'SUPERUSER' else (['dashboard', 'courses', 'progress'] if role == 'STAFF' else [])
         )
 
         try:
@@ -261,6 +299,14 @@ class AdminUserDetailView(APIView):
             if target_user.id != 'usr_super_1':
                 target_user.role = role
 
+        # Granular admin permissions for STAFF: Superuser only
+        admin_perms = data.get('adminPermissions') if 'adminPermissions' in data else data.get('admin_permissions')
+        if admin_perms is not None:
+            if actor.role != 'SUPERUSER':
+                return Response({'error': 'Seul le Super-Administrateur peut modifier les permissions administratives.'}, status=status.HTTP_403_FORBIDDEN)
+            if isinstance(admin_perms, list):
+                target_user.admin_permissions = admin_perms
+
         # Sponsoring: Superuser only
         is_sponsored = data.get('isSponsored')
         if is_sponsored is not None:
@@ -327,7 +373,6 @@ class AdminUserDetailView(APIView):
         return Response({'success': True})
 
 
-class AdminUserAccessView(APIView):
     permission_classes = [IsStaffOrSuperuser]
 
     def post(self, request, user_id):
@@ -373,3 +418,82 @@ class AdminUserAccessView(APIView):
             pass
 
         return Response({'success': True})
+
+
+class AdminUserAccessView(APIView):
+    permission_classes = [IsStaffOrSuperuser]
+
+    def get(self, request, user_id):
+        """Retourne la liste des UE actuellement accordées (status='active') à cet utilisateur."""
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'Utilisateur introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        from courses.models import UserUEAccess
+        granted_ids = list(
+            UserUEAccess.objects
+            .filter(user=target_user, status='active')
+            .values_list('ue_id', flat=True)
+        )
+        return Response({
+            'success': True,
+            'userId': target_user.id,
+            'grantedUeIds': granted_ids,
+        })
+
+    def post(self, request, user_id):
+        actor = request.user
+        ue_id = request.data.get('ueId')
+        action = request.data.get('action')  # 'grant' | 'revoke'
+
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'Utilisateur introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        from courses.models import UE, UserUEAccess
+        try:
+            ue = UE.objects.get(id=ue_id)
+        except UE.DoesNotExist:
+            return Response({'error': 'UE introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        access, created = UserUEAccess.objects.get_or_create(
+            user=target_user,
+            ue=ue,
+            defaults={
+                'granted_by': actor.phone,
+                'status': 'active' if action == 'grant' else 'revoked'
+            }
+        )
+        if not created:
+            access.status = 'active' if action == 'grant' else 'revoked'
+            access.granted_by = actor.phone
+            access.save()
+
+        # Audit log
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='ACCESS_CHANGE',
+                resource=target_user.id,
+                details=f"{'Attribution' if action == 'grant' else 'Révocation'} de l'UE {ue.code} pour {target_user.phone}",
+                user=actor,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        # ⭐ Retourne l'état à jour pour éviter un refetch côté front
+        granted_ids = list(
+            UserUEAccess.objects
+            .filter(user=target_user, status='active')
+            .values_list('ue_id', flat=True)
+        )
+        return Response({
+            'success': True,
+            'userId': target_user.id,
+            'ueId': ue_id,
+            'status': access.status,
+            'grantedUeIds': granted_ids,
+        })

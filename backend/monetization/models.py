@@ -110,3 +110,38 @@ class PlatformConfig(models.Model):
             }
         )
         return obj
+
+
+class PaymentMethod(models.Model):
+    TYPE_CHOICES = (
+        ('phone_account', 'Numéro de téléphone / Compte'),
+        ('payment_link', 'Lien de redirection / Bouton'),
+        ('qr_code', 'QR Code'),
+        ('other', 'Autre moyen'),
+    )
+
+    id = models.CharField(max_length=64, primary_key=True)
+    name = models.CharField(max_length=150, verbose_name="Nom du moyen (ex: T-Money Togo)")
+    method_type = models.CharField(max_length=30, choices=TYPE_CHOICES, default='phone_account', verbose_name="Type")
+    account_number = models.CharField(max_length=120, blank=True, verbose_name="Numéro de téléphone ou Compte")
+    payment_url = models.URLField(max_length=500, blank=True, null=True, verbose_name="Lien / URL de paiement direct")
+    qr_code_image = models.TextField(blank=True, null=True, verbose_name="Image / Data QR Code")
+    logo_url = models.TextField(blank=True, null=True, verbose_name="Image ou Logo")
+    instructions = models.TextField(blank=True, verbose_name="Consignes / Instructions pour l'étudiant")
+    order = models.IntegerField(default=1, verbose_name="Ordre d'affichage")
+    is_active = models.BooleanField(default=True, verbose_name="Actif")
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Date de création")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Dernière mise à jour")
+
+    class Meta:
+        verbose_name = "Moyen de paiement"
+        verbose_name_plural = "Moyens de paiement"
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_method_type_display()}) [{'Actif' if self.is_active else 'Inactif'}]"
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = f"pm_{secrets.token_hex(4)}"
+        super().save(*args, **kwargs)

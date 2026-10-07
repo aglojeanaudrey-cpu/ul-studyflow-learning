@@ -1,0 +1,45 @@
+# ==============================================================================
+# ANTIGRAVITY IGNORE RULES - MONOREPO REACT (VITE) & DJANGO
+# ==============================================================================
+
+[Ignore]
+# --- Dépendances et Environnements Virtuels ---
+node_modules/
+venv/
+.venv/
+env/
+.env/
+
+# --- Artefacts Python / Django ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# --- Artefacts Frontend / Build (Vite) ---
+dist/
+build/
+.vite/
+.eslintcache
+
+# --- Fichiers Systèmes et IDE ---
+.git/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+[Context Management]
+# Force l'IA à rester concise et à économiser les tokens
+max_scan_depth = 4
+parse_media_files = false
+analyze_compiled_assets = false
+
+[Model Guidance]
+# Instructions pour forcer des réponses économiques en tokens
+never_rewrite_entire_file = true
+respond_with_diff_only = true

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, UserPlus, Phone, Lock, School, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UlStudyFlowLogo } from '../brand/UlStudyFlowLogo';
+import { PasswordInput } from '../ui/PasswordInput';
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -219,26 +220,24 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
                 <label className="block text-xs font-semibold text-[#111B21] dark:text-white mb-1">
                   Mot de passe *
                 </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Min. 6 caractères"
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:border-[#25D366] focus:outline-none"
+                  placeholder="Min. 6 caractères"
+                  required
+                  autoComplete="new-password"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[#111B21] dark:text-white mb-1">
                   Confirmation *
                 </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Confirmer"
+                <PasswordInput
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:border-[#25D366] focus:outline-none"
+                  placeholder="Confirmer"
+                  required
+                  autoComplete="new-password"
                 />
               </div>
             </div>

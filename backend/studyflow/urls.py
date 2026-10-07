@@ -18,6 +18,7 @@ urlpatterns = [
     # -------------------------------------------------------------
     path('api/auth/register', acc_views.RegisterView.as_view(), name='api-auth-register'),
     path('api/auth/login', acc_views.LoginView.as_view(), name='api-auth-login'),
+    path('api/auth/logout', acc_views.LogoutView.as_view(), name='api-auth-logout'),
     path('api/auth/me', acc_views.MeView.as_view(), name='api-auth-me'),
 
     # -------------------------------------------------------------
@@ -81,6 +82,9 @@ urlpatterns = [
     path('api/admin/sessions/<str:session_id>/toggle-access', crs_views.AdminSessionToggleAccessView.as_view(), name='api-admin-session-toggle-access'),
     path('api/admin/sessions/<str:session_id>', crs_views.AdminSessionDeleteView.as_view(), name='api-admin-session-delete'),
 
+    path('api/admin/chapters', crs_views.AdminChapterSaveView.as_view(), name='api-admin-chapter-save'),
+    path('api/admin/chapters/<str:chapter_id>', crs_views.AdminChapterDeleteView.as_view(), name='api-admin-chapter-delete'),
+
     # Academic Structure Management
     path('api/admin/departments', acad_views.AdminDepartmentView.as_view(), name='api-admin-dept-save'),
     path('api/admin/departments/<str:dept_id>/suspend', acad_views.AdminDepartmentSuspendView.as_view(), name='api-admin-dept-suspend'),
@@ -94,7 +98,7 @@ urlpatterns = [
     path('api/admin/academic-years/<str:ay_id>', acad_views.AdminAcademicYearView.as_view(), name='api-admin-academic-year-detail'),
 
     # Dynamic Forms Management
-    path('api/admin/forms', frm_views.AdminFormCreateView.as_view(), name='api-admin-forms-create'),
+    path('api/admin/forms', frm_views.AdminFormListCreateView.as_view(), name='api-admin-forms-create'),
     path('api/admin/forms/<str:form_id>', frm_views.AdminFormUpdateView.as_view(), name='api-admin-forms-update'),
     path('api/admin/forms/<str:form_id>/submissions', frm_views.AdminFormSubmissionsView.as_view(), name='api-admin-form-submissions'),
     path('api/admin/forms/<str:form_id>/export', frm_views.AdminFormExportCsvView.as_view(), name='api-admin-form-export'),
@@ -104,10 +108,20 @@ urlpatterns = [
     path('api/admin/promo-codes/<str:promo_id>/toggle', mon_views.AdminPromoCodeToggleView.as_view(), name='api-admin-promo-toggle'),
     path('api/admin/promo-codes/<str:promo_id>', mon_views.AdminPromoCodeDeleteView.as_view(), name='api-admin-promo-delete'),
 
+    # Payment Methods Management (Public & Admin)
+    path('api/payment-methods', mon_views.PaymentMethodListView.as_view(), name='api-payment-methods'),
+    path('api/admin/payment-methods', mon_views.AdminPaymentMethodView.as_view(), name='api-admin-payment-methods'),
+    path('api/admin/payment-methods/<str:pm_id>', mon_views.AdminPaymentMethodDetailView.as_view(), name='api-admin-payment-method-detail'),
+    path('api/admin/payment-methods/<str:pm_id>/toggle', mon_views.AdminPaymentMethodToggleView.as_view(), name='api-admin-payment-method-toggle'),
+
     # Unlock Requests Management
     path('api/admin/unlock-requests', mon_views.AdminUnlockRequestsView.as_view(), name='api-admin-unlock-requests'),
     path('api/admin/unlock-requests/<str:req_id>/approve', mon_views.AdminApproveUnlockRequestView.as_view(), name='api-admin-unlock-approve'),
     path('api/admin/unlock-requests/<str:req_id>/reject', mon_views.AdminRejectUnlockRequestView.as_view(), name='api-admin-unlock-reject'),
+
+    # Admin Student Progression Tracking
+    path('api/admin/progress', crs_views.AdminUsersProgressView.as_view(), name='api-admin-progress'),
+    path('api/admin/progress/<str:user_id>', crs_views.AdminUserDetailProgressView.as_view(), name='api-admin-user-progress-detail'),
 
     # -------------------------------------------------------------
     # API: INTERNAL NOTIFICATIONS (MESSAGES PROGRAMMES & ALERTES)

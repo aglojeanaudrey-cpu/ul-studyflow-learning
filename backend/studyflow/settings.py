@@ -166,7 +166,37 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '120/minute',
+    },
 }
 
-# Gemini API key for Assistant Pédagogique
+# -----------------------------------------------------------------------------
+# Assistant Pédagogique UL Study Flow — Configuration
+# -----------------------------------------------------------------------------
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+
+# Support & contact (à remplir via .env quand les numéros seront fonctionnels)
+SUPPORT_PHONE = os.getenv('SUPPORT_PHONE', '')          # ex: "+228 XX XX XX XX"
+SUPPORT_PHONE_ALT = os.getenv('SUPPORT_PHONE_ALT', '')  # ex: "+228 XX XX XX XX"
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', '')
+SUPPORT_FAQ_URL = os.getenv('SUPPORT_FAQ_URL', '/faq')
+
+# Limites de sécurité de l'assistant IA
+AI_MAX_MESSAGE_LENGTH = 2000
+AI_MAX_HISTORY_MESSAGES = 10
+
+# Security Hardening
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG

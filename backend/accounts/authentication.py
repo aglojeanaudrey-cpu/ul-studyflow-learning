@@ -9,14 +9,17 @@ class ULSFTokenAuthentication(BaseAuthentication):
     """
     def authenticate(self, request):
         auth_header = request.headers.get('Authorization') or request.META.get('HTTP_AUTHORIZATION')
+        
+        # Fallback: read token from httpOnly cookie
         if not auth_header:
-            return None
-
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != 'bearer':
-            return None
-
-        token_key = parts[1]
+            token_key = request.COOKIES.get('ulsf_session')
+            if not token_key:
+                return None
+        else:
+            parts = auth_header.split()
+            if len(parts) != 2 or parts[0].lower() != 'bearer':
+                return None
+            token_key = parts[1]
         try:
             token = AuthToken.objects.select_related('user').get(key=token_key)
         except AuthToken.DoesNotExist:

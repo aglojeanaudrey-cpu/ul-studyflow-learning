@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UE } from '../../types';
 import { api } from '../../lib/api';
-import { BookOpen, Search, Lock, Unlock, ArrowRight, Sparkles, KeyRound } from 'lucide-react';
+import { BookOpen, Search, Lock, Unlock, ArrowRight, Sparkles, KeyRound, Calendar, Clock } from 'lucide-react';
 import { UnlockUeModal } from './UnlockUeModal';
 
 interface MyCoursesViewProps {
@@ -154,9 +154,33 @@ export const MyCoursesView: React.FC<MyCoursesViewProps> = ({ onOpenUe }) => {
                       {ue.level} · {ue.semester}
                     </span>
                     {ue.isUnlocked ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#25D366] bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-                        <Unlock className="w-3 h-3" /> Débloqué
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                          <Unlock className="w-3 h-3 text-[#25D366]" /> Débloqué
+                        </span>
+                        {ue.expiresAt && (
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded border ${
+                            ue.daysRemaining !== null && ue.daysRemaining !== undefined && ue.daysRemaining <= 15
+                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 font-bold'
+                              : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                          }`}>
+                            <Calendar className="w-3 h-3 text-[#667781] dark:text-[#8696A0]" />
+                            Expire le {new Date(ue.expiresAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            {ue.daysRemaining !== null && ue.daysRemaining !== undefined && (
+                              <span className="opacity-80">({ue.daysRemaining}j)</span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    ) : ue.isExpired ? (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800">
+                          <Lock className="w-3 h-3 text-rose-600" /> Expiré ({ue.expiresAt ? new Date(ue.expiresAt).toLocaleDateString('fr-FR') : ''})
+                        </span>
+                        <span className="text-[10px] font-medium text-rose-600 dark:text-rose-400">
+                          Validité 6m 10j écoulée · Renouveler
+                        </span>
+                      </div>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
                         <Sparkles className="w-3 h-3" /> Séance 1 Offerte · 500 F

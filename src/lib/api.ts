@@ -9,7 +9,10 @@ import {
   FormSubmission,
   AuditLog,
   PlatformConfig,
-  AppNotification
+  AppNotification,
+  PaymentMethod,
+  AdminStudentProgress,
+  AdminProgressSummary
 } from '../types';
 
 const TOKEN_KEY = 'ulsf_token';
@@ -41,7 +44,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   const res = await fetch(`${API_URL}${endpoint}`, {
     ...options,
-    headers
+    headers,
+    credentials: 'include'
   });
 
   const data = await res.json();
@@ -76,7 +80,14 @@ export const api = {
     return request<{ user: User }>('/api/auth/me');
   },
 
-  logout() {
+  async logout() {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+    } catch (_) {}
     setStoredToken(null);
   },
 
@@ -198,11 +209,15 @@ export const api = {
     });
   },
 
-  async toggleUserUeAccess(userId: string, ueId: string, action: 'grant' | 'revoke'): Promise<{ success: boolean }> {
+  async toggleUserUeAccess( userId: string, ueId: string, action: 'grant' | 'revoke' ): Promise<{ success: boolean; userId: string; ueId: string; status: string; grantedUeIds: string[] }> {
     return request(`/api/admin/users/${userId}/access`, {
       method: 'POST',
       body: JSON.stringify({ ueId, action })
     });
+  },
+
+  async getAdminUserAccess(userId: string): Promise<{ success: boolean; userId: string; grantedUeIds: string[] }> {
+    return request(`/api/admin/users/${userId}/access`);
   },
 
   // Courses & Sessions
@@ -247,6 +262,19 @@ export const api = {
 
   async deleteSession(sessionId: string): Promise<{ success: boolean }> {
     return request(`/api/admin/sessions/${sessionId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  async saveChapter(payload: any): Promise<{ success: boolean; chapter?: any }> {
+    return request('/api/admin/chapters', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async deleteChapter(chapterId: string): Promise<{ success: boolean }> {
+    return request(`/api/admin/chapters/${chapterId}`, {
       method: 'DELETE'
     });
   },
@@ -323,6 +351,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload)
     });
+  },
+
+  async getAdminForms(): Promise<{ forms: DynamicForm[] }> {
+    return request<{ forms: DynamicForm[] }>('/api/admin/forms');
   },
 
   async deleteForm(id: string): Promise<{ success: boolean }> {
@@ -468,6 +500,39 @@ export const api = {
     return request('/api/admin/audit-logs');
   },
 
+  async deleteAuditLogs(ids: string[]): Promise<{ success: boolean; deletedCount: number }> {
+    return request('/api/admin/audit-logs', {
+      method: 'DELETE',
+      body: JSON.stringify({ ids })
+    });
+  },
+
+  async purgeAllAuditLogs(): Promise<{ success: boolean; deletedCount: number }> {
+    return request('/api/admin/audit-logs', {
+      method: 'DELETE',
+      body: JSON.stringify({ all: true })
+    });
+  },
+
+  // ⭐ Export CSV / binaire (ne parse PAS en JSON)
+  async downloadAuditLogsCsv(): Promise<Blob> {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}/api/admin/export/audit?format=csv`, {
+      method: 'GET',
+      headers,
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      throw new Error("Erreur lors de l'export CSV.");
+    }
+
+    return res.blob();
+  },
+
   async getAdminConfig(): Promise<{ config: PlatformConfig }> {
     return request('/api/admin/config');
   },
@@ -477,5 +542,91 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(config)
     });
-  }
+  },
+
+  // Payment Methods (Public & Admin)
+  async getPaymentMethods(): Promise<{ paymentMethods: PaymentMethod[] }> {
+    return request('/api/payment-methods');
+  },
+
+  async getAdminPaymentMethods(): Promise<{ paymentMethods: PaymentMethod[] }> {
+    return request('/api/admin/payment-methods');
+  },
+
+  async createAdminPaymentMethod(payload: Partial<PaymentMethod>): Promise<{ success: boolean; paymentMethod: PaymentMethod }> {
+    return request('/api/admin/payment-methods', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updateAdminPaymentMethod(id: string, payload: Partial<PaymentMethod>): Promise<{ success: boolean; paymentMethod: PaymentMethod }> {
+    return request(`/api/admin/payment-methods/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async deleteAdminPaymentMethod(id: string): Promise<{ success: boolean }> {
+    return request(`/api/admin/payment-methods/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  async toggleAdminPaymentMethod(id: string): Promise<{ success: boolean; isActive: boolean }> {
+    return request(`/api/admin/payment-methods/${id}/toggle`, {
+      method: 'PUT'
+    });
+  },
+
+  // Admin Student Progress Tracking
+  async getAdminUsersProgress(params: { q?: string; level?: string; department?: string; program?: string } = {}): Promise<{
+    students: AdminStudentProgress[];
+    summary: AdminProgressSummary;
+  }> {
+    const query = new URLSearchParams();
+    if (params.q) query.set('q', params.q);
+    if (params.level && params.level !== 'ALL') query.set('level', params.level);
+    if (params.department && params.department !== 'ALL') query.set('department', params.department);
+    if (params.program && params.program !== 'ALL') query.set('program', params.program);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return request(`/api/admin/progress${qs}`);
+  },
+
+  async getAdminUserProgressDetail(userId: string): Promise<{
+    student: {
+      id: string;
+      fullName: string;
+      phone: string;
+      level: string;
+      department: string;
+      program: string;
+    };
+    ues: {
+      ueId: string;
+      ueCode: string;
+      ueTitle: string;
+      level: string;
+      sessions: {
+        sessionId: string;
+        sessionNumber: number;
+        title: string;
+        status: string;
+        lastAccessedAt?: string;
+        completedAt?: string;
+        quizAttemptsCount: number;
+        bestScore: number | null;
+      }[];
+    }[];
+    recentAttempts: QuizAttempt[];
+  }> {
+    return request(`/api/admin/progress/${userId}`);
+  },
+
+  // Public form share URL helper
+  getFormPublicUrl(formId: string): string {
+    const base = window.location.origin + window.location.pathname;
+    return `${base}?form=${formId}`;
+  },
 };

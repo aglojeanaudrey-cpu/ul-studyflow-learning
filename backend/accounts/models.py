@@ -74,6 +74,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     is_sponsored = models.BooleanField(default=False, verbose_name="Compte sponsorisé (Accès gratuit total)")
     is_ai_suspended = models.BooleanField(default=False, verbose_name="Accès IA suspendu")
+    admin_permissions = models.JSONField(default=list, blank=True, verbose_name="Permissions granulaires administration")
 
     password_hash = models.CharField(max_length=255, blank=True, null=True, verbose_name="Hash PBKDF2 (Legacy)")
     password_salt = models.CharField(max_length=255, blank=True, null=True, verbose_name="Salt PBKDF2 (Legacy)")
@@ -93,6 +94,18 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.display_phone or self.phone}) [{self.role}]"
+
+    def has_admin_permission(self, perm_code: str) -> bool:
+        """Vérifie si l'utilisateur a la permission d'accéder à une section admin spécifique."""
+        if self.role == 'SUPERUSER' or self.is_superuser:
+            return True
+        if self.role == 'STAFF' or self.is_staff:
+            perms = self.admin_permissions or []
+            # Si aucune permission n'a encore été restreinte spécifiquement, donner accès de base
+            if not perms:
+                return perm_code in ['dashboard', 'courses', 'progress']
+            return perm_code in perms
+        return False
 
     def save(self, *args, **kwargs):
         if not self.id:

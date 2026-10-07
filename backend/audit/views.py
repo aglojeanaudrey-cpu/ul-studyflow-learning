@@ -18,8 +18,51 @@ class AuditLogsListView(APIView):
     permission_classes = [IsSuperuserOnly]
 
     def get(self, request):
-        logs = AuditLog.objects.all().order_by('-timestamp')[:200]
+        logs = AuditLog.objects.all().order_by('-timestamp')[:500]
         return Response({'logs': AuditLogSerializer(logs, many=True).data})
+
+    def delete(self, request):
+        """
+        Suppression de logs par le SUPERUSER uniquement.
+        Body:
+          { "ids": ["log_1", "log_2"] }  → suppression ciblée
+          { "all": true }                 → purge totale
+        """
+        ids = request.data.get('ids')
+        purge_all = bool(request.data.get('all', False))
+        actor = request.user
+
+        if purge_all:
+            count = AuditLog.objects.count()
+            # ⚠️ On log l'action AVANT de purger (car après, on aura tout effacé)
+            log_audit(
+                action='AUDIT_LOGS_PURGE_ALL',
+                resource='AUDIT',
+                details=f"PURGE TOTALE : {count} log(s) supprimé(s) par {actor.phone}",
+                user=actor,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+            AuditLog.objects.all().delete()
+            return Response({'success': True, 'deletedCount': count})
+
+        if not isinstance(ids, list) or not ids:
+            return Response(
+                {'error': 'Aucun ID fourni pour la suppression.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        count, _ = AuditLog.objects.filter(id__in=ids).delete()
+
+        # Log de traçabilité
+        log_audit(
+            action='AUDIT_LOGS_DELETE',
+            resource='AUDIT',
+            details=f"Suppression de {count} log(s) par {actor.phone}",
+            user=actor,
+            ip=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({'success': True, 'deletedCount': count})
 
 
 class ContactView(APIView):

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Session, QuizAttempt, Flashcard } from '../../types';
+import { Session, Chapter, QuizAttempt, Flashcard } from '../../types';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -18,12 +18,10 @@ import {
   RotateCw,
   ChevronLeft,
   ChevronRight,
-  Eye,
-  Cloud,
-  HelpCircle,
-  AlertTriangle,
+  Bookmark,
   Lock,
-  Unlock
+  Unlock,
+  Clock
 } from 'lucide-react';
 import { QuizModal } from './QuizModal';
 import { UnlockUeModal } from './UnlockUeModal';
@@ -49,6 +47,9 @@ export const SessionView: React.FC<SessionViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLockedError, setIsLockedError] = useState(false);
+
+  // Active Chapter Index
+  const [activeChapterIndex, setActiveChapterIndex] = useState<number>(0);
 
   // Audio Player State
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -96,7 +97,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
   // Anti-capture and screen recording protection listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for PrintScreen or screenshot shortcuts
       if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5'))) {
         setRecordingWarning(true);
         setTimeout(() => setRecordingWarning(false), 5000);
@@ -136,47 +136,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
     }
   };
 
-  // Download printable summary as PDF
-  const handleDownloadSummaryPdf = () => {
-    if (!session) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      window.print();
-      return;
-    }
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${ueCode} - Séance ${session.sessionNumber} : ${session.title}</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #111; line-height: 1.6; }
-            h1 { color: #075E54; margin-bottom: 5px; }
-            .header { border-bottom: 2px solid #25D366; padding-bottom: 15px; margin-bottom: 25px; }
-            .meta { font-size: 13px; color: #555; }
-            .objective { background: #e8f5e9; padding: 12px; border-left: 4px solid #25D366; margin-bottom: 20px; font-weight: 500; font-size: 14px; }
-            .content { font-size: 15px; white-space: pre-wrap; }
-            .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 15px; font-size: 11px; color: #888; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>UL STUDY FLOW · FICHE DE RÉVISION</h1>
-            <div class="meta">${ueCode} - ${ueTitle} | Séance ${session.sessionNumber} : ${session.title} (${session.estimatedMinutes} min)</div>
-          </div>
-          ${session.objective ? `<div class="objective">🎯 Objectif : ${session.objective}</div>` : ''}
-          <div class="content">${session.content.summaryText}</div>
-          <div class="footer">Édité par UL Study Flow · Plateforme EdTech par les étudiants pour les étudiants (Lomé, Togo) · Contact: ulstudyflow@gmail.com</div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 400);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -207,10 +166,10 @@ export const SessionView: React.FC<SessionViewProps> = ({
               Règle d'accès UL Study Flow :
             </p>
             <p className="text-[11px] text-[#128C7E] dark:text-emerald-300">
-              • La <strong>1ère séance</strong> de chaque UE est <strong>100% gratuite et accessible</strong> à tous les étudiants de Lomé.
+              • La <strong>1ère séance</strong> de chaque UE et <strong>tous ses chapitres</strong> sont <strong>100% gratuits et libres d'accès</strong> à tous les étudiants de Lomé.
             </p>
             <p className="text-[11px] text-[#128C7E] dark:text-emerald-300">
-              • Les séances suivantes nécessitent une validation par l'administration (déblocage sous 12h max).
+              • À partir de la <strong>2ème séance</strong>, les séances sont bloquées et nécessitent un déblocage auprès de l'administration.
             </p>
           </div>
         </div>
@@ -246,22 +205,79 @@ export const SessionView: React.FC<SessionViewProps> = ({
     );
   }
 
-  const flashcards: Flashcard[] = session.flashcards && session.flashcards.length > 0 ? session.flashcards : [
-    {
-      id: 'fc_def_1',
-      front: `Quel est l'objectif principal de la séance ${session.sessionNumber} ?`,
-      back: session.objective || session.title,
-      category: 'Objectif Pédagogique'
-    },
-    {
-      id: 'fc_def_2',
-      front: 'Quelle notion clé est abordée dans cette séance ?',
-      back: session.description || 'Consulter le résumé structuré et le questionnaire de cours.',
-      category: 'Notion Clé'
+  // Determine chapters or fallback
+  const chapters: Chapter[] = (session.chapters && session.chapters.length > 0)
+    ? session.chapters
+    : [{
+        id: `chap_${session.id}_fallback`,
+        sessionId: session.id,
+        number: 1,
+        title: session.title,
+        objectives: session.objective || '',
+        summaryText: session.content?.summaryText || '',
+        video: session.content?.video,
+        audio: session.content?.audio,
+        pdf: session.content?.pdf,
+        flashcards: session.flashcards || [],
+        quiz: session.quiz
+      }];
+
+  const currentChapter: Chapter = chapters[activeChapterIndex] || chapters[0];
+
+  // Download printable summary as PDF for the current chapter
+  const handleDownloadSummaryPdf = () => {
+    if (!session || !currentChapter) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      window.print();
+      return;
     }
-  ];
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${ueCode} - Séance ${session.sessionNumber} - Chapitre ${currentChapter.number} : ${currentChapter.title}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #111; line-height: 1.6; }
+            h1 { color: #075E54; margin-bottom: 5px; }
+            .header { border-bottom: 2px solid #25D366; padding-bottom: 15px; margin-bottom: 25px; }
+            .meta { font-size: 13px; color: #555; }
+            .objective { background: #e8f5e9; padding: 12px; border-left: 4px solid #25D366; margin-bottom: 20px; font-weight: 500; font-size: 14px; }
+            .content { font-size: 15px; white-space: pre-wrap; }
+            .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 15px; font-size: 11px; color: #888; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>UL STUDY FLOW · FICHE DE RÉVISION & SYNTHÈSE</h1>
+            <div class="meta">${ueCode} - ${ueTitle} | Séance ${session.sessionNumber} : ${session.title} | Chapitre ${currentChapter.number} : ${currentChapter.title}</div>
+          </div>
+          ${currentChapter.objectives ? `<div class="objective">🎯 Objectifs du chapitre : ${currentChapter.objectives}</div>` : ''}
+          <div class="content">${currentChapter.summaryText || 'Contenu pédagogique UL Study Flow'}</div>
+          <div class="footer">Édité par UL Study Flow · Plateforme EdTech par les étudiants pour les étudiants (Lomé, Togo) · Contact: ulstudyflow@gmail.com</div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 400);
+  };
+
+  const flashcards: Flashcard[] = (currentChapter.flashcards && currentChapter.flashcards.length > 0)
+    ? currentChapter.flashcards
+    : [
+        {
+          id: 'fc_def_1',
+          front: `Quel est l'objectif du chapitre ${currentChapter.number} ?`,
+          back: currentChapter.objectives || currentChapter.title,
+          category: 'Objectif Pédagogique'
+        }
+      ];
 
   const currentFlashcard = flashcards[currentFlashcardIndex] || flashcards[0];
+  const activeQuiz = currentChapter.quiz || session.quiz;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6 select-none">
@@ -291,7 +307,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
         <div className="flex items-center gap-2">
           {session.sessionNumber === 1 && (
             <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-1 rounded-full border border-emerald-300 dark:border-emerald-800">
-              ⭐ Séance 01 Offerte
+              ⭐ Séance 01 Gratuite (Tous chapitres libres)
             </span>
           )}
 
@@ -311,7 +327,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
         </div>
       </div>
 
-      {/* Session Title Header */}
+      {/* Session Title Header Card */}
       <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-6 sm:p-7 shadow-xs space-y-3 transition-colors">
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#667781] dark:text-[#8696A0]">
           <span className="text-[#075E54] dark:text-[#25D366] font-extrabold bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
@@ -320,7 +336,9 @@ export const SessionView: React.FC<SessionViewProps> = ({
           <span>·</span>
           <span className="font-bold text-[#111B21] dark:text-white">Séance {session.sessionNumber}</span>
           <span>·</span>
-          <span>{session.estimatedMinutes} minutes</span>
+          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{session.estimatedMinutes} min</span>
+          <span>·</span>
+          <span className="text-blue-600 dark:text-blue-400 font-bold">{chapters.length} chapitre(s)</span>
         </div>
 
         <h1 className="text-xl sm:text-2xl font-black text-[#111B21] dark:text-white">
@@ -337,11 +355,13 @@ export const SessionView: React.FC<SessionViewProps> = ({
           </div>
         )}
 
-        <p className="text-xs sm:text-sm text-[#667781] dark:text-[#8696A0] leading-relaxed">
-          {session.description}
-        </p>
+        {session.description && (
+          <p className="text-xs sm:text-sm text-[#667781] dark:text-[#8696A0] leading-relaxed">
+            {session.description}
+          </p>
+        )}
 
-        {/* AI Quick Context Prompt & Download PDF */}
+        {/* AI Quick Context Prompt */}
         <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#E9EDEF] dark:border-[#222E35]">
           <button
             onClick={() => onAskAiWithContext(session.id)}
@@ -350,28 +370,90 @@ export const SessionView: React.FC<SessionViewProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-[#25D366]" />
             Poser une question à l'IA sur cette séance
           </button>
-
-          <button
-            onClick={handleDownloadSummaryPdf}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-[#F0F2F5] dark:bg-[#1F2C34] hover:bg-[#E9EDEF] dark:hover:bg-[#2A3942] px-3.5 py-1.5 rounded-xl transition-colors shadow-2xs"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Télécharger la fiche en PDF
-          </button>
         </div>
       </div>
 
+      {/* Chapters Horizontal Tab Navigation */}
+      {chapters.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#667781] dark:text-[#8696A0] flex items-center gap-1.5">
+              <Bookmark className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              Chapitres du cours ({chapters.length})
+            </h3>
+            <span className="text-[11px] text-[#667781] dark:text-[#8696A0]">
+              Chapitre {activeChapterIndex + 1} / {chapters.length}
+            </span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+            {chapters.map((ch, idx) => {
+              const isSelected = activeChapterIndex === idx;
+              return (
+                <button
+                  key={ch.id}
+                  onClick={() => {
+                    setActiveChapterIndex(idx);
+                    setCurrentFlashcardIndex(0);
+                    setIsFlipped(false);
+                  }}
+                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
+                    isSelected
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-102'
+                      : 'bg-white dark:bg-[#111B21] text-[#111B21] dark:text-white border-[#E9EDEF] dark:border-[#222E35] hover:border-blue-300'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                    isSelected ? 'bg-white text-blue-600' : 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300'
+                  }`}>
+                    {ch.number}
+                  </span>
+                  <span>{ch.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Active Chapter Details Header */}
+      <div className="bg-gradient-to-r from-blue-50/80 via-white to-blue-50/30 dark:from-blue-950/40 dark:via-[#111B21] dark:to-transparent rounded-3xl border border-blue-200 dark:border-blue-900 p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800">
+              Chapitre {currentChapter.number}
+            </span>
+            <h2 className="text-lg sm:text-xl font-bold text-[#111B21] dark:text-white">
+              {currentChapter.title}
+            </h2>
+          </div>
+
+          <button
+            onClick={handleDownloadSummaryPdf}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/60 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-colors border border-red-200 dark:border-red-900 shrink-0"
+          >
+            <Download className="w-3.5 h-3.5" />
+            PDF Synthèse
+          </button>
+        </div>
+
+        {currentChapter.objectives && (
+          <div className="p-3 bg-blue-100/50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-900 dark:text-blue-200">
+            <strong>🎯 Objectifs pédagogiques du chapitre :</strong> {currentChapter.objectives}
+          </div>
+        )}
+      </div>
+
       {/* 1. Vidéo Explicative (Non téléchargeable & Anti-capture d'écran) */}
-      {session.content.video && (
+      {currentChapter.video && currentChapter.video.url && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#075E54] dark:text-[#25D366]">
+            <div className="flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-400">
               <Video className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              Vidéo explicative ({session.content.video.duration})
+              Vidéo explicative du chapitre ({currentChapter.video.duration || 'Cours'})
             </div>
-            <span className="text-[10px] text-[#667781] dark:text-[#8696A0] flex items-center gap-1">
-              <Cloud className="w-3 h-3 text-blue-500" />
-              Drive UL Study Flow (ulstudyflow@gmail.com)
+            <span className="text-[10px] text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800 font-medium">
+              🔒 Stream sécurisé
             </span>
           </div>
 
@@ -381,8 +463,8 @@ export const SessionView: React.FC<SessionViewProps> = ({
             onContextMenu={(e) => e.preventDefault()}
           >
             <iframe
-              src={session.content.video.url}
-              title={session.content.video.title}
+              src={currentChapter.video.url}
+              title={currentChapter.video.title}
               className="w-full h-full pointer-events-auto"
               allowFullScreen
             ></iframe>
@@ -395,7 +477,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-[#667781] dark:text-[#8696A0]">
-            <span className="truncate max-w-[60%]">{session.content.video.title}</span>
+            <span className="truncate max-w-[60%]">{currentChapter.video.title || currentChapter.title}</span>
             <span className="text-amber-800 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
               🔒 Vidéo protégée (Anti-capture actif)
             </span>
@@ -404,16 +486,15 @@ export const SessionView: React.FC<SessionViewProps> = ({
       )}
 
       {/* 2. Audio Podcast Player (Non téléchargeable) */}
-      {session.content.audio && (
+      {currentChapter.audio && currentChapter.audio.url && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#075E54] dark:text-[#25D366]">
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-400">
               <Volume2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              Podcast de révision ({session.content.audio.duration})
+              Podcast audio de révision ({currentChapter.audio.duration || 'Podcast'})
             </div>
-            <span className="text-[10px] text-[#667781] dark:text-[#8696A0] flex items-center gap-1">
-              <Cloud className="w-3 h-3 text-blue-500" />
-              Stocké sur Drive (ulstudyflow@gmail.com)
+            <span className="text-[10px] text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 font-medium">
+              🔒 Audio protégé
             </span>
           </div>
 
@@ -431,11 +512,11 @@ export const SessionView: React.FC<SessionViewProps> = ({
 
             <div className="flex-1 min-w-0" onContextMenu={(e) => e.preventDefault()}>
               <p className="text-xs font-bold text-[#111B21] dark:text-white truncate">
-                {session.content.audio.title}
+                {currentChapter.audio.title || `Podcast Chapitre ${currentChapter.number}`}
               </p>
               <audio
                 ref={audioRef}
-                src={session.content.audio.url}
+                src={currentChapter.audio.url}
                 onEnded={() => setIsPlayingAudio(false)}
                 controlsList="nodownload"
                 onContextMenu={(e) => e.preventDefault()}
@@ -462,7 +543,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-[#667781] dark:text-[#8696A0]">
-            <span>Par {session.content.audio.speaker}</span>
+            <span>Intervenant : {currentChapter.audio.speaker || 'UL Study Flow'}</span>
             <span className="text-amber-800 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
               🔒 Audio sécurisé non téléchargeable
             </span>
@@ -470,24 +551,24 @@ export const SessionView: React.FC<SessionViewProps> = ({
         </div>
       )}
 
-      {/* 3. Résumé de cours structuré (Format texte téléchargeable en PDF) */}
+      {/* 3. Résumé de cours structuré & Contenu Texte (Téléchargeable en PDF) */}
       <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-6 sm:p-8 shadow-xs space-y-4 transition-colors">
         <div className="flex items-center justify-between border-b border-[#E9EDEF] dark:border-[#222E35] pb-3">
           <div className="flex items-center gap-2 text-xs font-bold text-[#075E54] dark:text-[#25D366]">
             <BookOpen className="w-4 h-4 text-[#25D366]" />
-            Fiche de cours synthétique & Résumé structuré
+            Contenu rédigé & Résumé synthétique du chapitre
           </div>
           <button
             onClick={handleDownloadSummaryPdf}
             className="inline-flex items-center gap-1 text-[11px] font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 px-3 py-1 rounded-lg transition-colors border border-emerald-200 dark:border-emerald-800"
           >
             <Download className="w-3 h-3" />
-            Télécharger en PDF
+            Télécharger le PDF
           </button>
         </div>
 
         <div className="prose prose-sm max-w-none text-[#111B21] dark:text-[#E9EDEF] leading-relaxed space-y-4 text-xs sm:text-sm">
-          {session.content.summaryText.split('\n\n').map((block, i) => {
+          {(currentChapter.summaryText || 'Contenu pédagogique en cours de rédaction.').split('\n\n').map((block, i) => {
             if (block.startsWith('### ')) {
               return (
                 <h3 key={i} className="text-sm sm:text-base font-bold text-[#075E54] dark:text-[#25D366] pt-2">
@@ -514,26 +595,26 @@ export const SessionView: React.FC<SessionViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Support Polycopié PDF Officiel */}
-      {session.content.pdf && (
+      {/* 4. Support Polycopié PDF Officiel Téléchargeable */}
+      {currentChapter.pdf && currentChapter.pdf.title && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs flex items-center justify-between gap-4 transition-colors">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold shrink-0">
-              <FileText className="w-6 h-6 text-[#075E54] dark:text-[#25D366]" />
+            <div className="w-11 h-11 rounded-2xl bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400 flex items-center justify-center font-bold shrink-0">
+              <FileText className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-[#111B21] dark:text-white truncate">
-                {session.content.pdf.title}
+                {currentChapter.pdf.title}
               </p>
               <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
-                {session.content.pdf.pages} pages · {session.content.pdf.sizeMb} Mo · Polycopié UL téléchargeable
+                {currentChapter.pdf.pages || 6} pages · Résumé synthétique téléchargeable par PDF
               </p>
             </div>
           </div>
 
           <button
             onClick={handleDownloadSummaryPdf}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-xl transition-all shadow-xs shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-xs shrink-0"
           >
             <Download className="w-3.5 h-3.5" />
             Télécharger le PDF
@@ -541,13 +622,13 @@ export const SessionView: React.FC<SessionViewProps> = ({
         </div>
       )}
 
-      {/* 5. Étape 3 : Flashcards Interactives */}
+      {/* 5. Flashcards & Cartes Mémoire Interactives */}
       <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-6 sm:p-7 shadow-xs space-y-4 transition-colors">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-500" />
             <h3 className="font-bold text-base text-[#111B21] dark:text-white">
-              Flashcards & Mémorisation Interactive
+              Flashcards & Cartes Mémoire ({flashcards.length})
             </h3>
           </div>
           <span className="text-xs font-semibold text-[#667781] dark:text-[#8696A0]">
@@ -566,7 +647,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
         >
           <div className="flex items-center justify-between text-[11px] text-[#667781] dark:text-[#8696A0]">
             <span className="font-bold uppercase tracking-wider text-[#075E54] dark:text-[#25D366]">
-              {currentFlashcard.category || 'Notion Clé'}
+              {currentFlashcard.category || `Chapitre ${currentChapter.number}`}
             </span>
             <span className="flex items-center gap-1 font-semibold text-slate-500 dark:text-slate-400">
               <RotateCw className="w-3 h-3" />
@@ -596,7 +677,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none rounded-lg hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34]"
           >
             <ChevronLeft className="w-4 h-4" />
-            Carte précédente
+            Précédente
           </button>
 
           <button
@@ -614,20 +695,20 @@ export const SessionView: React.FC<SessionViewProps> = ({
             }}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none rounded-lg hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34]"
           >
-            Carte suivante
+            Suivante
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* 6. Étape 3 : Questionnaire Dynamique d'Évaluation */}
-      {session.quiz && (
+      {/* 6. Questionnaire Dynamique d'Évaluation (QCM) */}
+      {activeQuiz && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border-2 border-[#25D366] p-6 sm:p-7 shadow-xs space-y-4 transition-colors">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckSquare className="w-5 h-5 text-[#25D366]" />
               <h3 className="font-bold text-base text-[#111B21] dark:text-white">
-                Questionnaire dynamique de validation
+                {activeQuiz.title || `QCM d'auto-évaluation`}
               </h3>
             </div>
             {lastAttempt && (
@@ -644,23 +725,23 @@ export const SessionView: React.FC<SessionViewProps> = ({
           </div>
 
           <p className="text-xs text-[#667781] dark:text-[#8696A0] leading-relaxed">
-            {session.quiz.description} Répondez aux questions pour tester votre compréhension et obtenir une correction pas à pas détaillée.
+            {activeQuiz.description || "Répondez aux questions interactives du questionnaire pour tester votre maîtrise du chapitre et obtenir une correction détaillée."}
           </p>
 
           <button
             onClick={() => setQuizOpen(true)}
             className="w-full py-3 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-2xl hover:bg-[#1faa54] transition-all shadow-xs"
           >
-            {lastAttempt ? 'Repasser le questionnaire' : 'Commencer le questionnaire'}
+            {lastAttempt ? 'Repasser le QCM' : 'Commencer le QCM'}
           </button>
         </div>
       )}
 
       {/* Quiz Modal */}
-      {session.quiz && (
+      {activeQuiz && (
         <QuizModal
           isOpen={quizOpen}
-          quiz={session.quiz}
+          quiz={activeQuiz}
           onClose={() => setQuizOpen(false)}
           onSuccess={(attempt) => {
             setLastAttempt(attempt);

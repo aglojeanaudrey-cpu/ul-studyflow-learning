@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { DynamicForm } from '../../types';
 import { api } from '../../lib/api';
-import { X, Send, CheckCircle2 } from 'lucide-react';
+import { X, Send, CheckCircle2, User as UserIcon, Phone } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface DynamicFormModalProps {
   isOpen: boolean;
@@ -23,6 +24,12 @@ export const DynamicFormModal: React.FC<DynamicFormModalProps> = ({
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { user } = useAuth();
+  const isPublicMode = !user;   // ⭐ true si visiteur non connecté
+
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+
   if (!isOpen) return null;
 
   const themeColor = form.themeColor || '#075E54';
@@ -43,10 +50,23 @@ export const DynamicFormModal: React.FC<DynamicFormModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
+    // ⭐ Validation en mode public
+    if (isPublicMode) {
+      if (!guestName.trim() || !guestPhone.trim()) {
+        setError('Veuillez renseigner votre nom et votre numéro de téléphone.');
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
-      await api.submitForm(form.id, formData);
+      await api.submitForm(
+        form.id,
+        formData,
+        isPublicMode ? guestName.trim() : undefined,      // ⭐
+        isPublicMode ? guestPhone.trim() : undefined      // ⭐
+      );
       setSubmitted(true);
       onSuccess();
     } catch (err: any) {
@@ -76,7 +96,9 @@ export const DynamicFormModal: React.FC<DynamicFormModalProps> = ({
             </div>
             <h3 className="font-bold text-lg text-[#111B21]">Formulaire envoyé avec succès !</h3>
             <p className="text-xs text-[#667781]">
-              Votre réponse a été enregistrée auprès de l'équipe de coordination UL Study Flow.
+              {isPublicMode
+                ? 'Merci ! Votre réponse a bien été transmise à l\'équipe UL Study Flow. Vous serez contacté au numéro fourni si nécessaire.'
+                : 'Votre réponse a été enregistrée auprès de l\'équipe de coordination UL Study Flow.'}
             </p>
             <button
               onClick={onClose}
@@ -92,7 +114,42 @@ export const DynamicFormModal: React.FC<DynamicFormModalProps> = ({
               <h3 className="font-bold text-lg text-[#111B21]">{form.title}</h3>
               <p className="text-xs text-[#667781] mt-0.5">{form.description}</p>
             </div>
-
+            {isPublicMode && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-2.5">
+              <p className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
+                <UserIcon className="w-3.5 h-3.5" />
+                Vos coordonnées (obligatoires)
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#111B21] mb-1">
+                    Nom complet <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Ex : Yawo Mensah"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-[#E9EDEF] bg-white focus:outline-none focus:border-[#25D366]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#111B21] mb-1">
+                    Téléphone (+228) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    placeholder="90 12 34 56"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-[#E9EDEF] bg-white focus:outline-none focus:border-[#25D366]"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
             {error && (
               <div className="p-3 bg-rose-50 text-rose-700 text-xs rounded-xl border border-rose-200">
                 {error}

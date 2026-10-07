@@ -25,7 +25,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenContact }) => 
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-[#25D366] shrink-0" />
-                <span>+228 99 70 59 20 / 71 67 69 45</span>
+                <span>+228 71 67 69 45 {/* / +228 99 70 59 20 */}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-[#25D366] shrink-0" />
@@ -89,7 +89,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenContact }) => 
             </h4>
             <div className="space-y-2 text-xs text-emerald-100 dark:text-gray-300">
               <p className="text-[11px] leading-relaxed text-emerald-200 dark:text-gray-400">
-                Paiements acceptés via Mix Togo (+228 71 67 69 45) et Flooz Togo (+228 99 70 59 20).
+                Paiements acceptés via Mix Togo (+228 71 67 69 45) {/*et Flooz Togo (+228 99 70 59 20)*/}.
               </p>
               <div className="pt-2 flex flex-col gap-1.5">
                 <button

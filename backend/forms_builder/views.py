@@ -6,18 +6,19 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from .models import DynamicForm, FormSubmission
-from .serializers import DynamicFormSerializer, FormSubmissionSerializer
+from .serializers import DynamicFormSerializer, FormSubmissionSerializer, DynamicFormPublicSerializer
 from accounts.permissions import IsStaffOrSuperuser
 
 class FormListView(APIView):
+    """Liste PUBLIQUE des formulaires actifs."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         forms = DynamicForm.objects.filter(is_active=True).order_by('-created_at')
-        return Response({'forms': DynamicFormSerializer(forms, many=True).data})
-
+        return Response({'forms': DynamicFormPublicSerializer(forms, many=True).data})
 
 class FormDetailView(APIView):
+    """Détail PUBLIC d'un formulaire."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, form_id):
@@ -26,7 +27,7 @@ class FormDetailView(APIView):
         except DynamicForm.DoesNotExist:
             return Response({'error': 'Formulaire introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({'form': DynamicFormSerializer(form).data})
+        return Response({'form': DynamicFormPublicSerializer(form).data})
 
 
 class FormSubmitView(APIView):
@@ -72,11 +73,21 @@ class FormSubmitView(APIView):
 
         return Response({'success': True, 'submissionId': submission.id})
 
-
-class AdminFormCreateView(APIView):
+class AdminFormListCreateView(APIView):
     permission_classes = [IsStaffOrSuperuser]
 
+    def get(self, request):
+        """Liste admin avec statistiques."""
+        forms = (
+            DynamicForm.objects
+            .all()
+            .order_by('-created_at')
+            .prefetch_related('submissions')
+        )
+        return Response({'forms': DynamicFormSerializer(forms, many=True).data})
+
     def post(self, request):
+        """Création d'un nouveau formulaire."""
         title = request.data.get('title', '').strip()
         if not title:
             return Response({'error': 'Titre du formulaire requis.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -88,9 +99,7 @@ class AdminFormCreateView(APIView):
             fields=request.data.get('fields', []),
             is_active=True
         )
-
         return Response({'success': True, 'form': DynamicFormSerializer(form).data})
-
 
 class AdminFormUpdateView(APIView):
     permission_classes = [IsStaffOrSuperuser]

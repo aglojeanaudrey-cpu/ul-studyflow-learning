@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UE, Session, Department, Program, AcademicYear, QuizQuestion, Flashcard } from '../../types';
+import { UE, Session, Chapter, Department, Program, AcademicYear, QuizQuestion, Flashcard } from '../../types';
 import { api } from '../../lib/api';
 import {
   Plus,
@@ -17,11 +17,12 @@ import {
   Video,
   CheckSquare,
   HelpCircle,
-  Cloud,
-  Download,
-  AlertCircle,
+  Clock,
+  ChevronDown,
+  ChevronRight,
+  Bookmark,
   CheckCircle2,
-  Tag
+  AlertCircle
 } from 'lucide-react';
 
 export const CourseManagement: React.FC = () => {
@@ -36,6 +37,12 @@ export const CourseManagement: React.FC = () => {
   // Success / Error alerts
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Expanded sessions for chapter visibility
+  const [expandedSessions, setExpandedSessions] = useState<Record<string, boolean>>({});
+
+  // ⭐ Vue mobile : 'list' = liste UE, 'detail' = séances de l'UE sélectionnée
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
 
   // UE Modal State
   const [ueModalOpen, setUeModalOpen] = useState(false);
@@ -58,18 +65,27 @@ export const CourseManagement: React.FC = () => {
   // Session Modal State
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [sessionStep, setSessionStep] = useState<1 | 2 | 3>(1);
-
   const [sessionForm, setSessionForm] = useState({
     sessionNumber: 1,
+    estimatedMinutes: 45,
     title: '',
     description: '',
     objective: '',
-    estimatedMinutes: 45,
-    summaryText: '',
     isPublished: true,
-    isSuspended: false,
-    // Step 2 Media
+    isSuspended: false
+  });
+
+  // Chapter Modal State
+  const [chapterModalOpen, setChapterModalOpen] = useState(false);
+  const [chapterParentSessionId, setChapterParentSessionId] = useState<string | null>(null);
+  const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
+  const [chapterStep, setChapterStep] = useState<1 | 2 | 3>(1);
+
+  const [chapterForm, setChapterForm] = useState({
+    number: 1,
+    title: '',
+    objectives: '',
+    summaryText: '',
     hasAudio: false,
     audioTitle: '',
     audioUrl: '',
@@ -81,19 +97,18 @@ export const CourseManagement: React.FC = () => {
     videoDuration: '15:00',
     hasPdf: true,
     pdfTitle: '',
-    pdfPages: 12,
-    pdfSizeMb: 1.5,
-    // Step 3 Dynamic Quiz & Flashcards
+    pdfPages: 8,
+    pdfSizeMb: 1.2,
     hasQuiz: false,
     quizTitle: '',
-    quizPassingScore: 70,
+    quizPassingScore: 75,
     quizQuestions: [] as QuizQuestion[],
     flashcards: [] as Flashcard[]
   });
 
   // Delete Confirm Modal
   const [deleteConfirm, setDeleteConfirm] = useState<{
-    type: 'ue' | 'session';
+    type: 'ue' | 'session' | 'chapter';
     id: string;
     name: string;
   } | null>(null);
@@ -136,6 +151,11 @@ export const CourseManagement: React.FC = () => {
     try {
       const res = await api.getUe(ueId);
       setSessions(res.sessions);
+      const expands: Record<string, boolean> = {};
+      res.sessions.forEach(s => {
+        expands[s.id] = true;
+      });
+      setExpandedSessions(expands);
     } catch (err) {
       console.error('Error loading sessions for UE:', err);
     }
@@ -151,7 +171,13 @@ export const CourseManagement: React.FC = () => {
     }
   }, [selectedUe]);
 
-  // Open Create UE Modal
+  const toggleSessionExpand = (sessionId: string) => {
+    setExpandedSessions(prev => ({
+      ...prev,
+      [sessionId]: !prev[sessionId]
+    }));
+  };
+
   const openCreateUeModal = () => {
     setEditingUeId(null);
     const firstDept = departments[0]?.id || 'dept_faseg';
@@ -173,7 +199,6 @@ export const CourseManagement: React.FC = () => {
     setUeModalOpen(true);
   };
 
-  // Open Edit UE Modal
   const openEditUeModal = (ue: UE) => {
     setEditingUeId(ue.id);
     setUeForm({
@@ -193,7 +218,6 @@ export const CourseManagement: React.FC = () => {
     setUeModalOpen(true);
   };
 
-  // Handle Save UE
   const handleSaveUe = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -210,7 +234,6 @@ export const CourseManagement: React.FC = () => {
     }
   };
 
-  // Handle Toggle Suspend UE
   const handleToggleSuspendUe = async (ue: UE) => {
     try {
       const res = await api.toggleSuspendUe(ue.id);
@@ -221,7 +244,6 @@ export const CourseManagement: React.FC = () => {
     }
   };
 
-  // Handle Delete UE
   const handleDeleteUe = async (ueId: string) => {
     try {
       await api.deleteUe(ueId);
@@ -236,104 +258,37 @@ export const CourseManagement: React.FC = () => {
     }
   };
 
-  // Open Create Session Modal
+  // SESSIONS MANAGEMENT
   const openCreateSessionModal = () => {
     if (!selectedUe) return;
     setEditingSessionId(null);
-    setSessionStep(1);
     const nextNum = sessions.length + 1;
     setSessionForm({
       sessionNumber: nextNum,
+      estimatedMinutes: 45,
       title: '',
       description: '',
       objective: '',
-      estimatedMinutes: 45,
-      summaryText: `### 1. Introduction à la séance ${nextNum}\nInsérez ici le résumé pédagogique officiel pour les étudiants.\n\n### 2. Notions Clés\n- Point important 1\n- Point important 2\n\n### 3. Application pratique\nExemple d'exercice résolu.`,
       isPublished: true,
-      isSuspended: false,
-      hasAudio: false,
-      audioTitle: `Podcast Séance ${nextNum} : Révision & Synthèse`,
-      audioUrl: 'https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg',
-      audioDuration: '08:30',
-      audioSpeaker: 'Tuteur UL Study Flow (ulstudyflow@gmail.com)',
-      hasVideo: false,
-      videoTitle: `Vidéo Explicative Séance ${nextNum}`,
-      videoUrl: 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
-      videoDuration: '12:00',
-      hasPdf: true,
-      pdfTitle: `Fiche Séance ${nextNum} - ${selectedUe.code}`,
-      pdfPages: 6,
-      pdfSizeMb: 1.2,
-      hasQuiz: false,
-      quizTitle: `Quiz de validation - Séance ${nextNum}`,
-      quizPassingScore: 70,
-      quizQuestions: [
-        {
-          id: 'q_' + Date.now(),
-          text: 'Quelle est la notion fondamentale à retenir dans cette séance ?',
-          type: 'single',
-          options: ['Option A (Correcte)', 'Option B', 'Option C', 'Option D'],
-          correctAnswer: 'Option A (Correcte)',
-          explanation: 'Explication pédagogique pas à pas pour l\'étudiant.',
-          points: 5
-        }
-      ],
-      flashcards: [
-        {
-          id: 'fc_' + Date.now(),
-          front: 'Question ou concept clé de la séance ?',
-          back: 'Définition exacte ou formule à retenir pour l\'examen.',
-          category: 'Notion Fondamentale'
-        }
-      ]
+      isSuspended: false
     });
     setSessionModalOpen(true);
   };
 
-  // Open Edit Session Modal
-  const openEditSessionModal = async (session: Session) => {
-    try {
-      const fullRes = await api.getSession(session.id);
-      const s = fullRes.session;
-      setEditingSessionId(s.id);
-      setSessionStep(1);
-
-      setSessionForm({
-        sessionNumber: s.sessionNumber,
-        title: s.title,
-        description: s.description,
-        objective: s.objective || '',
-        estimatedMinutes: s.estimatedMinutes,
-        summaryText: s.content?.summaryText || '',
-        isPublished: s.isPublished,
-        isSuspended: Boolean(s.isSuspended),
-        hasAudio: Boolean(s.content?.audio),
-        audioTitle: s.content?.audio?.title || `Podcast Séance ${s.sessionNumber}`,
-        audioUrl: s.content?.audio?.url || '',
-        audioDuration: s.content?.audio?.duration || '10:00',
-        audioSpeaker: s.content?.audio?.speaker || 'UL Study Flow (ulstudyflow@gmail.com)',
-        hasVideo: Boolean(s.content?.video),
-        videoTitle: s.content?.video?.title || `Vidéo Séance ${s.sessionNumber}`,
-        videoUrl: s.content?.video?.url || '',
-        videoDuration: s.content?.video?.duration || '15:00',
-        hasPdf: Boolean(s.content?.pdf),
-        pdfTitle: s.content?.pdf?.title || `Support Polycopié Séance ${s.sessionNumber}`,
-        pdfPages: s.content?.pdf?.pages || 8,
-        pdfSizeMb: s.content?.pdf?.sizeMb || 1.2,
-        hasQuiz: Boolean(s.quiz),
-        quizTitle: s.quiz?.title || `Quiz Séance ${s.sessionNumber}`,
-        quizPassingScore: s.quiz?.passingScorePercent || 70,
-        quizQuestions: s.quiz?.questions || [],
-        flashcards: s.flashcards || []
-      });
-
-      setSessionModalOpen(true);
-    } catch (err: any) {
-      showError(err.message || 'Impossible de charger la séance.');
-    }
+  const openEditSessionModal = (session: Session) => {
+    setEditingSessionId(session.id);
+    setSessionForm({
+      sessionNumber: session.sessionNumber,
+      estimatedMinutes: session.estimatedMinutes,
+      title: session.title,
+      description: session.description || '',
+      objective: session.objective || '',
+      isPublished: session.isPublished,
+      isSuspended: Boolean(session.isSuspended)
+    });
+    setSessionModalOpen(true);
   };
 
-  // Handle Save Session
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUe) return;
@@ -343,41 +298,12 @@ export const CourseManagement: React.FC = () => {
         id: editingSessionId || undefined,
         ueId: selectedUe.id,
         sessionNumber: sessionForm.sessionNumber,
+        estimatedMinutes: sessionForm.estimatedMinutes,
         title: sessionForm.title,
         description: sessionForm.description,
         objective: sessionForm.objective,
-        estimatedMinutes: sessionForm.estimatedMinutes,
-        summaryText: sessionForm.summaryText,
         isPublished: sessionForm.isPublished,
-        isSuspended: sessionForm.isSuspended,
-        video: sessionForm.hasVideo
-          ? {
-              title: sessionForm.videoTitle,
-              url: sessionForm.videoUrl,
-              duration: sessionForm.videoDuration,
-              provider: 'youtube',
-              driveFileUrl: 'https://drive.google.com/drive/folders/ulstudyflow@gmail.com'
-            }
-          : undefined,
-        audio: sessionForm.hasAudio
-          ? {
-              title: sessionForm.audioTitle,
-              url: sessionForm.audioUrl,
-              duration: sessionForm.audioDuration,
-              speaker: sessionForm.audioSpeaker,
-              driveFileUrl: 'https://drive.google.com/drive/folders/ulstudyflow@gmail.com'
-            }
-          : undefined,
-        pdf: sessionForm.hasPdf
-          ? {
-              title: sessionForm.pdfTitle,
-              url: '#',
-              pages: sessionForm.pdfPages,
-              sizeMb: sessionForm.pdfSizeMb,
-              summaryMarkdown: 'Support téléchargeable UL'
-            }
-          : undefined,
-        flashcards: sessionForm.flashcards
+        isSuspended: sessionForm.isSuspended
       };
 
       await api.saveSession(payload);
@@ -389,7 +315,6 @@ export const CourseManagement: React.FC = () => {
     }
   };
 
-  // Handle Toggle Suspend Session
   const handleToggleSuspendSession = async (s: Session) => {
     try {
       const res = await api.toggleSuspendSession(s.id);
@@ -400,8 +325,6 @@ export const CourseManagement: React.FC = () => {
     }
   };
 
-  // Handle Authorize / Block session access for simple users (STAFF & SUPERUSER)
-  // Sauf pour la séance 1 qui est obligatoirement gratuite et accessible!
   const handleToggleSessionAccess = async (s: Session) => {
     if (s.sessionNumber === 1) {
       showError('La 1ère séance d\'une UE est obligatoirement gratuite et accessible à tous les étudiants (non verrouillable).');
@@ -416,7 +339,6 @@ export const CourseManagement: React.FC = () => {
     }
   };
 
-  // Handle Delete Session
   const handleDeleteSession = async (sessionId: string) => {
     try {
       await api.deleteSession(sessionId);
@@ -428,78 +350,228 @@ export const CourseManagement: React.FC = () => {
     }
   };
 
-  // Flashcards helpers in modal
+  // CHAPTERS MANAGEMENT
+  const openCreateChapterModal = (session: Session) => {
+    setChapterParentSessionId(session.id);
+    setEditingChapterId(null);
+    setChapterStep(1);
+    const nextChapNum = (session.chapters?.length || 0) + 1;
+
+    setChapterForm({
+      number: nextChapNum,
+      title: '',
+      objectives: '',
+      summaryText: `### 1. Introduction au Chapitre ${nextChapNum}\nInsérez ici le contenu pédagogique et les concepts clés du chapitre.\n\n### 2. Notions et Démonstrations\n- Notion clé A\n- Notion clé B\n\n### 3. Synthèse pour l'examen\nRésumé synthétique des points cruciaux.`,
+      hasAudio: false,
+      audioTitle: `Podcast Chapitre ${nextChapNum} - ${session.title}`,
+      audioUrl: '',
+      audioDuration: '08:00',
+      audioSpeaker: 'Tuteur UL Study Flow (ulstudyflow@gmail.com)',
+      hasVideo: false,
+      videoTitle: `Vidéo Explicative Chapitre ${nextChapNum}`,
+      videoUrl: '',
+      videoDuration: '12:00',
+      hasPdf: true,
+      pdfTitle: `Fiche Chapitre ${nextChapNum} - ${session.title}`,
+      pdfPages: 6,
+      pdfSizeMb: 1.2,
+      hasQuiz: false,
+      quizTitle: `QCM d'auto-évaluation - Chapitre ${nextChapNum}`,
+      quizPassingScore: 75,
+      quizQuestions: [
+        {
+          id: 'q_' + Date.now(),
+          text: 'Quelle est la notion fondamentale à retenir dans ce chapitre ?',
+          type: 'single',
+          options: ['Option A (Correcte)', 'Option B', 'Option C', 'Option D'],
+          correctAnswer: 'Option A (Correcte)',
+          explanation: 'Explication pédagogique pas à pas pour l\'étudiant.',
+          points: 5
+        }
+      ],
+      flashcards: [
+        {
+          id: 'fc_' + Date.now(),
+          front: 'Notion / Définition clé du chapitre ?',
+          back: 'Explication synthétique et formule à mémoriser pour l\'examen.',
+          category: 'Notion Fondamentale'
+        }
+      ]
+    });
+    setChapterModalOpen(true);
+  };
+
+  const openEditChapterModal = (chapter: Chapter, session: Session) => {
+    setChapterParentSessionId(session.id);
+    setEditingChapterId(chapter.id);
+    setChapterStep(1);
+
+    setChapterForm({
+      number: chapter.number,
+      title: chapter.title,
+      objectives: chapter.objectives || '',
+      summaryText: chapter.summaryText || '',
+      hasAudio: Boolean(chapter.audio && chapter.audio.url),
+      audioTitle: chapter.audio?.title || `Podcast Chapitre ${chapter.number}`,
+      audioUrl: chapter.audio?.url || '',
+      audioDuration: chapter.audio?.duration || '08:00',
+      audioSpeaker: chapter.audio?.speaker || 'UL Study Flow (ulstudyflow@gmail.com)',
+      hasVideo: Boolean(chapter.video && chapter.video.url),
+      videoTitle: chapter.video?.title || `Vidéo Chapitre ${chapter.number}`,
+      videoUrl: chapter.video?.url || '',
+      videoDuration: chapter.video?.duration || '12:00',
+      hasPdf: Boolean(chapter.pdf && chapter.pdf.title),
+      pdfTitle: chapter.pdf?.title || `Fiche Chapitre ${chapter.number}`,
+      pdfPages: chapter.pdf?.pages || 6,
+      pdfSizeMb: chapter.pdf?.sizeMb || 1.2,
+      hasQuiz: Boolean(chapter.quiz && chapter.quiz.questions && chapter.quiz.questions.length > 0),
+      quizTitle: chapter.quiz?.title || `QCM Chapitre ${chapter.number}`,
+      quizPassingScore: chapter.quiz?.passingScorePercent || 75,
+      quizQuestions: chapter.quiz?.questions || [],
+      flashcards: chapter.flashcards || []
+    });
+
+    setChapterModalOpen(true);
+  };
+
+  const handleSaveChapter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chapterParentSessionId || !selectedUe) return;
+
+    try {
+      const payload: any = {
+        id: editingChapterId || undefined,
+        sessionId: chapterParentSessionId,
+        number: chapterForm.number,
+        title: chapterForm.title,
+        objectives: chapterForm.objectives,
+        summaryText: chapterForm.summaryText,
+        video: chapterForm.hasVideo
+          ? {
+              title: chapterForm.videoTitle,
+              url: chapterForm.videoUrl,
+              duration: chapterForm.videoDuration,
+              provider: 'youtube',
+              driveFileUrl: 'https://drive.google.com/drive/folders/ulstudyflow@gmail.com'
+            }
+          : {},
+        audio: chapterForm.hasAudio
+          ? {
+              title: chapterForm.audioTitle,
+              url: chapterForm.audioUrl,
+              duration: chapterForm.audioDuration,
+              speaker: chapterForm.audioSpeaker,
+              driveFileUrl: 'https://drive.google.com/drive/folders/ulstudyflow@gmail.com'
+            }
+          : {},
+        pdf: chapterForm.hasPdf
+          ? {
+              title: chapterForm.pdfTitle,
+              url: '#',
+              pages: chapterForm.pdfPages,
+              sizeMb: chapterForm.pdfSizeMb,
+              summaryMarkdown: 'Support téléchargeable UL Study Flow'
+            }
+          : {},
+        flashcards: chapterForm.flashcards,
+        quiz: chapterForm.hasQuiz
+          ? {
+              title: chapterForm.quizTitle,
+              passingScorePercent: chapterForm.quizPassingScore,
+              questions: chapterForm.quizQuestions
+            }
+          : false
+      };
+
+      await api.saveChapter(payload);
+      setChapterModalOpen(false);
+      showSuccess(editingChapterId ? `Chapitre mis à jour avec succès.` : `Chapitre ${chapterForm.number} créé avec succès.`);
+      await loadSessionsForUe(selectedUe.id);
+    } catch (err: any) {
+      showError(err.message || 'Erreur lors de l\'enregistrement du chapitre.');
+    }
+  };
+
+  const handleDeleteChapter = async (chapterId: string) => {
+    try {
+      await api.deleteChapter(chapterId);
+      showSuccess('Chapitre supprimé avec succès.');
+      setDeleteConfirm(null);
+      if (selectedUe) await loadSessionsForUe(selectedUe.id);
+    } catch (err: any) {
+      showError(err.message || 'Erreur lors de la suppression du chapitre.');
+    }
+  };
+
   const handleAddFlashcard = () => {
     const newCard: Flashcard = {
       id: 'fc_' + Date.now(),
-      front: 'Nouvelle notion / question',
-      back: 'Explication / réponse',
+      front: 'Nouvelle notion / question du chapitre',
+      back: 'Explication / réponse synthétique',
       category: 'Général'
     };
-    setSessionForm({
-      ...sessionForm,
-      flashcards: [...sessionForm.flashcards, newCard]
+    setChapterForm({
+      ...chapterForm,
+      flashcards: [...chapterForm.flashcards, newCard]
     });
   };
 
   const handleUpdateFlashcard = (id: string, field: keyof Flashcard, value: string) => {
-    setSessionForm({
-      ...sessionForm,
-      flashcards: sessionForm.flashcards.map(f => f.id === id ? { ...f, [field]: value } : f)
+    setChapterForm({
+      ...chapterForm,
+      flashcards: chapterForm.flashcards.map(f => f.id === id ? { ...f, [field]: value } : f)
     });
   };
 
   const handleRemoveFlashcard = (id: string) => {
-    setSessionForm({
-      ...sessionForm,
-      flashcards: sessionForm.flashcards.filter(f => f.id !== id)
+    setChapterForm({
+      ...chapterForm,
+      flashcards: chapterForm.flashcards.filter(f => f.id !== id)
     });
   };
 
-  // Quiz questions helper in modal
   const handleAddQuestion = () => {
     const newQ: QuizQuestion = {
       id: 'q_' + Date.now(),
-      text: 'Question de cours ?',
+      text: 'Question relative à ce chapitre ?',
       type: 'single',
-      options: ['Choix A (Correct)', 'Choix B', 'Choix C'],
+      options: ['Choix A (Correct)', 'Choix B', 'Choix C', 'Choix D'],
       correctAnswer: 'Choix A (Correct)',
-      explanation: 'Explication détaillée de la réponse.',
+      explanation: 'Explication détaillée pas à pas de la réponse.',
       points: 5
     };
-    setSessionForm({
-      ...sessionForm,
-      quizQuestions: [...sessionForm.quizQuestions, newQ]
+    setChapterForm({
+      ...chapterForm,
+      quizQuestions: [...chapterForm.quizQuestions, newQ]
     });
   };
 
   const handleUpdateQuestion = (id: string, field: keyof QuizQuestion, value: any) => {
-    setSessionForm({
-      ...sessionForm,
-      quizQuestions: sessionForm.quizQuestions.map(q => q.id === id ? { ...q, [field]: value } : q)
+    setChapterForm({
+      ...chapterForm,
+      quizQuestions: chapterForm.quizQuestions.map(q => q.id === id ? { ...q, [field]: value } : q)
     });
   };
 
   const handleRemoveQuestion = (id: string) => {
-    setSessionForm({
-      ...sessionForm,
-      quizQuestions: sessionForm.quizQuestions.filter(q => q.id !== id)
+    setChapterForm({
+      ...chapterForm,
+      quizQuestions: chapterForm.quizQuestions.filter(q => q.id !== id)
     });
   };
 
-  // Filter programs by selected department in UE Form
   const filteredProgramsForUe = programs.filter(
     p => p.departmentId === ueForm.departmentId
   );
 
-  return (
+    return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#111B21]">Gestion des Cours & Séances</h2>
-          <p className="text-xs text-[#667781]">
-            Précision du département, de la filière et de l'objectif de chaque UE · Structuration des séances en 3 étapes (Résumé, Médias non-téléchargeables, QCM & Flashcards).
+          <h2 className="text-xl font-bold text-[#111B21] dark:text-white">Gestion des Cours & Architecture Pédagogique</h2>
+          <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+            Architecture : <strong>Faculté / Département → Filière → UE → Séances → Chapitres</strong> (Médias, Résumé PDF, QCM & Flashcards).
           </p>
         </div>
 
@@ -525,18 +597,27 @@ export const CourseManagement: React.FC = () => {
         </div>
       )}
 
-      {/* 2-Column Layout: UE List & Sessions List */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* Left: UE List */}
-        <div className="md:col-span-5 space-y-3">
-          <div className="flex items-center justify-between">
+      {/* ⭐ Layout responsive : mobile = 1 vue à la fois, desktop = 2 colonnes */}
+      <div className="lg:grid lg:grid-cols-12 lg:gap-6 lg:items-start">
+
+        {/* ============================================================ */}
+        {/* COLONNE GAUCHE : LISTE DES UE                                */}
+        {/* ============================================================ */}
+        <div
+          className={`lg:col-span-4 space-y-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:flex lg:flex-col ${
+            mobileView === 'detail' ? 'hidden lg:flex' : 'flex flex-col'
+          }`}
+        >
+          <div className="flex items-center justify-between shrink-0">
             <h3 className="font-bold text-xs uppercase tracking-wider text-[#667781] dark:text-[#8696A0]">
               Unités d'Enseignement ({courses.length})
             </h3>
-            <span className="text-[10px] text-[#667781] dark:text-[#8696A0]">Cliquez pour sélectionner</span>
+            <span className="text-[10px] text-[#667781] dark:text-[#8696A0]">
+              Sélectionnez une UE
+            </span>
           </div>
 
-          <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] overflow-hidden divide-y divide-[#E9EDEF] dark:divide-[#222E35] shadow-xs transition-colors">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] overflow-hidden divide-y divide-[#E9EDEF] dark:divide-[#222E35] shadow-xs transition-colors lg:flex-1 lg:overflow-y-auto lg:min-h-0">
             {courses.length === 0 ? (
               <div className="p-8 text-center text-xs text-[#667781] dark:text-[#8696A0]">
                 Aucune UE trouvée. Créez votre première UE.
@@ -550,13 +631,18 @@ export const CourseManagement: React.FC = () => {
                 return (
                   <div
                     key={ue.id}
-                    onClick={() => setSelectedUe(ue)}
+                    onClick={() => {
+                      setSelectedUe(ue);
+                      setMobileView('detail');
+                    }}
                     className={`p-4 cursor-pointer transition-colors relative ${
-                      isSelected ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-l-4 border-[#25D366]' : 'hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34]'
+                      isSelected
+                        ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-l-4 border-[#25D366]'
+                        : 'hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34]'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-white dark:bg-[#0B141A] px-2 py-0.5 rounded border border-[#E9EDEF] dark:border-[#222E35]">
                             {ue.code}
@@ -585,33 +671,33 @@ export const CourseManagement: React.FC = () => {
                     </div>
 
                     {ue.objective && (
-                      <p className="text-[11px] text-[#075E54] font-medium mt-1 line-clamp-1 italic">
+                      <p className="text-[11px] text-[#075E54] dark:text-emerald-300 font-medium mt-1 line-clamp-1 italic">
                         🎯 Objectif: {ue.objective}
                       </p>
                     )}
-                    <p className="text-xs text-[#667781] mt-0.5 line-clamp-2">{ue.description}</p>
+                    <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-0.5 line-clamp-2">{ue.description}</p>
 
-                    <div className="mt-2.5 pt-2 border-t border-[#E9EDEF]/60 flex items-center justify-between text-[11px]">
-                      <span className="text-[#667781]">{ue.priceFcfa} FCFA</span>
+                    <div className="mt-2.5 pt-2 border-t border-[#E9EDEF]/60 dark:border-[#222E35] flex items-center justify-between text-[11px]">
+                      <span className="text-[#667781] dark:text-[#8696A0]">{ue.priceFcfa} FCFA</span>
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => openEditUeModal(ue)}
                           title="Modifier l'UE"
-                          className="p-1 rounded text-[#075E54] hover:bg-emerald-100 transition-colors"
+                          className="p-1 rounded text-[#075E54] dark:text-[#25D366] hover:bg-emerald-100 dark:hover:bg-emerald-950 transition-colors"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleToggleSuspendUe(ue)}
                           title={ue.isSuspended ? 'Réactiver l\'UE' : 'Suspendre l\'UE'}
-                          className="p-1 rounded text-amber-700 hover:bg-amber-100 transition-colors"
+                          className="p-1 rounded text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950 transition-colors"
                         >
                           {ue.isSuspended ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                         </button>
                         <button
                           onClick={() => setDeleteConfirm({ type: 'ue', id: ue.id, name: `${ue.code} - ${ue.title}` })}
                           title="Supprimer l'UE"
-                          className="p-1 rounded text-rose-600 hover:bg-rose-100 transition-colors"
+                          className="p-1 rounded text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -624,15 +710,32 @@ export const CourseManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Sessions in Selected UE */}
-        <div className="md:col-span-7 space-y-3">
+        {/* ============================================================ */}
+        {/* COLONNE DROITE : SÉANCES & CHAPITRES                         */}
+        {/* ============================================================ */}
+        <div
+          className={`lg:col-span-8 space-y-3 ${
+            mobileView === 'list' ? 'hidden lg:block' : 'block'
+          }`}
+        >
+          {/* ⭐ BOUTON RETOUR (mobile uniquement) */}
+          {selectedUe && (
+            <button
+              onClick={() => setMobileView('list')}
+              className="lg:hidden inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-[#F0F2F5] dark:bg-[#1F2C34] hover:bg-[#E9EDEF] dark:hover:bg-[#222E35] rounded-xl transition-colors"
+            >
+              <ChevronRight className="w-4 h-4 rotate-180" />
+              Retour à la liste des UE
+            </button>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h3 className="font-bold text-xs uppercase tracking-wider text-[#667781]">
-                Séances de : {selectedUe?.code || 'Sélectionnez une UE'} ({sessions.length})
+              <h3 className="font-bold text-xs uppercase tracking-wider text-[#667781] dark:text-[#8696A0]">
+                Séances de cours : {selectedUe?.code || 'Aucune UE sélectionnée'} ({sessions.length})
               </h3>
               {selectedUe && (
-                <p className="text-[11px] text-[#075E54] font-medium">
+                <p className="text-[11px] text-[#075E54] dark:text-emerald-300 font-medium">
                   {selectedUe.title}
                 </p>
               )}
@@ -641,183 +744,299 @@ export const CourseManagement: React.FC = () => {
             {selectedUe && (
               <button
                 onClick={openCreateSessionModal}
-                className="inline-flex items-center gap-1 text-xs font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] px-3.5 py-1.5 rounded-xl transition-colors shadow-2xs self-start sm:self-auto"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] px-3.5 py-1.5 rounded-xl transition-colors shadow-2xs self-start sm:self-auto"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 Ajouter une séance
               </button>
             )}
           </div>
 
-          <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] overflow-hidden divide-y divide-[#E9EDEF] dark:divide-[#222E35] shadow-xs transition-colors">
+          <div className="space-y-4">
             {!selectedUe ? (
-              <div className="p-8 text-center text-xs text-[#667781] dark:text-[#8696A0]">
-                Veuillez sélectionner une Unité d'Enseignement à gauche pour voir et éditer ses séances.
+              <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] p-8 text-center text-xs text-[#667781] dark:text-[#8696A0]">
+                Veuillez sélectionner une Unité d'Enseignement pour gérer ses séances et ses chapitres.
               </div>
             ) : sessions.length === 0 ? (
-              <div className="p-8 text-center text-xs text-[#667781] dark:text-[#8696A0] space-y-2">
-                <p>Aucune séance configurée pour cette UE.</p>
+              <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] p-8 text-center text-xs text-[#667781] dark:text-[#8696A0] space-y-3">
+                <BookOpen className="w-8 h-8 text-[#25D366] mx-auto opacity-70" />
+                <p className="font-medium">Aucune séance configurée pour cette UE.</p>
                 <button
                   onClick={openCreateSessionModal}
-                  className="px-3 py-1.5 text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900"
+                  className="px-4 py-2 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] transition-all shadow-xs"
                 >
-                  + Ajouter la Séance 01
+                  + Créer la Séance 01
                 </button>
               </div>
             ) : (
-              sessions.map((s) => (
-                <div key={s.id} className="p-4 sm:p-5 hover:bg-[#F0F2F5]/60 dark:hover:bg-[#1F2C34]/60 transition-colors space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded">
-                        Séance {s.sessionNumber} · {s.estimatedMinutes} min
-                      </span>
-                      {s.sessionNumber === 1 ? (
-                        <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] px-2 py-0.5 rounded font-bold border border-emerald-300 dark:border-emerald-800">
-                          ⭐ Séance 01 Gratuite (Pour tous les étudiants)
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleToggleSessionAccess(s)}
-                          className={`text-[10px] px-2.5 py-0.5 rounded-lg font-bold border flex items-center gap-1 transition-all ${
-                            s.isLockedForUsers === false
-                              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900'
-                              : 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900'
-                          }`}
-                          title="Cliquer pour autoriser ou bloquer l'accès pour les comptes simples"
-                        >
-                          {s.isLockedForUsers === false ? <Unlock className="w-3 h-3 text-[#25D366]" /> : <Lock className="w-3 h-3 text-amber-700 dark:text-amber-400" />}
-                          <span>{s.isLockedForUsers === false ? 'Accès Débloqué pour tous' : 'Verrouillée (Comptes simples)'}</span>
-                        </button>
+              sessions.map((s) => {
+                const isExpanded = expandedSessions[s.id] ?? true;
+                const chapters = s.chapters || [];
+
+                return (
+                  <div
+                    key={s.id}
+                    className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] overflow-hidden shadow-xs transition-colors"
+                  >
+                    {/* Session Header Card */}
+                    <div className="p-4 sm:p-5 space-y-2.5 bg-gradient-to-r from-[#F0F2F5]/50 to-transparent dark:from-[#1F2C34]/40 border-b border-[#E9EDEF] dark:border-[#222E35]">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() => toggleSessionExpand(s.id)}
+                            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+                            title={isExpanded ? 'Réduire' : 'Développer'}
+                          >
+                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
+
+                          <span className="text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 px-2.5 py-1 rounded border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            Séance {s.sessionNumber}
+                          </span>
+
+                          <span className="text-xs text-[#667781] dark:text-[#8696A0] flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {s.estimatedMinutes} min
+                          </span>
+
+                          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900">
+                            {chapters.length} chapitre(s)
+                          </span>
+
+                          {s.sessionNumber === 1 ? (
+                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] px-2 py-0.5 rounded font-bold border border-emerald-300 dark:border-emerald-800">
+                              ⭐ Séance 01 Gratuite
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleSessionAccess(s)}
+                              className={`text-[10px] px-2.5 py-0.5 rounded-lg font-bold border flex items-center gap-1 transition-all ${
+                                s.isLockedForUsers === false
+                                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900'
+                                  : 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900'
+                              }`}
+                              title="Cliquer pour autoriser ou bloquer l'accès"
+                            >
+                              {s.isLockedForUsers === false ? <Unlock className="w-3 h-3 text-[#25D366]" /> : <Lock className="w-3 h-3 text-amber-700 dark:text-amber-400" />}
+                              <span>{s.isLockedForUsers === false ? 'Débloquée' : 'Verrouillée'}</span>
+                            </button>
+                          )}
+
+                          {s.isSuspended && (
+                            <span className="text-[10px] bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded font-bold border border-rose-200 dark:border-rose-900">
+                              Suspendue
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => openEditSessionModal(s)}
+                            title="Modifier les infos de la séance"
+                            className="p-1.5 rounded text-[#075E54] dark:text-[#25D366] hover:bg-emerald-100 dark:hover:bg-emerald-950 transition-colors"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleSuspendSession(s)}
+                            title={s.isSuspended ? 'Réactiver la séance' : 'Suspendre la séance'}
+                            className="p-1.5 rounded text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950 transition-colors"
+                          >
+                            {s.isSuspended ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm({ type: 'session', id: s.id, name: `Séance ${s.sessionNumber} : ${s.title}` })}
+                            title="Supprimer la séance"
+                            className="p-1.5 rounded text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <h4 className="font-bold text-base text-[#111B21] dark:text-white">
+                        {s.title}
+                      </h4>
+
+                      {s.objective && (
+                        <p className="text-xs text-[#075E54] dark:text-emerald-300 font-medium">
+                          🎯 <strong>Objectif de la séance :</strong> {s.objective}
+                        </p>
                       )}
-                      {s.isSuspended ? (
-                        <span className="text-[10px] bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded font-bold border border-rose-200 dark:border-rose-900">
-                          Suspendue
-                        </span>
-                      ) : (
-                        <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] px-2 py-0.5 rounded font-semibold">
-                          Publiée
-                        </span>
+
+                      {s.description && (
+                        <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+                          {s.description}
+                        </p>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => openEditSessionModal(s)}
-                        title="Modifier la séance"
-                        className="p-1 rounded text-[#075E54] dark:text-[#25D366] hover:bg-emerald-100 dark:hover:bg-emerald-950 transition-colors"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleToggleSuspendSession(s)}
-                        title={s.isSuspended ? 'Réactiver' : 'Suspendre'}
-                        className="p-1 rounded text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950 transition-colors"
-                      >
-                        {s.isSuspended ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm({ type: 'session', id: s.id, name: `Séance ${s.sessionNumber} : ${s.title}` })}
-                        title="Supprimer la séance"
-                        className="p-1 rounded text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {/* Chapters List within Session */}
+                    {isExpanded && (
+                      <div className="p-4 sm:p-5 space-y-3 bg-[#FAFAFA] dark:bg-[#0B141A]/50">
+                        <div className="flex items-center justify-between">
+                          <h5 className="font-bold text-xs uppercase tracking-wider text-[#667781] dark:text-[#8696A0] flex items-center gap-1.5">
+                            <Bookmark className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                            Chapitres ({chapters.length})
+                          </h5>
+
+                          <button
+                            onClick={() => openCreateChapterModal(s)}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors shadow-2xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Ajouter un Chapitre
+                          </button>
+                        </div>
+
+                        {chapters.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-[#667781] dark:text-[#8696A0] bg-white dark:bg-[#111B21] rounded-xl border border-dashed border-[#E9EDEF] dark:border-[#222E35] space-y-2">
+                            <p>Aucun chapitre créé pour cette séance.</p>
+                            <button
+                              onClick={() => openCreateChapterModal(s)}
+                              className="px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 rounded-lg hover:bg-blue-100"
+                            >
+                              + Créer le Chapitre 01
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5">
+                            {chapters.map((ch) => (
+                              <div
+                                key={ch.id}
+                                className="p-3.5 bg-white dark:bg-[#111B21] rounded-xl border border-[#E9EDEF] dark:border-[#222E35] space-y-2 shadow-2xs hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="space-y-1 min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900">
+                                        Chapitre {ch.number}
+                                      </span>
+                                      <h6 className="font-bold text-sm text-[#111B21] dark:text-white">
+                                        {ch.title}
+                                      </h6>
+                                    </div>
+
+                                    {ch.objectives && (
+                                      <p className="text-[11px] text-[#075E54] dark:text-emerald-300 font-medium italic">
+                                        🎯 {ch.objectives}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      onClick={() => openEditChapterModal(ch, s)}
+                                      title="Modifier ce chapitre"
+                                      className="p-1 rounded text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirm({ type: 'chapter', id: ch.id, name: `Chapitre ${ch.number} : ${ch.title}` })}
+                                      title="Supprimer ce chapitre"
+                                      className="p-1 rounded text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950 transition-colors"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Chapter Module Badges */}
+                                <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[10px]">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#667781] dark:text-[#8696A0]">
+                                    <FileText className="w-3 h-3 text-[#075E54]" />
+                                    Texte
+                                  </span>
+
+                                  {ch.pdf?.title && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-900">
+                                      <FileText className="w-3 h-3 text-red-600" />
+                                      PDF ({ch.pdf.pages || 6}p)
+                                    </span>
+                                  )}
+
+                                  {ch.audio?.url && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+                                      <Volume2 className="w-3 h-3" />
+                                      Audio
+                                    </span>
+                                  )}
+
+                                  {ch.video?.url && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-900">
+                                      <Video className="w-3 h-3" />
+                                      Vidéo
+                                    </span>
+                                  )}
+
+                                  {ch.quiz?.questions && ch.quiz.questions.length > 0 && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-[#075E54] dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 font-semibold">
+                                      <CheckSquare className="w-3 h-3 text-[#25D366]" />
+                                      QCM ({ch.quiz.questions.length})
+                                    </span>
+                                  )}
+
+                                  {ch.flashcards && ch.flashcards.length > 0 && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-900">
+                                      <Sparkles className="w-3 h-3 text-amber-600" />
+                                      Flashcards ({ch.flashcards.length})
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-
-                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">{s.title}</h4>
-                  {s.objective && (
-                    <p className="text-[11px] text-[#075E54] dark:text-emerald-300 font-medium italic">
-                      🎯 Objectif : {s.objective}
-                    </p>
-                  )}
-                  <p className="text-xs text-[#667781] dark:text-[#8696A0] line-clamp-2">{s.description}</p>
-
-                  {/* Badges for formats and modules */}
-                  <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#F0F2F5] text-[#667781]">
-                      <FileText className="w-3 h-3 text-[#075E54]" />
-                      Texte & PDF
-                    </span>
-
-                    {s.content?.audio && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-semibold" title="Audio non téléchargeable">
-                        <Volume2 className="w-3 h-3" />
-                        Audio ({s.content.audio.duration})
-                      </span>
-                    )}
-
-                    {s.content?.video && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-800 font-semibold" title="Vidéo sécurisée">
-                        <Video className="w-3 h-3" />
-                        Vidéo ({s.content.video.duration})
-                      </span>
-                    )}
-
-                    {s.hasQuiz && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-[#075E54] font-bold">
-                        <CheckSquare className="w-3 h-3" />
-                        Questionnaire
-                      </span>
-                    )}
-
-                    {s.flashcards && s.flashcards.length > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-semibold">
-                        <Sparkles className="w-3 h-3" />
-                        {s.flashcards.length} Flashcard(s)
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
       </div>
 
-      {/* MODAL CREATION / MODIFICATION UE */}
+      {/* -------------------------------------------------------------
+          MODAL 1: CRÉER / MODIFIER UNE UE
+      ------------------------------------------------------------- */}
       {ueModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4 my-8 max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setUeModalOpen(false)}
-              className="absolute top-4 right-4 text-[#667781] hover:text-[#111B21] p-1 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#075E54] flex items-center justify-center font-bold">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-[#111B21]">
-                  {editingUeId ? `Modifier l'UE ${ueForm.code}` : 'Créer une Unité d\'Enseignement'}
-                </h3>
-                <p className="text-xs text-[#667781]">Précision du département, filière, niveau et objectifs.</p>
-              </div>
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] my-8 animate-in fade-in">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E9EDEF] dark:border-[#222E35]">
+              <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+                {editingUeId ? "Modifier l'Unité d'Enseignement" : "Créer une nouvelle UE"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setUeModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
 
-            <form onSubmit={handleSaveUe} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSaveUe} className="space-y-4 pt-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Code UE *</label>
+                  <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Code UE (ex: ECO-101)</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: ANG 101 ou ECO 102"
                     value={ueForm.code}
                     onChange={(e) => setUeForm({ ...ueForm, code: e.target.value.toUpperCase() })}
-                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white focus:outline-none focus:border-[#25D366] font-bold"
+                    className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white font-mono"
                   />
                 </div>
+
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Niveau LMD *</label>
+                  <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Niveau LMD</label>
                   <select
                     value={ueForm.level}
                     onChange={(e) => setUeForm({ ...ueForm, level: e.target.value as any })}
-                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                    className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                   >
                     <option value="L1">Licence 1 (L1)</option>
                     <option value="L2">Licence 2 (L2)</option>
@@ -827,132 +1046,94 @@ export const CourseManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-[#111B21]">Titre complet de l'UE *</label>
+                <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Intitulé complet de l'UE</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Grammaire et Communication Anglaise Fondamentale"
                   value={ueForm.title}
                   onChange={(e) => setUeForm({ ...ueForm, title: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                 />
               </div>
 
-              {/* Département et Filière */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Département / Faculté *</label>
+                  <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Département / Faculté</label>
                   <select
                     value={ueForm.departmentId}
                     onChange={(e) => {
-                      const newDept = e.target.value;
-                      const relatedProg = programs.find(p => p.departmentId === newDept)?.id || '';
-                      setUeForm({ ...ueForm, departmentId: newDept, programId: relatedProg });
+                      const dId = e.target.value;
+                      const firstProg = programs.find(p => p.departmentId === dId)?.id || '';
+                      setUeForm({ ...ueForm, departmentId: dId, programId: firstProg });
                     }}
-                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white font-medium"
+                    className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                   >
-                    {departments.map(d => (
-                      <option key={d.id} value={d.id}>
-                        {d.code} - {d.name}
-                      </option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Filière associée *</label>
+                  <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Filière</label>
                   <select
                     value={ueForm.programId}
                     onChange={(e) => setUeForm({ ...ueForm, programId: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white font-medium"
+                    className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                   >
-                    {filteredProgramsForUe.length > 0 ? (
-                      filteredProgramsForUe.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.code})
-                        </option>
-                      ))
-                    ) : (
-                      programs.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.code})
-                        </option>
-                      ))
-                    )}
+                    {filteredProgramsForUe.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                    ))}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-[#111B21]">Objectif pédagogique de l'UE *</label>
+                <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">🎯 Objectif pédagogique général de l'UE</label>
                 <textarea
-                  required
                   rows={2}
-                  placeholder="Ex : Maîtriser les structures grammaticales fondamentales, la phonétique et l'expression orale et écrite..."
                   value={ueForm.objective}
                   onChange={(e) => setUeForm({ ...ueForm, objective: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  placeholder="Compétences visées, maîtrise des fondamentaux..."
+                  className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-[#111B21]">Description générale *</label>
+                <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Description détaillée</label>
                 <textarea
-                  required
-                  rows={2}
-                  placeholder="Notions abordées, découpage semestriel, méthodologie..."
+                  rows={3}
                   value={ueForm.description}
                   onChange={(e) => setUeForm({ ...ueForm, description: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Prix (FCFA)</label>
+                  <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Prix unitaire en FCFA</label>
                   <input
                     type="number"
                     value={ueForm.priceFcfa}
                     onChange={(e) => setUeForm({ ...ueForm, priceFcfa: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                    className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Semestre</label>
-                  <input
-                    type="text"
-                    value={ueForm.semester}
-                    onChange={(e) => setUeForm({ ...ueForm, semester: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Année Univ.</label>
-                  <select
-                    value={ueForm.academicYear}
-                    onChange={(e) => setUeForm({ ...ueForm, academicYear: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
-                  >
-                    {academicYears.map(ay => (
-                      <option key={ay.id} value={ay.label}>{ay.label}</option>
-                    ))}
-                  </select>
+
+                <div className="flex items-center gap-4 pt-6">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={ueForm.isPublished}
+                      onChange={(e) => setUeForm({ ...ueForm, isPublished: e.target.checked })}
+                      className="w-4 h-4 text-[#25D366] rounded"
+                    />
+                    Publiée
+                  </label>
                 </div>
               </div>
 
-              <div className="p-3 bg-[#F0F2F5] rounded-xl flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={ueForm.isSuspended}
-                    onChange={(e) => setUeForm({ ...ueForm, isSuspended: e.target.checked })}
-                    className="w-4 h-4 text-rose-600 rounded"
-                  />
-                  <span className="font-semibold text-rose-700">Suspendre l'UE (Masquer aux étudiants)</span>
-                </label>
-              </div>
-
-              <div className="pt-3 border-t border-[#E9EDEF] flex justify-end gap-2">
+              <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setUeModalOpen(false)}
@@ -964,7 +1145,7 @@ export const CourseManagement: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
                 >
-                  {editingUeId ? 'Enregistrer les modifications' : 'Créer l\'UE'}
+                  {editingUeId ? "Mettre à jour l'UE" : "Créer l'UE"}
                 </button>
               </div>
             </form>
@@ -972,404 +1153,556 @@ export const CourseManagement: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL MULTI-ÉTAPES SÉANCE (Étape 1: Infos, Étape 2: Médias Drive, Étape 3: QCM & Flashcards) */}
+      {/* -------------------------------------------------------------
+          MODAL 2: CRÉER / MODIFIER UNE SÉANCE
+      ------------------------------------------------------------- */}
       {sessionModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
-            <button
-              onClick={() => setSessionModalOpen(false)}
-              className="absolute top-4 right-4 text-[#667781] hover:text-[#111B21] p-1 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div>
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] my-8 animate-in fade-in">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E9EDEF] dark:border-[#222E35]">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-[#075E54]">
-                  {selectedUe?.code}
-                </span>
-                <h3 className="font-bold text-lg text-[#111B21]">
-                  {editingSessionId ? `Modifier la Séance ${sessionForm.sessionNumber}` : `Ajouter une séance à ${selectedUe?.code}`}
-                </h3>
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+                    {editingSessionId ? 'Modifier la Séance' : 'Créer une Séance'}
+                  </h3>
+                  <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
+                    UE : {selectedUe?.code} - {selectedUe?.title}
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-[#667781] mt-0.5">
-                Configuration complète de la séance : résumé textuel, contenus audio/vidéo protégés, questionnaires et flashcards.
-              </p>
-            </div>
-
-            {/* Step Tabs Navigation */}
-            <div className="flex items-center border-b border-[#E9EDEF] text-xs font-bold gap-2">
               <button
                 type="button"
-                onClick={() => setSessionStep(1)}
-                className={`pb-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 ${
-                  sessionStep === 1
-                    ? 'border-[#25D366] text-[#075E54]'
-                    : 'border-transparent text-[#667781] hover:text-[#111B21]'
-                }`}
+                onClick={() => setSessionModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
               >
-                <span className="w-5 h-5 rounded-full bg-[#E9EDEF] text-[#111B21] flex items-center justify-center text-[10px]">1</span>
-                Informations & Résumé
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSessionStep(2)}
-                className={`pb-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 ${
-                  sessionStep === 2
-                    ? 'border-[#25D366] text-[#075E54]'
-                    : 'border-transparent text-[#667781] hover:text-[#111B21]'
-                }`}
-              >
-                <span className="w-5 h-5 rounded-full bg-[#E9EDEF] text-[#111B21] flex items-center justify-center text-[10px]">2</span>
-                Médias Audio & Vidéo
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSessionStep(3)}
-                className={`pb-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 ${
-                  sessionStep === 3
-                    ? 'border-[#25D366] text-[#075E54]'
-                    : 'border-transparent text-[#667781] hover:text-[#111B21]'
-                }`}
-              >
-                <span className="w-5 h-5 rounded-full bg-[#E9EDEF] text-[#111B21] flex items-center justify-center text-[10px]">3</span>
-                QCM & Flashcards
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveSession} className="space-y-4 text-xs">
-              {/* ÉTAPE 1 : INFORMATIONS GÉNÉRALES & RÉSUMÉ TEXTE */}
-              {sessionStep === 1 && (
-                <div className="space-y-3.5 animate-in fade-in">
-                  <div className="grid grid-cols-3 gap-3">
+            <form onSubmit={handleSaveSession} className="space-y-4 pt-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                    Numéro de séance *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={sessionForm.sessionNumber}
+                    onChange={(e) => setSessionForm({ ...sessionForm, sessionNumber: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white font-bold"
+                  />
+                  {sessionForm.sessionNumber === 1 && (
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-semibold">
+                      ⭐ La séance 01 est automatiquement libre d'accès et gratuite pour tous les étudiants.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                    Durée estimée (en minutes) *
+                  </label>
+                  <input
+                    type="number"
+                    min={5}
+                    required
+                    value={sessionForm.estimatedMinutes}
+                    onChange={(e) => setSessionForm({ ...sessionForm, estimatedMinutes: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                  Titre de la séance *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex : Introduction aux équilibres macroéconomiques"
+                  value={sessionForm.title}
+                  onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
+                  className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                  🎯 Objectif pédagogique de la séance
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ce que l'étudiant doit savoir et maîtriser à l'issue de cette séance..."
+                  value={sessionForm.objective}
+                  onChange={(e) => setSessionForm({ ...sessionForm, objective: e.target.value })}
+                  className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                  Description brève
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Présentation des thématiques abordées dans cette séance..."
+                  value={sessionForm.description}
+                  onChange={(e) => setSessionForm({ ...sessionForm, description: e.target.value })}
+                  className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-4 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={sessionForm.isPublished}
+                    onChange={(e) => setSessionForm({ ...sessionForm, isPublished: e.target.checked })}
+                    className="w-4 h-4 text-[#25D366] rounded"
+                  />
+                  Séance publiée
+                </label>
+              </div>
+
+              <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSessionModalOpen(false)}
+                  className="px-4 py-2 font-semibold text-[#667781]"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
+                >
+                  {editingSessionId ? 'Mettre à jour la séance' : 'Créer la séance'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+            {/* -------------------------------------------------------------
+          MODAL 3: CRÉER / MODIFIER UN CHAPITRE
+      ------------------------------------------------------------- */}
+      {chapterModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] my-8 animate-in fade-in">
+            {/* Modal Header & Tabs */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#E9EDEF] dark:border-[#222E35]">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold">
+                  <Bookmark className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+                    {editingChapterId ? 'Modifier le Chapitre' : 'Ajouter un Chapitre à la Séance'}
+                  </h3>
+                  <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
+                    Pédagogie multimédia UL Study Flow
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setChapterModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Stepper Tabs */}
+            <div className="grid grid-cols-3 gap-2 pt-3 text-center">
+              <button
+                type="button"
+                onClick={() => setChapterStep(1)}
+                className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border ${
+                  chapterStep === 1
+                    ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                    : 'bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#667781] dark:text-[#8696A0] border-transparent'
+                }`}
+              >
+                1. Infos & Texte
+              </button>
+              <button
+                type="button"
+                onClick={() => setChapterStep(2)}
+                className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border ${
+                  chapterStep === 2
+                    ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                    : 'bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#667781] dark:text-[#8696A0] border-transparent'
+                }`}
+              >
+                2. Médias & PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => setChapterStep(3)}
+                className={`py-2 px-3 rounded-xl font-bold text-xs transition-all border ${
+                  chapterStep === 3
+                    ? 'bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                    : 'bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#667781] dark:text-[#8696A0] border-transparent'
+                }`}
+              >
+                3. QCM & Flashcards
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveChapter} className="space-y-4 pt-4 text-xs">
+              {/* STEP 1: INFOS & TEXT CONTENT */}
+              {chapterStep === 1 && (
+                <div className="space-y-4 animate-in fade-in">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold mb-1 text-[#111B21]">N° de Séance *</label>
+                      <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                        Numéro du chapitre *
+                      </label>
                       <input
                         type="number"
+                        min={1}
                         required
-                        value={sessionForm.sessionNumber}
-                        onChange={(e) => setSessionForm({ ...sessionForm, sessionNumber: Number(e.target.value) })}
-                        className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white font-bold"
+                        value={chapterForm.number}
+                        onChange={(e) => setChapterForm({ ...chapterForm, number: Number(e.target.value) })}
+                        className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white font-bold"
                       />
                     </div>
-                    <div className="col-span-2">
-                      <label className="block font-semibold mb-1 text-[#111B21]">Durée estimée (minutes) *</label>
+                    <div>
+                      <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                        Titre du chapitre *
+                      </label>
                       <input
-                        type="number"
+                        type="text"
                         required
-                        value={sessionForm.estimatedMinutes}
-                        onChange={(e) => setSessionForm({ ...sessionForm, estimatedMinutes: Number(e.target.value) })}
-                        className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                        placeholder="Ex: Les hypothèses fondamentales du modèle"
+                        value={chapterForm.title}
+                        onChange={(e) => setChapterForm({ ...chapterForm, title: e.target.value })}
+                        className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white font-semibold"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block font-semibold mb-1 text-[#111B21]">Titre de la séance *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex : Séance 01 : Fundamentals of English Grammar & Tenses"
-                      value={sessionForm.title}
-                      onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold mb-1 text-[#111B21]">Objectif spécifique de la séance *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex : Identifier et appliquer correctement les temps du présent dans divers contextes académiques."
-                      value={sessionForm.objective}
-                      onChange={(e) => setSessionForm({ ...sessionForm, objective: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold mb-1 text-[#111B21]">Description courte</label>
-                    <input
-                      type="text"
-                      placeholder="Aperçu des notions abordées pour l'étudiant..."
-                      value={sessionForm.description}
-                      onChange={(e) => setSessionForm({ ...sessionForm, description: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="font-semibold text-[#111B21]">Contenu format texte & Résumé synthétique (téléchargeable en PDF par les users) *</label>
-                      <span className="text-[10px] text-[#667781]">Format Markdown supporté</span>
-                    </div>
+                    <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                      🎯 Objectifs pédagogiques du chapitre *
+                    </label>
                     <textarea
+                      rows={2}
                       required
-                      rows={5}
-                      value={sessionForm.summaryText}
-                      onChange={(e) => setSessionForm({ ...sessionForm, summaryText: e.target.value })}
-                      className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white font-mono text-[11px]"
+                      placeholder="Objectifs et compétences précises à acquérir dans ce chapitre..."
+                      value={chapterForm.objectives}
+                      onChange={(e) => setChapterForm({ ...chapterForm, objectives: e.target.value })}
+                      className="w-full p-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                      Contenu format texte & Résumé synthétique du cours *
+                    </label>
+                    <textarea
+                      rows={7}
+                      required
+                      value={chapterForm.summaryText}
+                      onChange={(e) => setChapterForm({ ...chapterForm, summaryText: e.target.value })}
+                      placeholder="Rédigez le cours complet, les formules, définitions et résumés structurés..."
+                      className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white font-mono text-xs leading-relaxed"
                     />
                   </div>
                 </div>
               )}
 
-              {/* ÉTAPE 2 : FORMATS AUDIO & VIDÉO (Stockage Google Drive UL Study Flow) */}
-              {sessionStep === 2 && (
+              {/* STEP 2: MEDIAS & SUPPORT PDF */}
+              {chapterStep === 2 && (
                 <div className="space-y-4 animate-in fade-in">
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2.5">
-                    <Cloud className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                    <div className="text-[11px] text-blue-900 leading-relaxed">
-                      <strong>Stockage Cloud Google Drive :</strong> Les fichiers audio et vidéo sont hébergés et synchronisés avec le compte Google Drive officiel UL Study Flow (<strong>ulstudyflow@gmail.com</strong>).
-                      <br />Côté étudiant, les fichiers audio sont <em>non téléchargeables</em> (paramètre nodownload) et les vidéos comportent un <em>filigrane de sécurité</em> dissuadant l'enregistrement d'écran.
-                    </div>
-                  </div>
-
-                  {/* Audio Section */}
-                  <div className="p-4 bg-[#F0F2F5] rounded-xl border border-[#E9EDEF] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-[#111B21]">
-                        <input
-                          type="checkbox"
-                          checked={sessionForm.hasAudio}
-                          onChange={(e) => setSessionForm({ ...sessionForm, hasAudio: e.target.checked })}
-                          className="w-4 h-4 text-[#25D366] rounded"
-                        />
-                        <Volume2 className="w-4 h-4 text-blue-600" />
-                        Activer le Podcast Audio de révision (Non téléchargeable)
-                      </label>
-                    </div>
-
-                    {sessionForm.hasAudio && (
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#E9EDEF]">
-                        <div className="col-span-2">
-                          <label className="block font-semibold mb-1">Titre du podcast audio</label>
-                          <input
-                            type="text"
-                            value={sessionForm.audioTitle}
-                            onChange={(e) => setSessionForm({ ...sessionForm, audioTitle: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-semibold mb-1">URL Flux Audio (Google Drive / Direct)</label>
-                          <input
-                            type="text"
-                            placeholder="https://..."
-                            value={sessionForm.audioUrl}
-                            onChange={(e) => setSessionForm({ ...sessionForm, audioUrl: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-white font-mono text-[11px]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-semibold mb-1">Durée audio</label>
-                          <input
-                            type="text"
-                            placeholder="08:45"
-                            value={sessionForm.audioDuration}
-                            onChange={(e) => setSessionForm({ ...sessionForm, audioDuration: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-white"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Video Section */}
-                  <div className="p-4 bg-[#F0F2F5] rounded-xl border border-[#E9EDEF] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-[#111B21]">
-                        <input
-                          type="checkbox"
-                          checked={sessionForm.hasVideo}
-                          onChange={(e) => setSessionForm({ ...sessionForm, hasVideo: e.target.checked })}
-                          className="w-4 h-4 text-[#25D366] rounded"
-                        />
-                        <Video className="w-4 h-4 text-purple-600" />
-                        Activer la Vidéo explicative (Non téléchargeable & Anti-capture)
-                      </label>
-                    </div>
-
-                    {sessionForm.hasVideo && (
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#E9EDEF]">
-                        <div className="col-span-2">
-                          <label className="block font-semibold mb-1">Titre de la vidéo</label>
-                          <input
-                            type="text"
-                            value={sessionForm.videoTitle}
-                            onChange={(e) => setSessionForm({ ...sessionForm, videoTitle: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-semibold mb-1">URL Vidéo / Embed Google Drive</label>
-                          <input
-                            type="text"
-                            placeholder="https://www.youtube.com/embed/... ou Drive stream"
-                            value={sessionForm.videoUrl}
-                            onChange={(e) => setSessionForm({ ...sessionForm, videoUrl: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-white font-mono text-[11px]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block font-semibold mb-1">Durée vidéo</label>
-                          <input
-                            type="text"
-                            placeholder="14:20"
-                            value={sessionForm.videoDuration}
-                            onChange={(e) => setSessionForm({ ...sessionForm, videoDuration: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-white"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Polycopié PDF Section */}
-                  <div className="p-4 bg-[#F0F2F5] rounded-xl border border-[#E9EDEF] space-y-3">
-                    <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-[#111B21]">
+                  {/* Résumé Synthétique PDF Téléchargeable */}
+                  <div className="p-4 bg-red-50/50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-900 space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-red-900 dark:text-red-300">
                       <input
                         type="checkbox"
-                        checked={sessionForm.hasPdf}
-                        onChange={(e) => setSessionForm({ ...sessionForm, hasPdf: e.target.checked })}
-                        className="w-4 h-4 text-[#25D366] rounded"
+                        checked={chapterForm.hasPdf}
+                        onChange={(e) => setChapterForm({ ...chapterForm, hasPdf: e.target.checked })}
+                        className="w-4 h-4 text-red-600 rounded"
                       />
-                      <FileText className="w-4 h-4 text-[#075E54]" />
-                      Activer le Polycopié PDF officiel téléchargeable
+                      <FileText className="w-4 h-4 text-red-600" />
+                      Activer le Résumé Synthétique Téléchargeable par PDF
                     </label>
 
-                    {sessionForm.hasPdf && (
-                      <div className="grid grid-cols-3 gap-3 pt-2 border-t border-[#E9EDEF]">
+                    {chapterForm.hasPdf && (
+                      <div className="grid grid-cols-3 gap-3 pt-2 border-t border-red-200 dark:border-red-900">
                         <div className="col-span-2">
-                          <label className="block font-semibold mb-1">Titre du document PDF</label>
+                          <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Titre de la fiche PDF</label>
                           <input
                             type="text"
-                            value={sessionForm.pdfTitle}
-                            onChange={(e) => setSessionForm({ ...sessionForm, pdfTitle: e.target.value })}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-white"
+                            value={chapterForm.pdfTitle}
+                            onChange={(e) => setChapterForm({ ...chapterForm, pdfTitle: e.target.value })}
+                            className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                           />
                         </div>
                         <div>
-                          <label className="block font-semibold mb-1">Nombre de pages</label>
+                          <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Pages estimées</label>
                           <input
                             type="number"
-                            value={sessionForm.pdfPages}
-                            onChange={(e) => setSessionForm({ ...sessionForm, pdfPages: Number(e.target.value) })}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-white"
+                            value={chapterForm.pdfPages}
+                            onChange={(e) => setChapterForm({ ...chapterForm, pdfPages: Number(e.target.value) })}
+                            className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                           />
                         </div>
                       </div>
                     )}
                   </div>
-                </div>
-              )}
 
-              {/* ÉTAPE 3 : QUESTIONNAIRES DYNAMIQUES & FLASHCARDS */}
-              {sessionStep === 3 && (
-                <div className="space-y-5 animate-in fade-in">
-                  {/* Dynamic Quiz Builder */}
-                  <div className="space-y-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckSquare className="w-4 h-4 text-[#25D366]" />
-                        <h4 className="font-bold text-sm text-[#111B21]">Questionnaire Dynamique de Validation</h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleAddQuestion}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#075E54] bg-white px-2.5 py-1 rounded-lg border border-emerald-300 hover:bg-emerald-50"
-                      >
-                        <Plus className="w-3 h-3" /> Ajouter une question
-                      </button>
-                    </div>
+                  {/* Audio Podcast */}
+                  <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-900 space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-blue-900 dark:text-blue-300">
+                      <input
+                        type="checkbox"
+                        checked={chapterForm.hasAudio}
+                        onChange={(e) => setChapterForm({ ...chapterForm, hasAudio: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <Volume2 className="w-4 h-4 text-blue-600" />
+                      Média Audio / Podcast Explicatif
+                    </label>
 
-                    <div className="space-y-3">
-                      {sessionForm.quizQuestions.map((q, qIdx) => (
-                        <div key={q.id} className="p-3 bg-white rounded-xl border border-[#E9EDEF] space-y-2.5 shadow-2xs">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-xs text-[#075E54]">Question {qIdx + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveQuestion(q.id)}
-                              className="text-rose-600 hover:text-rose-800 p-1"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          <input
-                            type="text"
-                            placeholder="Énoncé de la question..."
-                            value={q.text}
-                            onChange={(e) => handleUpdateQuestion(q.id, 'text', e.target.value)}
-                            className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-[#F0F2F5] font-semibold"
-                          />
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-semibold text-[#667781] mb-1">
-                                Options (séparées par une virgule)
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="Option 1, Option 2, Option 3..."
-                                value={q.options.join(', ')}
-                                onChange={(e) => handleUpdateQuestion(q.id, 'options', e.target.value.split(',').map(s => s.trim()))}
-                                className="w-full p-1.5 rounded-lg border border-[#E9EDEF] bg-[#F0F2F5]"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-semibold text-[#667781] mb-1">
-                                Réponse correcte
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="Texte exact de la bonne réponse"
-                                value={String(q.correctAnswer)}
-                                onChange={(e) => handleUpdateQuestion(q.id, 'correctAnswer', e.target.value)}
-                                className="w-full p-1.5 rounded-lg border border-[#E9EDEF] bg-[#F0F2F5] font-bold text-[#075E54]"
-                              />
-                            </div>
-                          </div>
-
+                    {chapterForm.hasAudio && (
+                      <div className="space-y-3 pt-2 border-t border-blue-200 dark:border-blue-900">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
+                            <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Titre du podcast audio</label>
                             <input
                               type="text"
-                              placeholder="Explication pédagogique affichée lors de la correction..."
-                              value={q.explanation}
-                              onChange={(e) => handleUpdateQuestion(q.id, 'explanation', e.target.value)}
-                              className="w-full p-1.5 rounded-lg border border-[#E9EDEF] bg-[#F0F2F5] text-[11px]"
+                              value={chapterForm.audioTitle}
+                              onChange={(e) => setChapterForm({ ...chapterForm, audioTitle: e.target.value })}
+                              className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Durée audio</label>
+                            <input
+                              type="text"
+                              placeholder="08:30"
+                              value={chapterForm.audioDuration}
+                              onChange={(e) => setChapterForm({ ...chapterForm, audioDuration: e.target.value })}
+                              className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                             />
                           </div>
                         </div>
-                      ))}
+
+                        <div>
+                          <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">URL du fichier Audio (mp3 / ogg / stream)</label>
+                          <input
+                            type="text"
+                            placeholder="https://..."
+                            value={chapterForm.audioUrl}
+                            onChange={(e) => setChapterForm({ ...chapterForm, audioUrl: e.target.value })}
+                            className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-[11px]"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Vidéo Explicative */}
+                  <div className="p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-900 space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-purple-900 dark:text-purple-300">
+                      <input
+                        type="checkbox"
+                        checked={chapterForm.hasVideo}
+                        onChange={(e) => setChapterForm({ ...chapterForm, hasVideo: e.target.checked })}
+                        className="w-4 h-4 text-purple-600 rounded"
+                      />
+                      <Video className="w-4 h-4 text-purple-600" />
+                      Média Vidéo Explicative du cours
+                    </label>
+
+                    {chapterForm.hasVideo && (
+                      <div className="space-y-3 pt-2 border-t border-purple-200 dark:border-purple-900">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Titre de la vidéo</label>
+                            <input
+                              type="text"
+                              value={chapterForm.videoTitle}
+                              onChange={(e) => setChapterForm({ ...chapterForm, videoTitle: e.target.value })}
+                              className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Durée vidéo</label>
+                            <input
+                              type="text"
+                              placeholder="14:20"
+                              value={chapterForm.videoDuration}
+                              onChange={(e) => setChapterForm({ ...chapterForm, videoDuration: e.target.value })}
+                              className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">URL Vidéo / Embed (YouTube, MP4 ou Stream)</label>
+                          <input
+                            type="text"
+                            placeholder="https://www.youtube-nocookie.com/embed/... ou stream"
+                            value={chapterForm.videoUrl}
+                            onChange={(e) => setChapterForm({ ...chapterForm, videoUrl: e.target.value })}
+                            className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-[11px]"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: QCM & FLASHCARDS */}
+              {chapterStep === 3 && (
+                <div className="space-y-5 animate-in fade-in">
+                  {/* QCM Builder */}
+                  <div className="space-y-3 p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-[#111B21] dark:text-white">
+                        <input
+                          type="checkbox"
+                          checked={chapterForm.hasQuiz}
+                          onChange={(e) => setChapterForm({ ...chapterForm, hasQuiz: e.target.checked })}
+                          className="w-4 h-4 text-[#25D366] rounded"
+                        />
+                        <CheckSquare className="w-4 h-4 text-[#25D366]" />
+                        Activer le QCM d'auto-évaluation du chapitre
+                      </label>
+
+                      {chapterForm.hasQuiz && (
+                        <button
+                          type="button"
+                          onClick={handleAddQuestion}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#075E54] dark:text-[#25D366] bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50"
+                        >
+                          <Plus className="w-3 h-3" /> Ajouter une question
+                        </button>
+                      )}
                     </div>
+
+                    {chapterForm.hasQuiz && (
+                      <div className="space-y-3 pt-2 border-t border-emerald-200 dark:border-emerald-900">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="col-span-2">
+                            <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Titre du QCM</label>
+                            <input
+                              type="text"
+                              value={chapterForm.quizTitle}
+                              onChange={(e) => setChapterForm({ ...chapterForm, quizTitle: e.target.value })}
+                              className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">Score de validation (%)</label>
+                            <input
+                              type="number"
+                              value={chapterForm.quizPassingScore}
+                              onChange={(e) => setChapterForm({ ...chapterForm, quizPassingScore: Number(e.target.value) })}
+                              className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {chapterForm.quizQuestions.map((q, qIdx) => (
+                            <div key={q.id} className="p-3 bg-white dark:bg-[#111B21] rounded-xl border border-gray-200 dark:border-gray-700 space-y-2.5 shadow-2xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-bold text-xs text-[#075E54] dark:text-[#25D366]">Question {qIdx + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveQuestion(q.id)}
+                                  className="text-rose-600 hover:text-rose-800 p-1"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              <input
+                                type="text"
+                                placeholder="Énoncé de la question..."
+                                value={q.text}
+                                onChange={(e) => handleUpdateQuestion(q.id, 'text', e.target.value)}
+                                className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 font-semibold"
+                              />
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">
+                                    Options (séparées par des virgules)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Option A, Option B, Option C, Option D"
+                                    value={q.options.join(', ')}
+                                    onChange={(e) => handleUpdateQuestion(q.id, 'options', e.target.value.split(',').map(s => s.trim()))}
+                                    className="w-full p-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-semibold text-gray-500 mb-1">
+                                    Réponse exacte
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Texte de la bonne réponse"
+                                    value={String(q.correctAnswer)}
+                                    onChange={(e) => handleUpdateQuestion(q.id, 'correctAnswer', e.target.value)}
+                                    className="w-full p-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 font-bold text-[#075E54] dark:text-[#25D366]"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="Explication pédagogique lors de la correction..."
+                                  value={q.explanation}
+                                  onChange={(e) => handleUpdateQuestion(q.id, 'explanation', e.target.value)}
+                                  className="w-full p-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-[11px]"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Flashcards Builder */}
-                  <div className="space-y-3 p-4 bg-amber-50/50 rounded-xl border border-amber-200">
+                  <div className="space-y-3 p-4 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-amber-600" />
-                        <h4 className="font-bold text-sm text-[#111B21]">Flashcards & Cartes Mémoire ({sessionForm.flashcards.length})</h4>
+                        <h4 className="font-bold text-sm text-[#111B21] dark:text-white">
+                          Flashcards & Cartes Mémoire ({chapterForm.flashcards.length})
+                        </h4>
                       </div>
                       <button
                         type="button"
                         onClick={handleAddFlashcard}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-white px-2.5 py-1 rounded-lg border border-amber-300 hover:bg-amber-50"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg border border-amber-300 dark:border-amber-700 hover:bg-amber-50"
                       >
                         <Plus className="w-3 h-3" /> Ajouter une Flashcard
                       </button>
                     </div>
 
                     <div className="space-y-3">
-                      {sessionForm.flashcards.map((fc, fIdx) => (
-                        <div key={fc.id} className="p-3 bg-white rounded-xl border border-[#E9EDEF] space-y-2 shadow-2xs">
+                      {chapterForm.flashcards.map((fc, fIdx) => (
+                        <div key={fc.id} className="p-3 bg-white dark:bg-[#111B21] rounded-xl border border-gray-200 dark:border-gray-700 space-y-2 shadow-2xs">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-xs text-amber-800">Carte Mémoire {fIdx + 1}</span>
+                            <span className="font-bold text-xs text-amber-800 dark:text-amber-400">Carte Mémoire {fIdx + 1}</span>
                             <button
                               type="button"
                               onClick={() => handleRemoveFlashcard(fc.id)}
@@ -1381,25 +1714,25 @@ export const CourseManagement: React.FC = () => {
 
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[10px] font-semibold text-[#667781] mb-1">
-                                Recto (Question ou Terme)
+                              <label className="block text-[10px] font-semibold text-gray-500 mb-1">
+                                Recto (Question / Notion clé)
                               </label>
                               <textarea
                                 rows={2}
                                 value={fc.front}
                                 onChange={(e) => handleUpdateFlashcard(fc.id, 'front', e.target.value)}
-                                className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-[#F0F2F5] text-xs font-medium"
+                                className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-xs font-medium"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-semibold text-[#667781] mb-1">
-                                Verso (Réponse ou Définition)
+                              <label className="block text-[10px] font-semibold text-gray-500 mb-1">
+                                Verso (Explication / Réponse)
                               </label>
                               <textarea
                                 rows={2}
                                 value={fc.back}
                                 onChange={(e) => handleUpdateFlashcard(fc.id, 'back', e.target.value)}
-                                className="w-full p-2 rounded-lg border border-[#E9EDEF] bg-[#F0F2F5] text-xs"
+                                className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-xs"
                               />
                             </div>
                           </div>
@@ -1411,22 +1744,22 @@ export const CourseManagement: React.FC = () => {
               )}
 
               {/* Modal Bottom Actions */}
-              <div className="pt-3 border-t border-[#E9EDEF] flex items-center justify-between">
+              <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {sessionStep > 1 && (
+                  {chapterStep > 1 && (
                     <button
                       type="button"
-                      onClick={() => setSessionStep((prev) => (prev - 1) as any)}
-                      className="px-3 py-1.5 font-semibold text-[#667781] bg-[#F0F2F5] rounded-xl hover:bg-[#E9EDEF]"
+                      onClick={() => setChapterStep((prev) => (prev - 1) as any)}
+                      className="px-3 py-1.5 font-semibold text-[#667781] dark:text-[#8696A0] bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-gray-200"
                     >
                       ← Étape précédente
                     </button>
                   )}
-                  {sessionStep < 3 && (
+                  {chapterStep < 3 && (
                     <button
                       type="button"
-                      onClick={() => setSessionStep((prev) => (prev + 1) as any)}
-                      className="px-3 py-1.5 font-bold text-[#075E54] bg-emerald-100 rounded-xl hover:bg-emerald-200"
+                      onClick={() => setChapterStep((prev) => (prev + 1) as any)}
+                      className="px-3 py-1.5 font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 rounded-xl hover:bg-blue-200"
                     >
                       Étape suivante →
                     </button>
@@ -1436,16 +1769,16 @@ export const CourseManagement: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setSessionModalOpen(false)}
+                    onClick={() => setChapterModalOpen(false)}
                     className="px-4 py-2 font-semibold text-[#667781]"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
+                    className="px-5 py-2 font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-xs"
                   >
-                    {editingSessionId ? 'Enregistrer la séance' : 'Publier la séance'}
+                    {editingChapterId ? 'Enregistrer le chapitre' : 'Créer le chapitre'}
                   </button>
                 </div>
               </div>
@@ -1454,19 +1787,23 @@ export const CourseManagement: React.FC = () => {
         </div>
       )}
 
-      {/* DELETE CONFIRMATION MODAL */}
+      {/* -------------------------------------------------------------
+          DELETE CONFIRMATION MODAL
+      ------------------------------------------------------------- */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
             <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
               <Trash2 className="w-6 h-6" />
             </div>
 
             <div>
-              <h3 className="font-bold text-base text-[#111B21]">Confirmer la suppression</h3>
-              <p className="text-xs text-[#667781] mt-1 leading-relaxed">
+              <h3 className="font-bold text-base text-[#111B21] dark:text-white">Confirmer la suppression</h3>
+              <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-1 leading-relaxed">
                 Êtes-vous certain de vouloir supprimer : <strong>{deleteConfirm.name}</strong> ?
-                {deleteConfirm.type === 'ue' && ' Toutes les séances, progressions et accès liés à cette UE seront supprimés.'}
+                {deleteConfirm.type === 'ue' && ' Toutes les séances, chapitres et contenus liés seront supprimés.'}
+                {deleteConfirm.type === 'session' && ' Tous les chapitres, médias, QCM et Flashcards de cette séance seront supprimés.'}
+                {deleteConfirm.type === 'chapter' && ' Tout le contenu multimédia et pédagogique de ce chapitre sera supprimé.'}
               </p>
             </div>
 
@@ -1482,7 +1819,8 @@ export const CourseManagement: React.FC = () => {
                 type="button"
                 onClick={() => {
                   if (deleteConfirm.type === 'ue') handleDeleteUe(deleteConfirm.id);
-                  else handleDeleteSession(deleteConfirm.id);
+                  else if (deleteConfirm.type === 'session') handleDeleteSession(deleteConfirm.id);
+                  else if (deleteConfirm.type === 'chapter') handleDeleteChapter(deleteConfirm.id);
                 }}
                 className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-xs"
               >

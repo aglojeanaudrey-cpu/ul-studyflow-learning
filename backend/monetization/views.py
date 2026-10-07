@@ -2,8 +2,8 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .models import PromoCode, UnlockRequest, PlatformConfig
-from .serializers import PromoCodeSerializer, UnlockRequestSerializer, PlatformConfigSerializer
+from .models import PromoCode, UnlockRequest, PlatformConfig, PaymentMethod
+from .serializers import PromoCodeSerializer, UnlockRequestSerializer, PlatformConfigSerializer, PaymentMethodSerializer
 from accounts.permissions import IsStaffOrSuperuser, IsSuperuserOnly
 
 class ValidatePromoCodeView(APIView):
@@ -139,19 +139,29 @@ class AdminApproveUnlockRequestView(APIView):
         unlock_req.reviewed_by = actor.phone
         unlock_req.save()
 
-        # Accorder l'accès actif à toutes les UE demandées
-        from courses.models import UE, UserUEAccess
+        # Accorder l'accès actif à toutes les UE demandées (validité : 6 mois et 10 jours)
+        from courses.models import UE, UserUEAccess, compute_ue_expiration_date
+        now = timezone.now()
+        expires_at = compute_ue_expiration_date(now)
         for ue_id in unlock_req.ue_ids:
             ue = UE.objects.filter(id=ue_id).first()
             if ue:
-                access, _ = UserUEAccess.objects.get_or_create(
+                access, created = UserUEAccess.objects.get_or_create(
                     user=unlock_req.user,
                     ue=ue,
-                    defaults={'granted_by': actor.phone, 'status': 'active'}
+                    defaults={
+                        'granted_by': actor.phone,
+                        'status': 'active',
+                        'granted_at': now,
+                        'expires_at': expires_at
+                    }
                 )
-                access.status = 'active'
-                access.granted_by = actor.phone
-                access.save()
+                if not created:
+                    access.status = 'active'
+                    access.granted_by = actor.phone
+                    access.granted_at = now
+                    access.expires_at = expires_at
+                    access.save()
 
         try:
             from audit.utils import log_audit
@@ -289,3 +299,195 @@ class AdminConfigView(APIView):
             pass
 
         return Response({'success': True, 'config': PlatformConfigSerializer(config).data})
+
+
+class PaymentMethodListView(APIView):
+    """Liste publique des moyens de paiement actifs pour le déblocage et le marketing."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        methods = PaymentMethod.objects.filter(is_active=True).order_by('order', 'id')
+        # Si aucun moyen de paiement n'a encore été créé, initialiser les moyens par défaut
+        if not methods.exists() and not PaymentMethod.objects.exists():
+            PaymentMethod.objects.create(
+                id='pm_tmoney',
+                name='T-Money Togo (*145#)',
+                method_type='phone_account',
+                account_number='+228 71 67 69 45',
+                instructions="Composez *145# > Option 1 (Transfert) vers le numéro ci-dessous. Mentionnez votre nom en référence.",
+                order=1,
+                is_active=True
+            )
+            PaymentMethod.objects.create(
+                id='pm_flooz',
+                name='Moov Flooz Togo (*155#)',
+                method_type='phone_account',
+                account_number='+228 99 70 59 20',
+                instructions="Composez *155# > Transfert d'argent vers le numéro ci-dessous. Conservez la référence de transaction SMS.",
+                order=2,
+                is_active=True
+            )
+            methods = PaymentMethod.objects.filter(is_active=True).order_by('order', 'id')
+
+        return Response({'paymentMethods': PaymentMethodSerializer(methods, many=True).data})
+
+
+class AdminPaymentMethodView(APIView):
+    """Gestion des moyens de paiement (Superuser et Staff autorisé)."""
+    permission_classes = [IsStaffOrSuperuser]
+
+    def get(self, request):
+        methods = PaymentMethod.objects.all().order_by('order', 'id')
+        if not methods.exists():
+            PaymentMethod.objects.create(
+                id='pm_tmoney',
+                name='T-Money Togo (*145#)',
+                method_type='phone_account',
+                account_number='+228 71 67 69 45',
+                instructions="Composez *145# > Option 1 (Transfert) vers le numéro ci-dessous. Mentionnez votre nom en référence.",
+                order=1,
+                is_active=True
+            )
+            PaymentMethod.objects.create(
+                id='pm_flooz',
+                name='Moov Flooz Togo (*155#)',
+                method_type='phone_account',
+                account_number='+228 99 70 59 20',
+                instructions="Composez *155# > Transfert d'argent vers le numéro ci-dessous. Conservez la référence de transaction SMS.",
+                order=2,
+                is_active=True
+            )
+            methods = PaymentMethod.objects.all().order_by('order', 'id')
+        return Response({'paymentMethods': PaymentMethodSerializer(methods, many=True).data})
+
+    def post(self, request):
+        data = request.data
+        name = str(data.get('name') or '').strip()
+        if not name:
+            return Response({'error': 'Le nom du moyen de paiement est requis.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        m_type = data.get('type') or data.get('method_type') or 'phone_account'
+        if m_type not in ('phone_account', 'payment_link', 'qr_code', 'other'):
+            m_type = 'phone_account'
+
+        try:
+            order_val = int(data.get('order') or (PaymentMethod.objects.count() + 1))
+        except (ValueError, TypeError):
+            order_val = 1
+
+        pm = PaymentMethod.objects.create(
+            name=name,
+            method_type=m_type,
+            account_number=str(data.get('accountNumber') or '').strip(),
+            payment_url=str(data.get('paymentUrl') or '').strip() or None,
+            qr_code_image=data.get('qrCodeImage') or None,
+            logo_url=str(data.get('logoUrl') or '').strip() or None,
+            instructions=str(data.get('instructions') or '').strip(),
+            order=order_val,
+            is_active=bool(data.get('isActive', True))
+        )
+
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='PAYMENT_METHOD_CREATE',
+                resource=pm.id,
+                details=f"Création moyen de paiement: {pm.name} ({pm.method_type})",
+                user=request.user,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True, 'paymentMethod': PaymentMethodSerializer(pm).data}, status=status.HTTP_201_CREATED)
+
+
+class AdminPaymentMethodDetailView(APIView):
+    """Mise à jour et suppression d'un moyen de paiement."""
+    permission_classes = [IsStaffOrSuperuser]
+
+    def put(self, request, pm_id):
+        try:
+            pm = PaymentMethod.objects.get(id=pm_id)
+        except PaymentMethod.DoesNotExist:
+            return Response({'error': 'Moyen de paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        if 'name' in data and str(data['name']).strip():
+            pm.name = str(data['name']).strip()
+        if 'type' in data or 'method_type' in data:
+            m_type = data.get('type') or data.get('method_type')
+            if m_type in ('phone_account', 'payment_link', 'qr_code', 'other'):
+                pm.method_type = m_type
+        if 'accountNumber' in data:
+            pm.account_number = str(data['accountNumber'] or '').strip()
+        if 'paymentUrl' in data:
+            pm.payment_url = str(data['paymentUrl'] or '').strip() or None
+        if 'qrCodeImage' in data:
+            pm.qr_code_image = data['qrCodeImage'] or None
+        if 'logoUrl' in data:
+            pm.logo_url = str(data['logoUrl'] or '').strip() or None
+        if 'instructions' in data:
+            pm.instructions = str(data['instructions'] or '').strip()
+        if 'order' in data:
+            try:
+                pm.order = int(data['order'])
+            except (ValueError, TypeError):
+                pass
+        if 'isActive' in data:
+            pm.is_active = bool(data['isActive'])
+
+        pm.save()
+
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='PAYMENT_METHOD_UPDATE',
+                resource=pm.id,
+                details=f"Mise à jour moyen de paiement: {pm.name}",
+                user=request.user,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True, 'paymentMethod': PaymentMethodSerializer(pm).data})
+
+    def delete(self, request, pm_id):
+        try:
+            pm = PaymentMethod.objects.get(id=pm_id)
+        except PaymentMethod.DoesNotExist:
+            return Response({'error': 'Moyen de paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        name = pm.name
+        pm.delete()
+
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='PAYMENT_METHOD_DELETE',
+                resource=pm_id,
+                details=f"Suppression moyen de paiement: {name}",
+                user=request.user,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True})
+
+
+class AdminPaymentMethodToggleView(APIView):
+    """Activation / Désactivation rapide d'un moyen de paiement."""
+    permission_classes = [IsStaffOrSuperuser]
+
+    def put(self, request, pm_id):
+        try:
+            pm = PaymentMethod.objects.get(id=pm_id)
+        except PaymentMethod.DoesNotExist:
+            return Response({'error': 'Moyen de paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        pm.is_active = not pm.is_active
+        pm.save()
+        return Response({'success': True, 'isActive': pm.is_active})
+

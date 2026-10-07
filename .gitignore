@@ -58,3 +58,9 @@ Thumbs.db
 # Local legacy data
 # =========================
 data/database.json
+
+# =========================
+# arbre & contexte
+# =========================
+contexte.txt
+arbre.txt

@@ -159,6 +159,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                         <span className="text-[11px] text-[#667781] dark:text-[#8696A0]">
                           {course.completedSessionsCount || 0} / {course.sessionsCount || 0} séances
                         </span>
+                        {course.expiresAt && (
+                          <span className="text-[10px] text-[#667781] dark:text-[#8696A0] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                            Exp. {new Date(course.expiresAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm font-bold text-[#111B21] dark:text-white truncate mt-1 group-hover:text-[#075E54] dark:group-hover:text-[#25D366]">
                         {course.title}

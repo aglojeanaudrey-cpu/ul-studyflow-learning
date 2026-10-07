@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import UE, Session, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt
+from .models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt
 
 class QuizQuestionSerializer(serializers.ModelSerializer):
     type = serializers.CharField(source='question_type')
@@ -11,13 +11,31 @@ class QuizQuestionSerializer(serializers.ModelSerializer):
 
 
 class QuizSerializer(serializers.ModelSerializer):
-    sessionId = serializers.CharField(source='session_id')
+    sessionId = serializers.CharField(source='session_id', allow_null=True, required=False)
+    chapterId = serializers.CharField(source='chapter_id', allow_null=True, required=False)
     passingScorePercent = serializers.IntegerField(source='passing_score_percent')
     questions = QuizQuestionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Quiz
-        fields = ['id', 'sessionId', 'title', 'description', 'passingScorePercent', 'questions']
+        fields = ['id', 'sessionId', 'chapterId', 'title', 'description', 'passingScorePercent', 'questions']
+
+
+class ChapterSerializer(serializers.ModelSerializer):
+    sessionId = serializers.CharField(source='session_id')
+    summaryText = serializers.CharField(source='summary_text', allow_blank=True, default='')
+    quiz = QuizSerializer(read_only=True)
+    hasQuiz = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Chapter
+        fields = [
+            'id', 'sessionId', 'number', 'title', 'objectives', 'order',
+            'summaryText', 'video', 'audio', 'pdf', 'flashcards', 'quiz', 'hasQuiz'
+        ]
+
+    def get_hasQuiz(self, obj):
+        return hasattr(obj, 'quiz') and obj.quiz is not None
 
 
 class SessionContentSerializer(serializers.Serializer):
@@ -34,7 +52,8 @@ class SessionSerializer(serializers.ModelSerializer):
     isPublished = serializers.BooleanField(source='is_published')
     isSuspended = serializers.BooleanField(source='is_suspended', required=False)
     isLockedForUsers = serializers.BooleanField(source='is_locked_for_users', required=False, allow_null=True)
-    content = serializers.SerializerMethodField()
+    chapters = ChapterSerializer(many=True, read_only=True)
+    chaptersCount = serializers.SerializerMethodField()
     quiz = QuizSerializer(read_only=True)
     hasQuiz = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -46,16 +65,11 @@ class SessionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'ueId', 'sessionNumber', 'title', 'description', 'objective',
             'estimatedMinutes', 'order', 'isPublished', 'isSuspended', 'isLockedForUsers',
-            'content', 'quiz', 'flashcards', 'hasQuiz', 'status', 'isFreeChapter', 'isLocked'
+            'chapters', 'chaptersCount', 'quiz', 'hasQuiz', 'status', 'isFreeChapter', 'isLocked'
         ]
 
-    def get_content(self, obj):
-        return {
-            'summaryText': obj.summary_text or '',
-            'video': obj.video or None,
-            'audio': obj.audio or None,
-            'pdf': obj.pdf or None
-        }
+    def get_chaptersCount(self, obj):
+        return obj.chapters.count()
 
     def get_hasQuiz(self, obj):
         return hasattr(obj, 'quiz') and obj.quiz is not None
@@ -84,9 +98,11 @@ class SessionSerializer(serializers.ModelSerializer):
                 return False
             if obj.is_locked_for_users is True:
                 return True
-            # Default: unlocked if student has active access to parent UE
-            has_access = UserUEAccess.objects.filter(user=user, ue=obj.ue, status='active').exists()
-            return not has_access
+            # Default: unlocked if student has active non-expired access to parent UE
+            access = UserUEAccess.objects.filter(user=user, ue=obj.ue, status='active').first()
+            if access and not access.is_expired:
+                return False
+            return True
         return True
 
 
@@ -105,6 +121,10 @@ class UESerializer(serializers.ModelSerializer):
     completedSessionsCount = serializers.SerializerMethodField()
     progressPercent = serializers.SerializerMethodField()
     isUnlocked = serializers.SerializerMethodField()
+    expiresAt = serializers.SerializerMethodField()
+    isExpired = serializers.SerializerMethodField()
+    daysRemaining = serializers.SerializerMethodField()
+    accessGrantedAt = serializers.SerializerMethodField()
 
     class Meta:
         model = UE
@@ -113,8 +133,20 @@ class UESerializer(serializers.ModelSerializer):
             'programId', 'level', 'semester', 'academicYear', 'isPublished',
             'isSuspended', 'priceFcfa', 'order', 'imageUrl', 'coefficient',
             'creditEcts', 'departmentName', 'programName', 'sessionsCount',
-            'completedSessionsCount', 'progressPercent', 'isUnlocked'
+            'completedSessionsCount', 'progressPercent', 'isUnlocked',
+            'expiresAt', 'isExpired', 'daysRemaining', 'accessGrantedAt'
         ]
+
+    def _get_user_access(self, obj):
+        request = self.context.get('request')
+        user = request.user if request and request.user and request.user.is_authenticated else None
+        if not user:
+            return None
+        if not hasattr(self, '_access_cache'):
+            self._access_cache = {}
+        if obj.id not in self._access_cache:
+            self._access_cache[obj.id] = UserUEAccess.objects.filter(user=user, ue=obj).first()
+        return self._access_cache[obj.id]
 
     def get_departmentName(self, obj):
         return obj.department.name if obj.department else (obj.department_id or '')
@@ -146,7 +178,34 @@ class UESerializer(serializers.ModelSerializer):
             return False
         if user.role in ('SUPERUSER', 'STAFF') or user.is_superuser or user.is_staff or user.is_sponsored:
             return True
-        return UserUEAccess.objects.filter(user=user, ue=obj, status='active').exists()
+        access = self._get_user_access(obj)
+        if access and access.status == 'active' and not access.is_expired:
+            return True
+        return False
+
+    def get_expiresAt(self, obj):
+        access = self._get_user_access(obj)
+        if access and access.expires_at:
+            return access.expires_at.isoformat()
+        return None
+
+    def get_isExpired(self, obj):
+        access = self._get_user_access(obj)
+        if access:
+            return access.is_expired
+        return False
+
+    def get_daysRemaining(self, obj):
+        access = self._get_user_access(obj)
+        if access and access.expires_at:
+            return access.days_remaining
+        return None
+
+    def get_accessGrantedAt(self, obj):
+        access = self._get_user_access(obj)
+        if access and access.granted_at:
+            return access.granted_at.isoformat()
+        return None
 
 
 class QuizAttemptSerializer(serializers.ModelSerializer):

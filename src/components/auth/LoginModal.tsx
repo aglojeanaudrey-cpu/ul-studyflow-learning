@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, LogIn, Phone, Lock, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UlStudyFlowLogo } from '../brand/UlStudyFlowLogo';
+import { PasswordInput } from '../ui/PasswordInput';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -73,7 +74,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
                 <input
                   type="text"
                   required
-                  placeholder="Ex : 99 70 59 20 ou aglojeanaudrey@gmail.com"
+                  placeholder="Ex : 90 12 34 56 ou johndoe@gmail.com"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full text-xs pl-8 pr-3 py-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:border-[#25D366] focus:outline-none"
@@ -89,15 +90,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
                 </label>
               </div>
               <div className="relative">
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full text-xs pl-8 pr-3 py-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:border-[#25D366] focus:outline-none"
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                  withLeftIcon
                 />
-                <Lock className="w-4 h-4 text-[#667781] dark:text-[#8696A0] absolute left-2.5 top-3" />
+                <Lock className="w-4 h-4 text-[#667781] dark:text-[#8696A0] absolute left-2.5 top-3 pointer-events-none" />
               </div>
             </div>
 

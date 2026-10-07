@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PromoCode, UnlockRequest, PlatformConfig
+from .models import PromoCode, UnlockRequest, PlatformConfig, PaymentMethod
 
 class PromoCodeSerializer(serializers.ModelSerializer):
     discountPercent = serializers.IntegerField(source='discount_percent')
@@ -57,4 +57,23 @@ class PlatformConfigSerializer(serializers.ModelSerializer):
             'defaultUePriceFcfa', 'discountedUePriceFcfa', 'onlineAssistancePerHourFcfa',
             'inPersonAssistancePerHourFcfa', 'firstChapterFreeEnabled', 'allowSelfRegistration',
             'universityName', 'academicYearCurrent', 'contactPhones', 'contactEmail'
+        ]
+
+
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source='method_type')
+    accountNumber = serializers.CharField(source='account_number', required=False, allow_blank=True)
+    paymentUrl = serializers.CharField(source='payment_url', required=False, allow_null=True, allow_blank=True)
+    qrCodeImage = serializers.CharField(source='qr_code_image', required=False, allow_null=True, allow_blank=True)
+    logoUrl = serializers.CharField(source='logo_url', required=False, allow_null=True, allow_blank=True)
+    isActive = serializers.BooleanField(source='is_active')
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+    updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
+
+    class Meta:
+        model = PaymentMethod
+        fields = [
+            'id', 'name', 'type', 'accountNumber', 'paymentUrl',
+            'qrCodeImage', 'logoUrl', 'instructions', 'order', 'isActive',
+            'createdAt', 'updatedAt'
         ]

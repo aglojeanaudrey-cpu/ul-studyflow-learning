@@ -2,27 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { User, UE } from '../../types';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import {
-  Users,
-  Search,
-  Shield,
-  KeyRound,
-  CheckCircle,
-  XCircle,
-  X,
-  Lock,
-  Unlock,
-  AlertCircle,
-  UserPlus,
-  Edit2,
-  Trash2,
-  Gift,
-  Bot,
-  BotOff,
-  Crown,
-  Sparkles,
-  Check
-} from 'lucide-react';
+import { Users, Search, Shield, KeyRound, CheckCircle, XCircle, X, Lock, Unlock, AlertCircle, UserPlus, Edit2, Trash2, Gift, Bot, BotOff, Crown, Sparkles, Check } from 'lucide-react';
+import { PasswordInput } from '../ui/PasswordInput';
+
+const ALL_ADMIN_PERMISSIONS = [
+  { id: 'dashboard', label: 'Tableau de Bord', desc: 'Statistiques globales et activité récente' },
+  { id: 'users', label: 'Utilisateurs & Accès', desc: 'Gestion des étudiants, activation des comptes et des UE' },
+  { id: 'courses', label: 'UE & Séances / Chapitres', desc: 'Création et gestion des UE, séances, cours et QCM' },
+  { id: 'progress', label: 'Progression des Étudiants', desc: 'Suivi de l\'avancement et des résultats aux tests' },
+  { id: 'structure', label: 'Structure LMD', desc: 'Départements, Facultés et Filières' },
+  { id: 'forms', label: 'Formulaires & Enquêtes', desc: 'Création de formulaires et consultation des réponses' },
+  { id: 'config', label: 'Tarifs & Moyens de Paiement', desc: 'Numéros de paiement, QR Codes, tarifs et déblocages' },
+  { id: 'notifications', label: 'Notifications & Alertes', desc: 'Envoi et programmation de messages internes' },
+  { id: 'audit', label: 'Audit Logs', desc: 'Consultation des journaux de sécurité' },
+];
 
 export const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -39,6 +32,8 @@ export const UserManagement: React.FC = () => {
   // UE Access Modal State
   const [accessModalUser, setAccessModalUser] = useState<User | null>(null);
   const [userAccessLoading, setUserAccessLoading] = useState(false);
+  const [grantedUeIds, setGrantedUeIds] = useState<Set<string>>(new Set());
+  const [accessInitialLoading, setAccessInitialLoading] = useState(false);
 
   // Create User Modal State
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -53,7 +48,8 @@ export const UserManagement: React.FC = () => {
     role: 'USER' as 'USER' | 'STAFF' | 'SUPERUSER',
     password: '',
     isSponsored: false,
-    isAiSuspended: false
+    isAiSuspended: false,
+    adminPermissions: ['dashboard', 'courses', 'progress'] as string[]
   });
 
   // Edit User Modal State
@@ -70,6 +66,7 @@ export const UserManagement: React.FC = () => {
     isActive: true,
     isSponsored: false,
     isAiSuspended: false,
+    adminPermissions: [] as string[],
     newPassword: ''
   });
 
@@ -125,7 +122,8 @@ export const UserManagement: React.FC = () => {
         role: 'USER' as 'USER' | 'STAFF' | 'SUPERUSER',
         password: '',
         isSponsored: false,
-        isAiSuspended: false
+        isAiSuspended: false,
+        adminPermissions: ['dashboard', 'courses', 'progress']
       });
       await loadData();
     } catch (err: any) {
@@ -148,8 +146,24 @@ export const UserManagement: React.FC = () => {
       isActive: u.isActive,
       isSponsored: Boolean(u.isSponsored),
       isAiSuspended: Boolean(u.isAiSuspended),
+      adminPermissions: u.adminPermissions && u.adminPermissions.length > 0 ? u.adminPermissions : ['dashboard', 'courses', 'progress'],
       newPassword: ''
     });
+  };
+
+  // Open Access Modal
+  const openAccessModal = async (u: User) => {
+    setAccessModalUser(u);
+    setAccessInitialLoading(true);
+    try {
+      const res = await api.getAdminUserAccess(u.id);
+      setGrantedUeIds(new Set(res.grantedUeIds));
+    } catch (err: any) {
+      showError(err.message || "Impossible de charger les accès.");
+      setGrantedUeIds(new Set());
+    } finally {
+      setAccessInitialLoading(false);
+    }
   };
 
   // Handle Edit Submit
@@ -171,6 +185,9 @@ export const UserManagement: React.FC = () => {
       if (isSuperuser) {
         payload.isSponsored = editForm.isSponsored;
         payload.isAiSuspended = editForm.isAiSuspended;
+        if (editForm.role === 'STAFF') {
+          payload.adminPermissions = editForm.adminPermissions;
+        }
       }
       if (editForm.newPassword.trim()) {
         payload.password = editForm.newPassword.trim();
@@ -244,8 +261,24 @@ export const UserManagement: React.FC = () => {
     if (!accessModalUser) return;
     setUserAccessLoading(true);
     try {
-      await api.toggleUserUeAccess(accessModalUser.id, ueId, action);
-      await loadData();
+      const res = await api.toggleUserUeAccess(accessModalUser.id, ueId, action);
+
+      // 1. Mise à jour ciblée des UE accordées dans la modal
+      setGrantedUeIds(new Set(res.grantedUeIds));
+
+      // 2. ⭐ Mise à jour locale du compteur accessCount dans la liste users
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === accessModalUser.id
+            ? { ...u, accessCount: res.grantedUeIds.length }
+            : u
+        )
+      );
+
+      setAccessModalUser((prev) =>
+        prev ? { ...prev, accessCount: res.grantedUeIds.length } : prev
+      );
+      
       showSuccess(`Accès ${action === 'grant' ? 'attribué' : 'révoqué'} avec succès.`);
     } catch (err: any) {
       showError(err.message || "Erreur d'attribution.");
@@ -407,8 +440,19 @@ export const UserManagement: React.FC = () => {
                               ? 'bg-blue-100 dark:bg-blue-950 text-blue-900 dark:text-blue-300 border border-blue-300/40'
                               : 'bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] border border-emerald-300/40'
                           }`}>
-                            {u.role}
+                            {u.role === 'STAFF' ? 'STAFF / TUTEUR' : u.role}
                           </span>
+
+                          {u.role === 'STAFF' && (
+                            <button
+                              onClick={() => openEditModal(u)}
+                              title="Cliquer pour configurer les permissions de ce staff"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-300 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 transition-colors"
+                            >
+                              <Shield className="w-2.5 h-2.5 text-blue-600" />
+                              {(u.adminPermissions?.length ?? 3)}/9 rubriques
+                            </button>
+                          )}
 
                           {u.isAiSuspended && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
@@ -427,7 +471,7 @@ export const UserManagement: React.FC = () => {
                           </span>
                         ) : (
                           <button
-                            onClick={() => setAccessModalUser(u)}
+                            onClick={() => openAccessModal(u)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
                           >
                             <KeyRound className="w-3 h-3 text-[#25D366]" />
@@ -645,16 +689,78 @@ export const UserManagement: React.FC = () => {
                 </div>
                 <div>
                   <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Mot de passe *</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Min 6 caractères"
+                  <PasswordInput
                     value={createForm.password}
                     onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:outline-none focus:border-[#25D366]"
+                    placeholder="Min 6 caractères"
+                    required
+                    autoComplete="new-password"
                   />
                 </div>
               </div>
+
+              {/* Granular permissions for STAFF when created */}
+              {createForm.role === 'STAFF' && (
+                <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      Permissions d'accès aux rubriques d'administration
+                    </span>
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setCreateForm({ ...createForm, adminPermissions: ALL_ADMIN_PERMISSIONS.map(p => p.id) })}
+                        className="text-blue-700 dark:text-blue-300 font-bold hover:underline"
+                      >
+                        Tout cocher
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCreateForm({ ...createForm, adminPermissions: [] })}
+                        className="text-gray-500 hover:underline"
+                      >
+                        Tout décocher
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
+                    Cochez les pages visibles et accessibles pour cet enseignant / tuteur. Les pages non cochées seront complètement masquées.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {ALL_ADMIN_PERMISSIONS.map((perm) => {
+                      const isChecked = createForm.adminPermissions.includes(perm.id);
+                      return (
+                        <label
+                          key={perm.id}
+                          className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
+                            isChecked
+                              ? 'bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700'
+                              : 'bg-white dark:bg-[#111B21] border-gray-200 dark:border-gray-700 opacity-70'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setCreateForm({ ...createForm, adminPermissions: [...createForm.adminPermissions, perm.id] });
+                              } else {
+                                setCreateForm({ ...createForm, adminPermissions: createForm.adminPermissions.filter(p => p !== perm.id) });
+                              }
+                            }}
+                            className="w-3.5 h-3.5 text-blue-600 rounded mt-0.5"
+                          />
+                          <div>
+                            <div className="font-bold text-[11px] text-[#111B21] dark:text-white">{perm.label}</div>
+                            <div className="text-[9px] text-[#667781] dark:text-[#8696A0] leading-tight">{perm.desc}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Superuser Special Options */}
               {isSuperuser && (
@@ -842,14 +948,76 @@ export const UserManagement: React.FC = () => {
                 <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
                   Nouveau mot de passe (Laisser vide pour ne pas modifier)
                 </label>
-                <input
-                  type="password"
-                  placeholder="Nouveau mot de passe..."
+                <PasswordInput
                   value={editForm.newPassword}
                   onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:outline-none focus:border-[#25D366]"
+                  placeholder="Nouveau mot de passe..."
+                  autoComplete="new-password"
                 />
               </div>
+
+              {/* Granular permissions for STAFF when edited */}
+              {editForm.role === 'STAFF' && isSuperuser && (
+                <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      Permissions granulaires d'administration
+                    </span>
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, adminPermissions: ALL_ADMIN_PERMISSIONS.map(p => p.id) })}
+                        className="text-blue-700 dark:text-blue-300 font-bold hover:underline"
+                      >
+                        Tout cocher
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, adminPermissions: [] })}
+                        className="text-gray-500 hover:underline"
+                      >
+                        Tout décocher
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
+                    Paramétrez précisément les pages de l'administration autorisées pour ce membre du staff. Les pages non cochées seront invisibles et inaccessibles.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {ALL_ADMIN_PERMISSIONS.map((perm) => {
+                      const isChecked = editForm.adminPermissions.includes(perm.id);
+                      return (
+                        <label
+                          key={perm.id}
+                          className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
+                            isChecked
+                              ? 'bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700'
+                              : 'bg-white dark:bg-[#111B21] border-gray-200 dark:border-gray-700 opacity-70'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditForm({ ...editForm, adminPermissions: [...editForm.adminPermissions, perm.id] });
+                              } else {
+                                setEditForm({ ...editForm, adminPermissions: editForm.adminPermissions.filter(p => p !== perm.id) });
+                              }
+                            }}
+                            className="w-3.5 h-3.5 text-blue-600 rounded mt-0.5"
+                          />
+                          <div>
+                            <div className="font-bold text-[11px] text-[#111B21] dark:text-white">{perm.label}</div>
+                            <div className="text-[9px] text-[#667781] dark:text-[#8696A0] leading-tight">{perm.desc}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Superuser Special Sponsorship & AI Settings */}
               {isSuperuser && (
@@ -942,57 +1110,84 @@ export const UserManagement: React.FC = () => {
 
       {/* Grant / Revoke UE Access Modal */}
       {accessModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 max-h-[90vh] overflow-y-auto transition-colors">
-            <button
-              onClick={() => setAccessModalUser(null)}
-              className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 max-h-[90vh] overflow-y-auto transition-colors">
+          <button
+            onClick={() => { setAccessModalUser(null); setGrantedUeIds(new Set()); }}
+            className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
+          >
+            <X className="w-5 h-5" />
+          </button>
 
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold">
-                <KeyRound className="w-5 h-5 text-[#25D366]" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base text-[#111B21] dark:text-white">
-                  Gestion des accès UE : {accessModalUser.firstName} {accessModalUser.lastName}
-                </h3>
-                <p className="text-xs text-[#667781] dark:text-[#8696A0]">
-                  Activer ou révoquer les Unités d'Enseignement pour cet utilisateur.
-                </p>
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold">
+              <KeyRound className="w-5 h-5 text-[#25D366]" />
             </div>
+            <div>
+              <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+                Gestion des accès UE : {accessModalUser.firstName} {accessModalUser.lastName}
+              </h3>
+              <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+                Activer ou révoquer les Unités d'Enseignement pour cet utilisateur.
+              </p>
+            </div>
+          </div>
 
+          {accessInitialLoading ? (
+            <div className="py-10 text-center text-xs text-[#667781] dark:text-[#8696A0]">
+              Chargement des accès...
+            </div>
+          ) : (
             <div className="space-y-2 pt-2">
               {courses.map((course) => {
+                const isGranted = grantedUeIds.has(course.id);
                 return (
                   <div
                     key={course.id}
-                    className="p-3 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] flex items-center justify-between gap-3 bg-[#F0F2F5]/50 dark:bg-[#1F2C34]/50 hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34] transition-colors"
+                    className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
+                      isGranted
+                        ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20'
+                        : 'border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5]/50 dark:bg-[#1F2C34]/50'
+                    }`}
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-xs text-[#075E54] dark:text-[#25D366]">{course.code}</span>
                         <span className="text-[10px] text-[#667781] dark:text-[#8696A0]">({course.level})</span>
+                        {isGranted && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500 text-white inline-flex items-center gap-0.5">
+                            <Check className="w-2.5 h-2.5" />
+                            ACTIVE
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs font-medium text-[#111B21] dark:text-white truncate">{course.title}</p>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* Bouton ACCORDER */}
                       <button
-                        disabled={userAccessLoading}
+                        disabled={userAccessLoading || isGranted}
                         onClick={() => handleToggleUeAccess(course.id, 'grant')}
-                        className="px-2.5 py-1 text-xs font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-lg transition-colors flex items-center gap-1"
+                        className={`px-2.5 py-1 text-xs rounded-lg transition-all flex items-center gap-1 ${
+                          isGranted
+                            ? 'font-extrabold text-white bg-[#25D366] ring-2 ring-[#25D366]/50 ring-offset-1 dark:ring-offset-[#111B21] shadow-md cursor-default'
+                            : 'font-bold text-[#075E54] bg-[#25D366]/30 hover:bg-[#25D366]/60 opacity-80 hover:opacity-100'
+                        }`}
                       >
                         <Unlock className="w-3 h-3" />
                         Accorder
                       </button>
+
+                      {/* Bouton REVOQUER */}
                       <button
-                        disabled={userAccessLoading}
+                        disabled={userAccessLoading || !isGranted}
                         onClick={() => handleToggleUeAccess(course.id, 'revoke')}
-                        className="px-2.5 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950 hover:bg-rose-100 dark:hover:bg-rose-900 rounded-lg transition-colors flex items-center gap-1"
+                        className={`px-2.5 py-1 text-xs rounded-lg transition-all flex items-center gap-1 ${
+                          !isGranted
+                            ? 'font-extrabold text-white bg-rose-500 ring-2 ring-rose-500/50 ring-offset-1 dark:ring-offset-[#111B21] shadow-md cursor-default'
+                            : 'font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950 hover:bg-rose-100 dark:hover:bg-rose-900 opacity-80 hover:opacity-100'
+                        }`}
                       >
                         <Lock className="w-3 h-3" />
                         Révoquer
@@ -1002,18 +1197,19 @@ export const UserManagement: React.FC = () => {
                 );
               })}
             </div>
+          )}
 
-            <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] flex justify-end">
-              <button
-                onClick={() => setAccessModalUser(null)}
-                className="px-4 py-2 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl"
-              >
-                Fermer
-              </button>
-            </div>
+          <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] flex justify-end">
+            <button
+              onClick={() => { setAccessModalUser(null); setGrantedUeIds(new Set()); }}
+              className="px-4 py-2 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl"
+            >
+              Fermer
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 };

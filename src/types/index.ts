@@ -12,6 +12,7 @@ export interface User {
   isActive: boolean;
   isSponsored?: boolean;
   isAiSuspended?: boolean;
+  adminPermissions?: string[];
   createdAt: string;
   lastLoginAt?: string;
   accessCount?: number;
@@ -61,6 +62,10 @@ export interface UE {
   coefficient?: number;
   creditEcts?: number;
   isUnlocked?: boolean;
+  expiresAt?: string | null;
+  isExpired?: boolean;
+  daysRemaining?: number | null;
+  accessGrantedAt?: string | null;
   sessionsCount?: number;
   completedSessionsCount?: number;
   progressPercent?: number;
@@ -105,7 +110,8 @@ export interface QuizQuestion {
 
 export interface Quiz {
   id: string;
-  sessionId: string;
+  sessionId?: string;
+  chapterId?: string;
   title: string;
   description: string;
   passingScorePercent: number;
@@ -119,6 +125,40 @@ export interface Flashcard {
   category?: string;
 }
 
+export interface Chapter {
+  id: string;
+  sessionId: string;
+  number: number;
+  title: string;
+  objectives?: string;
+  order?: number;
+  summaryText?: string;
+  video?: {
+    title: string;
+    url: string;
+    duration?: string;
+    provider?: 'embed' | 'mp4' | 'youtube';
+    driveFileUrl?: string;
+  };
+  audio?: {
+    title: string;
+    url: string;
+    duration?: string;
+    speaker?: string;
+    driveFileUrl?: string;
+  };
+  pdf?: {
+    title: string;
+    url?: string;
+    pages?: number;
+    sizeMb?: number;
+    summaryMarkdown?: string;
+  };
+  flashcards?: Flashcard[];
+  quiz?: Quiz;
+  hasQuiz?: boolean;
+}
+
 export interface Session {
   id: string;
   ueId: string;
@@ -130,7 +170,9 @@ export interface Session {
   order: number;
   isPublished: boolean;
   isSuspended?: boolean;
-  content: SessionContent;
+  chapters?: Chapter[];
+  chaptersCount?: number;
+  content?: SessionContent;
   quiz?: Quiz;
   flashcards?: Flashcard[];
   hasQuiz?: boolean;
@@ -205,6 +247,10 @@ export interface DynamicForm {
   isActive: boolean;
   createdAt: string;
   fields: FormField[];
+  // ⭐ Nouveaux champs (calculés par le backend)
+  submissionsCount?: number;
+  lastSubmissionAt?: string | null;
+  hasNewSubmissions?: boolean;
 }
 
 export interface FormSubmission {
@@ -300,5 +346,62 @@ export interface AppNotification {
   readCount?: number;
   recipientUserIds?: string[];
   recipientNames?: string[];
+}
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  type: 'phone_account' | 'payment_link' | 'qr_code' | 'other';
+  accountNumber?: string;
+  paymentUrl?: string;
+  qrCodeImage?: string;
+  logoUrl?: string;
+  instructions?: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface AdminStudentProgressUe {
+  ueId: string;
+  ueCode: string;
+  ueTitle: string;
+  level: string;
+  totalSessions: number;
+  completedSessions: number;
+  progressPercent: number;
+  avgQuizScore: number | null;
+}
+
+export interface AdminStudentProgress {
+  id: string;
+  phone: string;
+  rawPhone: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  department: string;
+  program: string;
+  level: string;
+  isSponsored?: boolean;
+  isActive: boolean;
+  createdAt?: string;
+  lastActivityAt?: string;
+  globalProgressPercent: number;
+  completedSessionsCount: number;
+  totalSessions: number;
+  totalQuizzesTaken: number;
+  passedQuizzesCount: number;
+  avgQuizScore: number;
+  accessibleUesCount: number;
+  ueBreakdown: AdminStudentProgressUe[];
+}
+
+export interface AdminProgressSummary {
+  totalStudents: number;
+  averageCompletionRate: number;
+  totalCompletedSessions: number;
+  totalQuizzesTaken: number;
 }
 

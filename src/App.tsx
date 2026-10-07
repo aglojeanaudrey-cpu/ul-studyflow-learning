@@ -6,11 +6,11 @@ import { Footer } from './components/layout/Footer';
 
 // Marketing Views
 import { HeroSection } from './components/marketing/HeroSection';
-import { FeaturesSection } from './components/marketing/FeaturesSection';
-import { HowItWorksSection } from './components/marketing/HowItWorksSection';
-import { PricingSection } from './components/marketing/PricingSection';
-import { FaqSection } from './components/marketing/FaqSection';
-import { AboutSection } from './components/marketing/AboutSection';
+import { PricingPage } from './components/marketing/pricing/ui/PricingPage';
+import { FeaturesPage } from './components/marketing/features/FeaturesPage';
+import { FaqPage } from './components/marketing/faq/FaqPage';
+import { HowItWorksPage } from './components/marketing/howitworks/HowItWorksPage';
+import { AboutPage } from './components/marketing/about/AboutPage';
 import { ContactModal } from './components/marketing/ContactModal';
 import { LegalModal } from './components/marketing/LegalModal';
 
@@ -36,8 +36,13 @@ import {
   BookOpen,
   TrendingUp,
   Sparkles,
-  User as UserIcon
+  User as UserIcon,
+  AlertCircle,
 } from 'lucide-react';
+
+import { DynamicFormModal } from './components/student/DynamicFormModal';
+import { api } from './lib/api';
+import { DynamicForm } from './types';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -53,6 +58,15 @@ function AppContent() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [legalModalType, setLegalModalType] = useState<'privacy' | 'terms' | null>(null);
+
+  // Public Form State
+  const [publicFormId] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('form');
+  });
+  const [publicForm, setPublicForm] = useState<DynamicForm | null>(null);
+  const [publicFormLoading, setPublicFormLoading] = useState(false);
+  const [publicFormError, setPublicFormError] = useState<string | null>(null);
 
   // Automatic redirect to dashboard upon connection
   const prevUserRef = React.useRef<typeof user>(user);
@@ -90,6 +104,59 @@ function AppContent() {
     setCurrentTab('student_ai');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Load public form from URL if present
+  React.useEffect(() => {
+    if (!publicFormId) return;
+    setPublicFormLoading(true);
+    api.getForm(publicFormId)
+      .then(res => setPublicForm(res.form))
+      .catch(err => setPublicFormError(err.message || "Ce formulaire n'existe plus ou a été désactivé."))
+      .finally(() => setPublicFormLoading(false));
+  }, [publicFormId]);
+
+  // ⭐ PRIORITÉ ABSOLUE : si un formulaire public est demandé, on l'affiche seul
+  if (publicFormId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F0F2F5] dark:bg-[#0B141A] p-4">
+        <div className="w-full max-w-xl">
+          {publicFormLoading && (
+            <div className="flex flex-col items-center gap-3 py-12">
+              <div className="w-10 h-10 border-3 border-[#25D366] border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-xs font-bold text-[#075E54] tracking-wider uppercase">
+                Chargement du formulaire...
+              </span>
+            </div>
+          )}
+
+          {publicFormError && (
+            <div className="bg-white dark:bg-[#111B21] rounded-2xl p-8 shadow-xl border border-[#E9EDEF] dark:border-[#222E35] text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 flex items-center justify-center mx-auto">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h2 className="font-bold text-lg text-[#111B21] dark:text-white">Formulaire indisponible</h2>
+              <p className="text-xs text-[#667781] dark:text-[#8696A0]">{publicFormError}</p>
+            </div>
+          )}
+
+          {publicForm && (
+          <DynamicFormModal
+            form={publicForm}
+            isOpen={true}
+            onClose={() => {
+              window.history.replaceState({}, '', window.location.pathname);
+              window.location.reload();
+            }}
+            onSuccess={() => {
+              // Pas besoin de faire plus : le composant affiche déjà l'écran "Formulaire envoyé"
+              // L'utilisateur fermera via le bouton qui appelle onClose
+            }}
+          />
+        )}
+        </div>
+      </div>
+    );
+  }
 
   // If loading session check
   if (loading) {
@@ -182,27 +249,44 @@ function AppContent() {
     switch (currentTab) {
       case 'features':
         return (
-          <FeaturesSection
-            onStart={() => (user ? setCurrentTab('student_home') : setRegisterOpen(true))}
+          <FeaturesPage
+            onGetStarted={() =>
+              user ? setCurrentTab('student_home') : setRegisterOpen(true)
+            }
           />
         );
       case 'how_it_works':
         return (
-          <HowItWorksSection
-            onStart={() => (user ? setCurrentTab('student_home') : setRegisterOpen(true))}
+          <HowItWorksPage
+            onGetStarted={() =>
+              user ? setCurrentTab('student_home') : setRegisterOpen(true)
+            }
           />
         );
       case 'pricing':
         return (
-          <PricingSection
-            onStart={() => (user ? setCurrentTab('student_home') : setRegisterOpen(true))}
-            onContact={() => setContactOpen(true)}
+          <PricingPage
+            onGetStarted={() =>
+              user ? setCurrentTab('student_home') : setRegisterOpen(true)
+            }
           />
         );
       case 'faq':
-        return <FaqSection />;
+        return (
+          <FaqPage
+            onGetStarted={() =>
+              user ? setCurrentTab('student_home') : setRegisterOpen(true)
+            }
+          />
+        );
       case 'about':
-        return <AboutSection />;
+        return (
+          <AboutPage
+            onGetStarted={() =>
+              user ? setCurrentTab('student_home') : setRegisterOpen(true)
+            }
+          />
+        );
       case 'home':
       default:
         return (

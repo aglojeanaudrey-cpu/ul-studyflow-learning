@@ -58,13 +58,6 @@ class Session(models.Model):
     # True = explicitement verrouillée, False = débloquée pour tous, None = règle par défaut (Séance 1 gratuite, reste sous réserve d'accès UE)
     is_locked_for_users = models.BooleanField(null=True, blank=True, default=None, verbose_name="Verrouillée pour étudiants simples")
 
-    # Contenu pédagogique
-    summary_text = models.TextField(blank=True, verbose_name="Résumé / Cours écrit")
-    video = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées vidéo")
-    audio = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées podcast audio")
-    pdf = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées support PDF")
-    flashcards = models.JSONField(default=list, blank=True, verbose_name="Cartes mémo (Flashcards)")
-
     class Meta:
         verbose_name = "Séance de cours"
         verbose_name_plural = "Séances de cours"
@@ -79,9 +72,39 @@ class Session(models.Model):
         super().save(*args, **kwargs)
 
 
+class Chapter(models.Model):
+    id = models.CharField(max_length=64, primary_key=True)
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='chapters', verbose_name="Séance parente")
+    number = models.PositiveIntegerField(default=1, verbose_name="Numéro du chapitre")
+    title = models.CharField(max_length=255, verbose_name="Titre du chapitre")
+    objectives = models.TextField(blank=True, verbose_name="Objectifs pédagogiques du chapitre")
+    order = models.IntegerField(default=1, verbose_name="Ordre dans la séance")
+
+    # Contenu pédagogique
+    summary_text = models.TextField(blank=True, verbose_name="Résumé / Cours écrit")
+    video = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées vidéo")
+    audio = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées podcast audio")
+    pdf = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées support PDF")
+    flashcards = models.JSONField(default=list, blank=True, verbose_name="Cartes mémo (Flashcards)")
+
+    class Meta:
+        verbose_name = "Chapitre"
+        verbose_name_plural = "Chapitres"
+        ordering = ['order', 'number']
+
+    def __str__(self):
+        return f"{self.session.ue.code} - S{self.session.session_number} - Chapitre {self.number}: {self.title}"
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = f"chap_{secrets.token_hex(4)}"
+        super().save(*args, **kwargs)
+
+
 class Quiz(models.Model):
     id = models.CharField(max_length=64, primary_key=True)
-    session = models.OneToOneField(Session, on_delete=models.CASCADE, related_name='quiz', verbose_name="Séance associée")
+    session = models.OneToOneField(Session, on_delete=models.CASCADE, related_name='quiz', verbose_name="Séance associée", null=True, blank=True)
+    chapter = models.OneToOneField(Chapter, on_delete=models.CASCADE, related_name='quiz', verbose_name="Chapitre associé", null=True, blank=True)
     title = models.CharField(max_length=255, verbose_name="Titre du questionnaire")
     description = models.TextField(blank=True, verbose_name="Consignes / Description")
     passing_score_percent = models.IntegerField(default=75, verbose_name="Score de validation (%)")
@@ -91,7 +114,8 @@ class Quiz(models.Model):
         verbose_name_plural = "Questionnaires interactifs"
 
     def __str__(self):
-        return f"Quiz : {self.title} ({self.session.ue.code})"
+        target = self.chapter.title if self.chapter else (self.session.title if self.session else "Quiz")
+        return f"Quiz : {self.title} ({target})"
 
     def save(self, *args, **kwargs):
         if not self.id:
@@ -130,16 +154,43 @@ class QuizQuestion(models.Model):
         super().save(*args, **kwargs)
 
 
+import datetime
+import calendar
+
+
+def compute_ue_expiration_date(start_date=None):
+    """
+    Calcule la date d'expiration exacte d'une UE débloquée :
+    Exactement 6 mois et 10 jours à compter de la date de déblocage.
+    """
+    if start_date is None:
+        start_date = timezone.now()
+
+    year = start_date.year
+    month = start_date.month + 6
+    if month > 12:
+        year += (month - 1) // 12
+        month = ((month - 1) % 12) + 1
+
+    max_day = calendar.monthrange(year, month)[1]
+    day = min(start_date.day, max_day)
+
+    date_plus_6m = start_date.replace(year=year, month=month, day=day)
+    return date_plus_6m + datetime.timedelta(days=10)
+
+
 class UserUEAccess(models.Model):
     STATUS_CHOICES = (
         ('active', 'Actif'),
         ('revoked', 'Révoqué'),
+        ('expired', 'Expiré'),
     )
 
     id = models.CharField(max_length=64, primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ue_accesses', verbose_name="Étudiant")
     ue = models.ForeignKey(UE, on_delete=models.CASCADE, related_name='user_accesses', verbose_name="UE accordée")
     granted_at = models.DateTimeField(default=timezone.now, verbose_name="Date d'attribution")
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Date d'expiration (6 mois et 10 jours)")
     granted_by = models.CharField(max_length=100, default='system_registration', verbose_name="Accordé par")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active', verbose_name="Statut")
     is_first_chapter_only = models.BooleanField(default=False, verbose_name="Premier chapitre uniquement")
@@ -150,11 +201,26 @@ class UserUEAccess(models.Model):
         unique_together = ('user', 'ue')
 
     def __str__(self):
-        return f"{self.user.phone} -> {self.ue.code} ({self.status})"
+        return f"{self.user.phone} -> {self.ue.code} ({self.status}) - Exp: {self.expires_at}"
+
+    @property
+    def is_expired(self):
+        if not self.expires_at:
+            return False
+        return timezone.now() > self.expires_at
+
+    @property
+    def days_remaining(self):
+        if not self.expires_at:
+            return None
+        delta = self.expires_at - timezone.now()
+        return max(0, delta.days)
 
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = f"acc_{int(timezone.now().timestamp())}_{secrets.token_hex(2)}"
+        if not self.expires_at and self.granted_at:
+            self.expires_at = compute_ue_expiration_date(self.granted_at)
         super().save(*args, **kwargs)
 
 

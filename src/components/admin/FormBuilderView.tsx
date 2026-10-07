@@ -2,18 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { DynamicForm, FormField, FormSubmission } from '../../types';
 import { api } from '../../lib/api';
 import {
-  Plus,
-  Trash2,
-  FileText,
-  CheckCircle2,
-  Eye,
-  X,
-  Edit2,
-  Download,
-  Palette,
-  Smile,
-  CheckSquare,
-  AlertCircle
+  Plus, Trash2, FileText, CheckCircle2, Eye, X, Edit2, Download,
+  Palette, Smile, CheckSquare, AlertCircle,
+  Link as LinkIcon, Copy, Check as CheckIcon, Share2, Inbox, Clock
 } from 'lucide-react';
 
 const PRESET_COLORS = [
@@ -38,6 +29,7 @@ export const FormBuilderView: React.FC = () => {
   // Alerts
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [copiedFormId, setCopiedFormId] = useState<string | null>(null);
 
   // Form Creator / Editor State
   const [modalOpen, setModalOpen] = useState(false);
@@ -62,7 +54,7 @@ export const FormBuilderView: React.FC = () => {
 
   const loadForms = async () => {
     try {
-      const res = await api.getForms();
+      const res = await api.getAdminForms();   // ⭐ CHANGÉ (au lieu de getForms)
       setForms(res.forms);
     } catch (err) {
       console.error('Error fetching forms:', err);
@@ -200,6 +192,41 @@ export const FormBuilderView: React.FC = () => {
     window.location.href = api.getFormExportUrl(formId);
   };
 
+  const handleCopyLink = async (form: DynamicForm) => {
+    const url = api.getFormPublicUrl(form.id);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedFormId(form.id);
+      setTimeout(() => setCopiedFormId(null), 2500);
+      showSuccess(`Lien copié ! Partagez-le sur WhatsApp, SMS...`);
+    } catch (err) {
+      // Fallback si clipboard API indisponible
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopiedFormId(form.id);
+      setTimeout(() => setCopiedFormId(null), 2500);
+      showSuccess('Lien copié !');
+    }
+  };
+
+  const formatRelativeTime = (iso: string | null | undefined): string => {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (mins < 1) return "à l'instant";
+    if (mins < 60) return `il y a ${mins} min`;
+    if (hours < 24) return `il y a ${hours}h`;
+    if (days < 7) return `il y a ${days}j`;
+    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -257,13 +284,45 @@ export const FormBuilderView: React.FC = () => {
                     </div>
                   </div>
 
-                  <span className="text-[10px] bg-emerald-50 text-[#075E54] font-bold px-2 py-0.5 rounded shrink-0">
-                    Actif
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="text-[10px] bg-emerald-50 text-[#075E54] font-bold px-2 py-0.5 rounded">
+                      Actif
+                    </span>
+                    {form.hasNewSubmissions && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-500 text-white animate-pulse">
+                        <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                        NOUVEAU
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="text-xs text-[#667781] mt-3 space-y-1">
+                <div className="text-xs text-[#667781] mt-3 space-y-1.5">
                   <p>Nombre de champs : <strong>{form.fields.length}</strong></p>
+
+                  {/* ⭐ Compteur de réponses cliquable */}
+                  <button
+                    type="button"
+                    onClick={() => handleViewSubmissions(form)}
+                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg font-bold transition-all ${
+                      (form.submissionsCount || 0) > 0
+                        ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                    title="Voir toutes les réponses"
+                  >
+                    <Inbox className="w-3.5 h-3.5" />
+                    {form.submissionsCount || 0} réponse{(form.submissionsCount || 0) > 1 ? 's' : ''}
+                  </button>
+
+                  {/* ⭐ Dernière soumission */}
+                  {form.lastSubmissionAt && (
+                    <p className="flex items-center gap-1 text-[10px] text-[#667781] italic">
+                      <Clock className="w-3 h-3" />
+                      Dernière : {formatRelativeTime(form.lastSubmissionAt)}
+                    </p>
+                  )}
+
                   <div className="flex items-center gap-1.5 pt-1">
                     <span className="text-[10px]">Couleur :</span>
                     <span
@@ -275,38 +334,59 @@ export const FormBuilderView: React.FC = () => {
               </div>
 
               {/* Bottom Actions */}
-              <div className="pt-3 border-t border-[#E9EDEF] flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-1">
+              <div className="pt-3 border-t border-[#E9EDEF] space-y-3">
+                {/* Ligne 1 : Actions rapides + bouton "Voir les réponses" */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleCopyLink(form)}
+                      title="Copier le lien public de partage"
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        copiedFormId === form.id
+                          ? 'text-white bg-[#25D366]'
+                          : 'text-[#075E54] hover:bg-emerald-50'
+                      }`}
+                    >
+                      {copiedFormId === form.id
+                        ? <CheckIcon className="w-4 h-4" />
+                        : <Share2 className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => openEditModal(form)} title="Modifier" className="p-1.5 rounded-lg text-[#075E54] hover:bg-emerald-50 transition-colors">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleExportCsv(form.id)} title="Exporter CSV" className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors">
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setDeleteConfirm({ id: form.id, title: form.title })} title="Supprimer" className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* ⭐ Bouton "Voir les réponses" (revient ici) */}
                   <button
-                    onClick={() => openEditModal(form)}
-                    title="Modifier le formulaire"
-                    className="p-1.5 rounded-lg text-[#075E54] hover:bg-emerald-50 transition-colors"
+                    onClick={() => handleViewSubmissions(form)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                      form.hasNewSubmissions
+                        ? 'text-white bg-[#25D366] hover:bg-[#1faa54] shadow-sm ring-2 ring-[#25D366]/40'
+                        : 'text-[#075E54] bg-[#F0F2F5] hover:bg-[#E9EDEF]'
+                    }`}
                   >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleExportCsv(form.id)}
-                    title="Exporter les données en CSV"
-                    className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm({ id: form.id, title: form.title })}
-                    title="Supprimer le formulaire"
-                    className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
+                    <Eye className="w-3.5 h-3.5" />
+                    Voir les {form.submissionsCount || 0} réponse{(form.submissionsCount || 0) > 1 ? 's' : ''}
                   </button>
                 </div>
 
-                <button
-                  onClick={() => handleViewSubmissions(form)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#075E54] bg-[#F0F2F5] hover:bg-[#E9EDEF] rounded-xl transition-colors"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  Voir les soumissions
-                </button>
+                {/* Ligne 2 : Lien public visible en bas */}
+                <div className="pt-2 border-t border-[#E9EDEF]">
+                  <button
+                    onClick={() => handleCopyLink(form)}
+                    className="w-full text-left text-[10px] text-[#667781] hover:text-[#075E54] font-mono truncate flex items-center gap-1 group"
+                    title="Cliquer pour copier"
+                  >
+                    <LinkIcon className="w-3 h-3 shrink-0 text-[#25D366]" />
+                    <span className="truncate group-hover:underline">{api.getFormPublicUrl(form.id)}</span>
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -532,9 +612,14 @@ export const FormBuilderView: React.FC = () => {
                 <h3 className="font-bold text-lg text-[#111B21]">
                   Soumissions : {selectedFormForSubmissions.title}
                 </h3>
-                <p className="text-xs text-[#667781]">
-                  {submissions.length} réponse(s) enregistrée(s).
-                </p>
+                <div className="flex items-center gap-2 text-xs text-[#667781]">
+                  <span>{submissions.length} réponse(s) enregistrée(s).</span>
+                  {selectedFormForSubmissions.hasNewSubmissions && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-500 text-white animate-pulse">
+                      NOUVEAU
+                    </span>
+                  )}
+                </div>
               </div>
 
               <button

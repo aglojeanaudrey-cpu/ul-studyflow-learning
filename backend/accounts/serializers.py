@@ -9,6 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
     isActive = serializers.BooleanField(source='is_active', read_only=True)
     isSponsored = serializers.BooleanField(source='is_sponsored', read_only=True)
     isAiSuspended = serializers.BooleanField(source='is_ai_suspended', read_only=True)
+    adminPermissions = serializers.JSONField(source='admin_permissions', required=False)
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     lastLoginAt = serializers.DateTimeField(source='last_login_at', read_only=True)
     accessCount = serializers.SerializerMethodField()
@@ -19,7 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'phone', 'displayPhone', 'email', 'firstName', 'lastName',
             'department', 'program', 'level', 'role', 'isActive', 'isSponsored',
-            'isAiSuspended', 'createdAt', 'lastLoginAt', 'accessCount', 'unlockedUeIds'
+            'isAiSuspended', 'adminPermissions', 'createdAt', 'lastLoginAt', 'accessCount', 'unlockedUeIds'
         ]
 
     def get_accessCount(self, obj):

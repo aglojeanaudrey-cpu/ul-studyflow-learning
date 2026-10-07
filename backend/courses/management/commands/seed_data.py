@@ -5,7 +5,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from accounts.models import User
 from academic.models import Department, Program, AcademicYear
-from courses.models import UE, Session, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt
+from courses.models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt
 from forms_builder.models import DynamicForm, FormSubmission
 from monetization.models import PromoCode, UnlockRequest, PlatformConfig
 from audit.models import AuditLog
@@ -152,8 +152,9 @@ class Command(BaseCommand):
             )
         self.stdout.write(f"- {len(data.get('ues', []))} UEs importées")
 
-        # 7. Sessions & Quizzes
+        # 7. Sessions, Chapters & Quizzes
         sess_count = 0
+        chap_count = 0
         quiz_count = 0
         for s in data.get('sessions', []):
             ue = UE.objects.filter(id=s.get('ueId')).first()
@@ -173,23 +174,54 @@ class Command(BaseCommand):
                     'order': s.get('order', 1),
                     'is_published': s.get('isPublished', True),
                     'is_suspended': s.get('isSuspended', False),
-                    'is_locked_for_users': s.get('isLockedForUsers'),
-                    'summary_text': content.get('summaryText', ''),
-                    'video': content.get('video') or {},
-                    'audio': content.get('audio') or {},
-                    'pdf': content.get('pdf') or {},
-                    'flashcards': s.get('flashcards') or []
+                    'is_locked_for_users': s.get('isLockedForUsers')
                 }
             )
             sess_count += 1
 
+            # Chapters
+            chapters_data = s.get('chapters', [])
+            if not chapters_data:
+                # Créer le Chapitre 1 initial à partir du contenu de la séance
+                chapters_data = [{
+                    'id': f"chap_{session.id}_1",
+                    'number': 1,
+                    'title': f"Fondamentaux & Concepts clés",
+                    'objectives': session.objective or "Maîtriser les notions fondamentales du chapitre.",
+                    'summaryText': content.get('summaryText', "Contenu pédagogique et résumé synthétique du chapitre."),
+                    'video': content.get('video') or {},
+                    'audio': content.get('audio') or {},
+                    'pdf': content.get('pdf') or {},
+                    'flashcards': s.get('flashcards') or []
+                }]
+
+            for ch in chapters_data:
+                chapter, _ = Chapter.objects.update_or_create(
+                    id=ch.get('id', f"chap_{session.id}_{ch.get('number', 1)}"),
+                    defaults={
+                        'session': session,
+                        'number': ch.get('number', 1),
+                        'title': ch.get('title', f"Chapitre {ch.get('number', 1)}"),
+                        'objectives': ch.get('objectives', ch.get('objective', "Objectifs pédagogiques du chapitre.")),
+                        'order': ch.get('order', ch.get('number', 1)),
+                        'summary_text': ch.get('summaryText', ''),
+                        'video': ch.get('video') or {},
+                        'audio': ch.get('audio') or {},
+                        'pdf': ch.get('pdf') or {},
+                        'flashcards': ch.get('flashcards') or []
+                    }
+                )
+                chap_count += 1
+
             # Quiz
             q_data = s.get('quiz')
             if q_data:
+                first_chap = session.chapters.first()
                 quiz, _ = Quiz.objects.update_or_create(
                     id=q_data['id'],
                     defaults={
                         'session': session,
+                        'chapter': first_chap,
                         'title': q_data.get('title', f"Quiz {session.title}"),
                         'description': q_data.get('description', ''),
                         'passing_score_percent': q_data.get('passingScorePercent', 75)
@@ -212,7 +244,7 @@ class Command(BaseCommand):
                         }
                     )
 
-        self.stdout.write(f"- {sess_count} séances et {quiz_count} questionnaires interactifs importés")
+        self.stdout.write(f"- {sess_count} séances, {chap_count} chapitres et {quiz_count} questionnaires interactifs importés")
 
         # 8. User UE Accesses
         for a in data.get('ueAccesses', []):

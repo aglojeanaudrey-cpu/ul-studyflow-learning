@@ -1,54 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { PlatformConfig, PromoCode, UnlockRequest } from '../../types';
+import { PlatformConfig, PromoCode, UnlockRequest, PaymentMethod } from '../../types';
 import { api } from '../../lib/api';
 import {
   Settings,
   Save,
   CheckCircle2,
-  Tag,
   Plus,
   Trash2,
   Lock,
   Unlock,
-  Sparkles,
   Percent,
   Gift,
   AlertCircle,
-  Clock,
   Check,
   X,
-  Phone,
-  User as UserIcon,
-  CreditCard
+  CreditCard,
+  QrCode,
+  Link as LinkIcon,
+  Smartphone,
+  Edit2,
+  ExternalLink,
+  Image as ImageIcon,
+  ArrowUpDown,
+  Eye,
+  Copy,
 } from 'lucide-react';
 
 export const ConfigPricingView: React.FC = () => {
   const [config, setConfig] = useState<PlatformConfig | null>(null);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [unlockRequests, setUnlockRequests] = useState<UnlockRequest[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [promoSuccessMsg, setPromoSuccessMsg] = useState<string | null>(null);
   const [requestSuccessMsg, setRequestSuccessMsg] = useState<string | null>(null);
+  const [paymentSuccessMsg, setPaymentSuccessMsg] = useState<string | null>(null);
 
   // New promo code form
   const [newPromoCode, setNewPromoCode] = useState('');
   const [newPromoPercent, setNewPromoPercent] = useState<number>(20);
   const [newPromoApplicable, setNewPromoApplicable] = useState<'all' | 'ue_unlock' | 'tutoring'>('all');
 
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+  // Payment Method Modal
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [paymentForm, setPaymentForm] = useState<{
+    name: string;
+    type: 'phone_account' | 'payment_link' | 'qr_code' | 'other';
+    accountNumber: string;
+    paymentUrl: string;
+    qrCodeImage: string;
+    instructions: string;
+    logoUrl: string;
+    order: number;
+    isActive: boolean;
+  }>({
+    name: '',
+    type: 'phone_account',
+    accountNumber: '',
+    paymentUrl: '',
+    qrCodeImage: '',
+    instructions: '',
+    logoUrl: '',
+    order: 1,
+    isActive: true
+  });
+
   const loadAll = async () => {
     try {
-      const [cRes, pRes, rRes] = await Promise.all([
+      const [cRes, pRes, rRes, pmRes] = await Promise.all([
         api.getAdminConfig(),
         api.getAdminPromoCodes(),
-        api.getAdminUnlockRequests()
+        api.getAdminUnlockRequests(),
+        api.getAdminPaymentMethods()
       ]);
       setConfig(cRes.config);
       setPromoCodes(pRes.promoCodes);
       setUnlockRequests(rRes.requests || []);
+      setPaymentMethods(pmRes.paymentMethods || []);
     } catch (err) {
-      console.error('Error fetching admin config, promo codes, or requests:', err);
+      console.error('Error fetching admin config, promo codes, requests, or payment methods:', err);
     } finally {
       setLoading(false);
     }
@@ -117,6 +152,86 @@ export const ConfigPricingView: React.FC = () => {
     }
   };
 
+  // Payment Methods Handlers
+  const openCreatePaymentModal = () => {
+    setEditingPaymentMethod(null);
+    setPaymentForm({
+      name: '',
+      type: 'phone_account',
+      accountNumber: '',
+      paymentUrl: '',
+      qrCodeImage: '',
+      instructions: 'Effectuez votre transfert puis conservez la confirmation SMS.',
+      logoUrl: '',
+      order: paymentMethods.length + 1,
+      isActive: true
+    });
+    setIsPaymentModalOpen(true);
+  };
+
+  const openEditPaymentModal = (pm: PaymentMethod) => {
+    setEditingPaymentMethod(pm);
+    setPaymentForm({
+      name: pm.name,
+      type: pm.type,
+      accountNumber: pm.accountNumber || '',
+      paymentUrl: pm.paymentUrl || '',
+      qrCodeImage: pm.qrCodeImage || '',
+      instructions: pm.instructions || '',
+      logoUrl: pm.logoUrl || '',
+      order: pm.order,
+      isActive: pm.isActive
+    });
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleSavePaymentMethod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentForm.name.trim()) return;
+
+    try {
+      if (editingPaymentMethod) {
+        await api.updateAdminPaymentMethod(editingPaymentMethod.id, paymentForm);
+        setPaymentSuccessMsg(`Moyen de paiement "${paymentForm.name}" modifié.`);
+      } else {
+        await api.createAdminPaymentMethod(paymentForm);
+        setPaymentSuccessMsg(`Moyen de paiement "${paymentForm.name}" ajouté avec succès.`);
+      }
+      setIsPaymentModalOpen(false);
+      setTimeout(() => setPaymentSuccessMsg(null), 3500);
+      const res = await api.getAdminPaymentMethods();
+      setPaymentMethods(res.paymentMethods || []);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erreur lors de l\'enregistrement du moyen de paiement.');
+      setTimeout(() => setErrorMsg(null), 4000);
+    }
+  };
+
+  const handleTogglePaymentMethod = async (id: string) => {
+    try {
+      await api.toggleAdminPaymentMethod(id);
+      const res = await api.getAdminPaymentMethods();
+      setPaymentMethods(res.paymentMethods || []);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Action impossible.');
+      setTimeout(() => setErrorMsg(null), 3000);
+    }
+  };
+
+  const handleDeletePaymentMethod = async (id: string, name: string) => {
+    if (!window.confirm(`Voulez-vous vraiment supprimer le moyen de paiement "${name}" ?`)) return;
+    try {
+      await api.deleteAdminPaymentMethod(id);
+      setPaymentSuccessMsg(`Moyen de paiement "${name}" supprimé.`);
+      setTimeout(() => setPaymentSuccessMsg(null), 3000);
+      const res = await api.getAdminPaymentMethods();
+      setPaymentMethods(res.paymentMethods || []);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erreur lors de la suppression.');
+      setTimeout(() => setErrorMsg(null), 3000);
+    }
+  };
+
   const handleApproveRequest = async (reqId: string, studentName: string) => {
     try {
       await api.approveUnlockRequest(reqId);
@@ -157,9 +272,9 @@ export const ConfigPricingView: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h2 className="text-xl font-bold text-[#111B21] dark:text-white">Tarifs, Offres & Déblocages UE</h2>
+        <h2 className="text-xl font-bold text-[#111B21] dark:text-white">Tarifs, Offres & Moyens de Paiement</h2>
         <p className="text-xs text-[#667781] dark:text-[#8696A0]">
-          Validation des demandes de déblocage d'UE soumises par les étudiants · Création des codes promo · Tarification officielle.
+          Gestion des demandes de déblocage · Configuration des moyens de paiement (Numéros, Liens, QR Codes) · Codes promo · Tarification officielle.
         </p>
       </div>
 
@@ -177,7 +292,7 @@ export const ConfigPricingView: React.FC = () => {
         </div>
       )}
 
-      {/* SECTION 1: DEMANDES DE DÉBLOCAGE ÉTUDIANTS (STAFF & SUPERUSER) */}
+      {/* SECTION 1: DEMANDES DE DÉBLOCAGE ÉTUDIANTS */}
       <div className="bg-white dark:bg-[#111B21] p-6 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-xs space-y-4 text-xs transition-colors">
         <div className="flex items-center justify-between pb-2 border-b border-[#E9EDEF] dark:border-[#222E35]">
           <div>
@@ -186,7 +301,7 @@ export const ConfigPricingView: React.FC = () => {
               Demandes de Déblocage d'UE en Attente ({pendingRequests.length})
             </h3>
             <p className="text-[11px] text-[#667781] dark:text-[#8696A0] mt-0.5">
-              Vérifiez le versement sur Mix Togo (+228 71 67 69 45) ou Flooz (+228 99 70 59 20) puis cliquez sur « Valider & Débloquer » sous 12h.
+              Vérifiez le versement puis validez le déblocage sous 12h.
             </p>
           </div>
           {pendingRequests.length > 0 && (
@@ -297,7 +412,179 @@ export const ConfigPricingView: React.FC = () => {
         )}
       </div>
 
-      {/* SECTION 2: CRÉATION D'OFFRE & CODES PROMO (SUPERUSER) */}
+      {/* SECTION 2: CONFIGURATION DIRECTE DES MOYENS DE PAIEMENT (NUMÉROS, LIENS, QR CODES) */}
+      <div className="bg-white dark:bg-[#111B21] p-6 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-xs space-y-5 text-xs transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#E9EDEF] dark:border-[#222E35]">
+          <div>
+            <h3 className="font-bold text-sm text-[#111B21] dark:text-white flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-[#075E54] dark:text-[#25D366]" />
+              Moyens de Paiement Officiels (Numéros, Liens & QR Codes)
+            </h3>
+            <p className="text-[11px] text-[#667781] dark:text-[#8696A0] mt-0.5">
+              Configurez directement les numéros de téléphone (T-Money, Flooz), les boutons de redirection ou les images de QR Code affichés aux étudiants.
+            </p>
+          </div>
+
+          <button
+            onClick={openCreatePaymentModal}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 font-bold text-xs text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-xl shadow-xs shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Ajouter un canal de paiement
+          </button>
+        </div>
+
+        {paymentSuccessMsg && (
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-[#25D366] text-xs rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[#25D366]" />
+            {paymentSuccessMsg}
+          </div>
+        )}
+
+        {paymentMethods.length === 0 ? (
+          <div className="p-8 text-center text-xs text-[#667781] dark:text-[#8696A0] bg-[#F0F2F5]/60 dark:bg-[#1F2C34]/40 rounded-xl space-y-2">
+            <p>Aucun moyen de paiement configuré pour le moment.</p>
+            <button
+              onClick={openCreatePaymentModal}
+              className="px-3.5 py-1.5 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54]"
+            >
+              + Configurer un premier moyen
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {paymentMethods.map((pm) => {
+              return (
+                <div
+                  key={pm.id}
+                  className={`p-4 rounded-xl border transition-all space-y-3 relative ${
+                    pm.isActive
+                      ? 'bg-white dark:bg-[#111B21] border-[#E9EDEF] dark:border-[#222E35] shadow-xs'
+                      : 'bg-[#F0F2F5]/60 dark:bg-[#1F2C34]/40 border-dashed border-gray-300 dark:border-gray-700 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold">
+                        {pm.type === 'phone_account' ? (
+                          <Smartphone className="w-4 h-4" />
+                        ) : pm.type === 'payment_link' ? (
+                          <LinkIcon className="w-4 h-4" />
+                        ) : pm.type === 'qr_code' ? (
+                          <QrCode className="w-4 h-4" />
+                        ) : (
+                          <CreditCard className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs text-[#111B21] dark:text-white">
+                          {pm.name}
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gray-100 dark:bg-gray-800 text-[#667781] dark:text-[#8696A0]">
+                            {pm.type === 'phone_account'
+                              ? 'Numéro / Compte'
+                              : pm.type === 'payment_link'
+                              ? 'Lien de Paiement'
+                              : pm.type === 'qr_code'
+                              ? 'QR Code'
+                              : 'Autre'}
+                          </span>
+                          <span className="text-[10px] text-[#667781] dark:text-[#8696A0]">
+                            Ordre: {pm.order}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleTogglePaymentMethod(pm.id)}
+                        title={pm.isActive ? 'Désactiver ce moyen' : 'Activer ce moyen'}
+                        className={`p-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                          pm.isActive
+                            ? 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950'
+                            : 'text-emerald-700 dark:text-[#25D366] hover:bg-emerald-50 dark:hover:bg-emerald-950'
+                        }`}
+                      >
+                        {pm.isActive ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => openEditPaymentModal(pm)}
+                        title="Modifier"
+                        className="p-1.5 rounded-lg text-[#075E54] dark:text-[#25D366] hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePaymentMethod(pm.id, pm.name)}
+                        title="Supprimer"
+                        className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Channel Details Display */}
+                  <div className="space-y-1.5 bg-[#F0F2F5] dark:bg-[#1F2C34] p-2.5 rounded-lg text-[11px]">
+                    {pm.accountNumber && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[#667781] dark:text-[#8696A0]">Numéro / Compte :</span>
+                        <strong className="font-mono text-[#111B21] dark:text-white font-bold">{pm.accountNumber}</strong>
+                      </div>
+                    )}
+                    {pm.paymentUrl && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[#667781] dark:text-[#8696A0] shrink-0">Lien :</span>
+                        <a
+                          href={pm.paymentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 dark:text-blue-400 font-mono truncate hover:underline flex items-center gap-1"
+                        >
+                          {pm.paymentUrl}
+                          <ExternalLink className="w-3 h-3 shrink-0" />
+                        </a>
+                      </div>
+                    )}
+                    {pm.qrCodeImage && (
+                      <div className="pt-1 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setLightboxImage(pm.qrCodeImage!)}
+                          className="group relative shrink-0"
+                          title="Cliquer pour agrandir"
+                        >
+                          <img
+                            src={pm.qrCodeImage}
+                            alt="QR Code"
+                            className="w-20 h-20 rounded-lg object-contain bg-white p-1 border border-gray-200 group-hover:border-[#25D366] group-hover:shadow-md transition-all"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors flex items-center justify-center">
+                            <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                          </div>
+                        </button>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[10px] font-bold text-[#075E54] dark:text-[#25D366]">QR Code prêt</span>
+                          <span className="text-[9px] text-[#667781] dark:text-[#8696A0]">Cliquer pour agrandir</span>
+                        </div>
+                      </div>
+                    )}
+                    {pm.instructions && (
+                      <p className="text-[10px] text-[#667781] dark:text-[#8696A0] italic pt-1 border-t border-gray-200/50 dark:border-gray-700/50">
+                        {pm.instructions}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 3: CRÉATION D'OFFRE & CODES PROMO */}
       <div className="bg-white dark:bg-[#111B21] p-6 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-xs space-y-5 text-xs transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#E9EDEF] dark:border-[#222E35]">
           <div>
@@ -306,7 +593,7 @@ export const ConfigPricingView: React.FC = () => {
               Création d'Offre Promotionnelle (Code Promo)
             </h3>
             <p className="text-[11px] text-[#667781] dark:text-[#8696A0] mt-0.5">
-              L'utilisateur pourra saisir ce code promo lors d'une demande de déblocage d'UE ou de tutorat pour bénéficier de la réduction en pourcentage.
+              L'utilisateur pourra saisir ce code promo lors d'une demande de déblocage d'UE ou de tutorat.
             </p>
           </div>
         </div>
@@ -444,7 +731,7 @@ export const ConfigPricingView: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 3: TARIFS PRINCIPAUX */}
+      {/* SECTION 4: TARIFS PRINCIPAUX */}
       <form onSubmit={handleSave} className="bg-white dark:bg-[#111B21] p-6 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-xs space-y-4 text-xs transition-colors">
         <h3 className="font-bold text-sm text-[#111B21] dark:text-white flex items-center gap-1.5 pb-2 border-b border-[#E9EDEF] dark:border-[#222E35]">
           <Settings className="w-4 h-4 text-[#075E54] dark:text-[#25D366]" />
@@ -527,6 +814,201 @@ export const ConfigPricingView: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* MODAL: CREATE / EDIT PAYMENT METHOD */}
+      {isPaymentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E9EDEF] dark:border-[#222E35]">
+              <h3 className="font-bold text-sm text-[#111B21] dark:text-white flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-[#25D366]" />
+                {editingPaymentMethod ? 'Modifier le moyen de paiement' : 'Nouveau moyen de paiement'}
+              </h3>
+              <button
+                onClick={() => setIsPaymentModalOpen(false)}
+                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePaymentMethod} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                  Nom affiché du moyen de paiement *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex : Mix Togo (T-Money), Flooz Togo (Moov Money), Paiement Sécurisé..."
+                  value={paymentForm.name}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, name: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-medium focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Type de canal *
+                  </label>
+                  <select
+                    value={paymentForm.type}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, type: e.target.value as any })}
+                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-medium"
+                  >
+                    <option value="phone_account">📱 Numéro de téléphone / Compte</option>
+                    <option value="payment_link">🔗 Bouton / Lien de paiement externe</option>
+                    <option value="qr_code">📷 Image QR Code</option>
+                    <option value="other">Autre moyen</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Ordre d'affichage
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={paymentForm.order}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, order: Number(e.target.value) })}
+                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-bold"
+                  />
+                </div>
+              </div>
+
+              {(paymentForm.type === 'phone_account' || paymentForm.type === 'other') && (
+                <div>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Numéro de téléphone / Compte de versement
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex : +228 71 67 69 45 ou 99 70 59 20"
+                    value={paymentForm.accountNumber}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-mono font-bold"
+                  />
+                </div>
+              )}
+
+              {(paymentForm.type === 'payment_link' || paymentForm.type === 'other') && (
+                <div>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Lien / URL de redirection de paiement
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://pay.example.com/checkout..."
+                    value={paymentForm.paymentUrl}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentUrl: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-mono"
+                  />
+                </div>
+              )}
+
+              {(paymentForm.type === 'qr_code' || paymentForm.type === 'other') && (
+                <div>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    URL de l'image QR Code
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://.../qrcode.png ou data:image/..."
+                    value={paymentForm.qrCodeImage}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, qrCodeImage: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-mono"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                  Logo / Image d'illustration (Optionnel)
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://.../logo-tmoney.png"
+                  value={paymentForm.logoUrl}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, logoUrl: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                  Instructions données à l'étudiant
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ex : Effectuez votre transfert par Mix Togo puis conservez le SMS de confirmation..."
+                  value={paymentForm.instructions}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, instructions: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-[#111B21] dark:text-white">
+                  <input
+                    type="checkbox"
+                    checked={paymentForm.isActive}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, isActive: e.target.checked })}
+                    className="w-4 h-4 text-[#25D366] rounded"
+                  />
+                  Actif (Visible par les étudiants)
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsPaymentModalOpen(false)}
+                    className="px-3.5 py-2 font-semibold text-gray-600 hover:text-gray-800 dark:text-gray-300"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 font-bold text-xs text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-xl transition-all shadow-xs"
+                  >
+                    Enregistrer
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* QR CODE LIGHTBOX */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="bg-white dark:bg-[#111B21] rounded-2xl p-4 max-w-md w-full shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+            >
+              <X className="w-4 h-4" />
+              </button>
+                  <h3 className="font-bold text-sm text-[#111B21] dark:text-white mb-3">Aperçu du QR Code</h3>
+                  <img
+                    src={lightboxImage}
+                    alt="QR Code agrandi"
+                    className="w-full max-h-[70vh] object-contain rounded-xl bg-white p-2"
+                  />
+                  <p className="text-[10px] text-center text-[#667781] dark:text-[#8696A0] mt-3">
+                    Scannez avec T-Money / Flooz / une app bancaire
+                  </p>
+                </div>
+              </div>
+            )}
     </div>
   );
 };

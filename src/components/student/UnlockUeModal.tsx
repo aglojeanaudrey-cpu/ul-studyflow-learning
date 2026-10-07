@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { UE } from '../../types';
+import { UE, PaymentMethod } from '../../types';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import {
   X,
-  Lock,
   Unlock,
   Check,
   CheckCircle2,
   Sparkles,
-  Phone,
   Send,
   Tag,
   AlertCircle,
-  HelpCircle,
-  Copy
+  Copy,
+  Smartphone,
+  ExternalLink,
+  QrCode,
+  CreditCard,
+  Eye,
 } from 'lucide-react';
 
 interface UnlockUeModalProps {
@@ -32,6 +34,7 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
 }) => {
   const { user } = useAuth();
   const [courses, setCourses] = useState<UE[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedUeIds, setSelectedUeIds] = useState<string[]>([]);
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
@@ -39,7 +42,7 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number } | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'mix' | 'flooz'>('mix');
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('');
   const [notes, setNotes] = useState('');
 
   const [loading, setLoading] = useState(false);
@@ -47,14 +50,24 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [copiedNumber, setCopiedNumber] = useState<string | null>(null);
 
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
   useEffect(() => {
     async function load() {
       try {
-        const res = await api.getCourses();
-        // Filter published and locked courses
-        setCourses(res.courses.filter(c => !c.isSuspended));
+        const [cRes, pmRes] = await Promise.all([
+          api.getCourses(),
+          api.getPaymentMethods().catch(() => ({ paymentMethods: [] }))
+        ]);
+        // Filter published courses
+        setCourses(cRes.courses.filter(c => !c.isSuspended));
+        const activeMethods = (pmRes.paymentMethods || []).filter(pm => pm.isActive);
+        setPaymentMethods(activeMethods);
+        if (activeMethods.length > 0) {
+          setSelectedPaymentMethodId(activeMethods[0].id);
+        }
       } catch (err) {
-        console.error('Error loading courses for unlock:', err);
+        console.error('Error loading courses or payment methods for unlock:', err);
       }
     }
     if (isOpen) {
@@ -122,6 +135,8 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
     setTimeout(() => setCopiedNumber(null), 2500);
   };
 
+  const activeSelectedPaymentMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethodId) || paymentMethods[0];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -137,13 +152,17 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
 
     setLoading(true);
     try {
+      const pMethodLabel = activeSelectedPaymentMethod
+        ? `${activeSelectedPaymentMethod.name} (${activeSelectedPaymentMethod.accountNumber || activeSelectedPaymentMethod.type})`
+        : 'Mix Togo (+228 71 67 69 45)';
+
       const res = await api.submitUnlockRequest({
         nom: nom.trim(),
         prenom: prenom.trim(),
         numero: numero.trim(),
         ueIds: selectedUeIds,
         promoCode: appliedPromo?.code,
-        paymentMethod: paymentMethod === 'mix' ? 'Mix Togo (+228 71 67 69 45)' : 'Flooz Togo (+228 99 70 59 20)',
+        paymentMethod: pMethodLabel,
         notes: notes.trim()
       });
 
@@ -183,7 +202,7 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
             {/* Total and numbers box */}
             <div className="p-5 bg-amber-50 rounded-2xl border-2 border-amber-300 text-left space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-amber-200">
-                <span className="font-bold text-xs text-amber-900">Montant total exact à déposer :</span>
+                <span className="font-bold text-xs text-amber-900">Montant total exact à verser :</span>
                 <span className="text-xl font-extrabold text-[#075E54] tabular-nums">
                   {submittedRequest.totalFcfa} FCFA
                 </span>
@@ -191,41 +210,79 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
 
               <div className="space-y-2 text-xs text-amber-900">
                 <p className="font-semibold">
-                  Veuillez effectuer votre dépôt dès maintenant sur l'un des comptes officiels :
+                  Veuillez finaliser votre paiement sur le canal ci-dessous :
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                  <div className="p-3 bg-white rounded-xl border border-amber-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-[#667781] block">T-MONEY (Mix Togo)</span>
-                      <span className="font-mono font-bold text-sm text-[#111B21]">+228 71 67 69 45</span>
-                    </div>
-                    <button
-                      onClick={() => handleCopy('+22871676945')}
-                      className="p-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100"
-                      title="Copier le numéro"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
+                {/* Display Payment Channel Details */}
+                <div className="space-y-2.5 pt-1">
+                  {paymentMethods.length > 0 ? (
+                    paymentMethods.map((pm) => (
+                      <div key={pm.id} className="p-3 bg-white rounded-xl border border-amber-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-[#667781] uppercase block">
+                            {pm.name}
+                          </span>
+                          {pm.type === 'payment_link' && pm.paymentUrl && (
+                            <a
+                              href={pm.paymentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline"
+                            >
+                              Ouvrir le lien de paiement <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
 
-                  <div className="p-3 bg-white rounded-xl border border-amber-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-[#667781] block">MOOV MONEY (Flooz Togo)</span>
-                      <span className="font-mono font-bold text-sm text-[#111B21]">+228 99 70 59 20</span>
+                        {pm.accountNumber && (
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-bold text-sm text-[#111B21]">{pm.accountNumber}</span>
+                            <button
+                              onClick={() => handleCopy(pm.accountNumber!)}
+                              className="p-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 flex items-center gap-1 text-[11px] font-semibold"
+                              title="Copier le numéro"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                              Copier
+                            </button>
+                          </div>
+                        )}
+
+                        {pm.qrCodeImage && (
+                          <div className="flex items-center gap-3 pt-1">
+                            <img
+                              src={pm.qrCodeImage}
+                              alt={pm.name}
+                              className="w-20 h-20 rounded-lg object-contain bg-white border border-gray-200 p-1"
+                            />
+                            <p className="text-[11px] text-gray-600">{pm.instructions || 'Scannez le QR Code pour régler.'}</p>
+                          </div>
+                        )}
+
+                        {pm.instructions && !pm.qrCodeImage && (
+                          <p className="text-[11px] text-gray-600 italic">{pm.instructions}</p>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 bg-white rounded-xl border border-amber-200 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-[#667781] block">Mix Togo (T-Money)</span>
+                        <span className="font-mono font-bold text-sm text-[#111B21]">+228 71 67 69 45</span>
+                      </div>
+                      <button
+                        onClick={() => handleCopy('+22871676945')}
+                        className="p-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100"
+                        title="Copier le numéro"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleCopy('+22899705920')}
-                      className="p-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100"
-                      title="Copier le numéro"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
+                  )}
                 </div>
 
                 <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-[#075E54] text-[11px] leading-relaxed">
-                  ✓ <strong>Activation garantie :</strong> L'administration vous donnera accès à vos cours dans les prochaines <strong>12h</strong> après vérification du transfert.
+                  ✓ <strong>Activation garantie :</strong> L'administration validera l'accès à vos UE dans les prochaines <strong>12h</strong> après vérification.
                 </div>
               </div>
             </div>
@@ -234,7 +291,7 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
               onClick={onClose}
               className="px-6 py-2.5 text-xs font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-xl transition-all shadow-xs"
             >
-              Compris, j'effectue le dépôt
+              Compris, j'effectue le versement
             </button>
           </div>
         ) : (
@@ -248,7 +305,7 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                 <div>
                   <h3 className="text-lg font-bold text-[#111B21]">Demande de déblocage d'UE</h3>
                   <p className="text-xs text-[#667781]">
-                    Accédez à toutes les séances, exercices corrigés et polycopiés de vos matières.
+                    Accédez à toutes les séances, exercices corrigés et polycopiés de vos matières pendant <strong>6 mois et 10 jours</strong>.
                   </p>
                 </div>
               </div>
@@ -375,6 +432,149 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
               ) : null}
             </div>
 
+            {/* Choix du Moyen de Paiement */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {paymentMethods.map((pm) => {
+                const isSelected = selectedPaymentMethodId === pm.id;
+                return (
+                  <div
+                    key={pm.id}
+                    onClick={() => setSelectedPaymentMethodId(pm.id)}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      isSelected
+                        ? 'bg-emerald-50 border-[#25D366] shadow-2xs font-bold'
+                        : 'bg-white border-[#E9EDEF] hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {pm.type === 'phone_account' ? (
+                        <Smartphone className="w-4 h-4 text-[#075E54] shrink-0" />
+                      ) : pm.type === 'payment_link' ? (
+                        <ExternalLink className="w-4 h-4 text-blue-600 shrink-0" />
+                      ) : pm.type === 'qr_code' ? (
+                        <QrCode className="w-4 h-4 text-purple-600 shrink-0" />
+                      ) : (
+                        <CreditCard className="w-4 h-4 text-[#075E54] shrink-0" />
+                      )}
+                      <div className="truncate">
+                        <span className="text-xs text-[#111B21] block truncate">{pm.name}</span>
+                        {pm.accountNumber && (
+                          <span className="text-[10px] text-[#667781] font-mono">{pm.accountNumber}</span>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      type="radio"
+                      name="paymentMethodSelect"
+                      checked={isSelected}
+                      onChange={() => setSelectedPaymentMethodId(pm.id)}
+                      className="w-4 h-4 text-[#25D366]"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ⭐ APERÇU DÉTAILLÉ DU MOYEN SÉLECTIONNÉ */}
+            {activeSelectedPaymentMethod && (
+              <div className="mt-3 p-3.5 bg-white border border-[#E9EDEF] rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-[#667781] uppercase tracking-wider">
+                    Détails : {activeSelectedPaymentMethod.name}
+                  </span>
+                  {activeSelectedPaymentMethod.type === 'payment_link' && activeSelectedPaymentMethod.paymentUrl && (
+                    <a
+                      href={activeSelectedPaymentMethod.paymentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
+                    >
+                      Ouvrir le lien <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                {activeSelectedPaymentMethod.accountNumber && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-bold text-sm text-[#111B21]">
+                      {activeSelectedPaymentMethod.accountNumber}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(activeSelectedPaymentMethod.accountNumber!)}
+                        className="p-1.5 rounded-lg bg-emerald-50 text-[#075E54] hover:bg-emerald-100 flex items-center gap-1 text-[11px] font-semibold"
+                        title="Copier le numéro"
+                      >
+                        {copiedNumber === activeSelectedPaymentMethod.accountNumber ? (
+                          <>
+                            <Check className="w-3 h-3" /> Copié
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" /> Copier
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {activeSelectedPaymentMethod.paymentUrl && (
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#E9EDEF]">
+                    <a
+                      href={activeSelectedPaymentMethod.paymentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-mono text-blue-600 truncate hover:underline flex-1"
+                      title={activeSelectedPaymentMethod.paymentUrl}
+                    >
+                      {activeSelectedPaymentMethod.paymentUrl}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(activeSelectedPaymentMethod.paymentUrl!)}
+                      className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 shrink-0"
+                      title="Copier le lien"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                {activeSelectedPaymentMethod.qrCodeImage && (
+                  <div className="flex items-center gap-3 pt-1 border-t border-[#E9EDEF]">
+                    <button
+                      type="button"
+                      onClick={() => setLightboxImage(activeSelectedPaymentMethod.qrCodeImage!)}
+                      className="group relative shrink-0"
+                      title="Cliquer pour agrandir le QR Code"
+                    >
+                      <img
+                        src={activeSelectedPaymentMethod.qrCodeImage}
+                        alt={activeSelectedPaymentMethod.name}
+                        className="w-24 h-24 rounded-lg object-contain bg-white border border-gray-200 p-1 group-hover:border-[#25D366] group-hover:shadow-md transition-all"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors flex items-center justify-center">
+                        <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                      </div>
+                    </button>
+                    <div className="text-[11px] text-[#667781] leading-relaxed">
+                      <p className="font-semibold text-[#111B21]">Scannez ce QR Code</p>
+                      <p className="text-[10px] mt-0.5">avec T-Money, Flooz ou votre app bancaire.</p>
+                      <p className="text-[10px] mt-1 italic">Cliquez sur l'image pour agrandir.</p>
+                    </div>
+                  </div>
+                )}
+
+                {activeSelectedPaymentMethod.instructions && (
+                  <p className="text-[11px] text-[#667781] italic pt-1 border-t border-[#E9EDEF]">
+                    💡 {activeSelectedPaymentMethod.instructions}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Code Promo */}
             <div className="p-3.5 bg-[#F0F2F5] rounded-2xl space-y-2">
               <label className="block font-semibold text-[#111B21]">Code promo / Offre de réduction (Optionnel)</label>
@@ -436,7 +636,7 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                   <span className="font-bold text-xs uppercase tracking-wider text-[#075E54] block">
                     Somme totale à payer :
                   </span>
-                  <span className="text-[10px] text-[#667781]">Montant exact du dépôt</span>
+                  <span className="text-[10px] text-[#667781]">Montant exact du versement</span>
                 </div>
                 <div className="text-2xl font-black text-[#075E54] tabular-nums">
                   {totalToPay} FCFA
@@ -444,56 +644,18 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
               </div>
             </div>
 
-            {/* Instruction de Paiement & Numéros */}
+            {/* Reference info */}
             <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 space-y-2 text-xs text-amber-950">
               <span className="font-bold text-xs uppercase tracking-wider text-amber-900 block">
-                3. Instructions de dépôt & Comptes officiels
+                4. Instructions de versement
               </span>
               <p className="leading-relaxed">
-                Après avoir cliqué sur <strong>"Confirmer la demande"</strong>, faites un dépôt de la somme totale affichée (<strong>{totalToPay} FCFA</strong>) sur l'un de nos numéros ci-dessous. L'administration vous donnera accès dans les prochaines <strong>12h</strong> :
+                Après avoir confirmé votre demande, effectuez votre paiement de <strong>{totalToPay} FCFA</strong>. Vos matières seront activées sous 12h après validation.
               </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono">
-                <div className="p-2.5 bg-white rounded-xl border border-amber-200 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-sans font-bold text-[#667781] block">Mix Togo (T-Money)</span>
-                    <span className="font-bold text-xs text-[#111B21]">+228 71 67 69 45</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy('+22871676945')}
-                    className="p-1 rounded bg-amber-50 text-amber-800 hover:bg-amber-100"
-                    title="Copier"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="p-2.5 bg-white rounded-xl border border-amber-200 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-sans font-bold text-[#667781] block">Flooz Togo (Moov Money)</span>
-                    <span className="font-bold text-xs text-[#111B21]">+228 99 70 59 20</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy('+22899705920')}
-                    className="p-1 rounded bg-amber-50 text-amber-800 hover:bg-amber-100"
-                    title="Copier"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {copiedNumber && (
-                <p className="text-[11px] font-bold text-emerald-700 text-center">
-                  Numéro {copiedNumber} copié dans le presse-papier !
-                </p>
-              )}
 
               <div>
                 <label className="block text-[11px] font-semibold text-[#111B21] mb-1">
-                  ID de transaction / Référence du dépôt (Optionnel si vous le faites après)
+                  ID de transaction / Référence du dépôt (Optionnel)
                 </label>
                 <input
                   type="text"
@@ -526,6 +688,35 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
           </form>
         )}
       </div>
+
+      {/* QR CODE LIGHTBOX */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-4 max-w-md w-full shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <h3 className="font-bold text-sm text-[#111B21] mb-3">Aperçu du QR Code</h3>
+            <img
+              src={lightboxImage}
+              alt="QR Code agrandi"
+              className="w-full max-h-[70vh] object-contain rounded-xl bg-white p-2"
+            />
+            <p className="text-[10px] text-center text-[#667781] mt-3">
+              Scannez avec T-Money / Flooz / une app bancaire
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

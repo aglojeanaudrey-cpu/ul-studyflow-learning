@@ -72,7 +72,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
               <div className="mt-2.5 p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-[#075E54] flex flex-wrap items-center gap-3">
                 <span className="flex items-center gap-1 font-semibold">
                   <Phone className="w-3.5 h-3.5 text-[#25D366]" />
-                  +228 99 70 59 20 / 71 67 69 45
+                  +228 71 67 69 45
                 </span>
                 <span className="flex items-center gap-1 font-semibold">
                   <Mail className="w-3.5 h-3.5 text-[#25D366]" />
