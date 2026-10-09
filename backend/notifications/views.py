@@ -289,3 +289,50 @@ class AdminNotificationSendNowView(APIView):
 
         serializer = NotificationSerializer(notification, context={'request': request})
         return Response({'success': True, 'notification': serializer.data})
+
+class NotificationDeleteView(APIView):
+    """Supprime une notification individuelle (uniquement pour les superusers)."""
+    permission_classes = [IsAuthenticated, IsStaffOrSuperuser]
+
+    def delete(self, request, notif_id):
+        try:
+            notif = Notification.objects.get(id=notif_id)
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        title = notif.title
+        notif.delete()
+
+        try:
+            log_audit(
+                request=request,
+                action="DELETE_NOTIFICATION",
+                resource=f"Notification: {title}",
+                details=f"Suppression notification ID {notif_id}"
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True, 'message': 'Notification supprimée.'})
+
+
+class NotificationBulkDeleteView(APIView):
+    """
+    Supprime plusieurs notifications en masse (superusers uniquement).
+    Body: { ids: ['notif_xxx', 'notif_yyy'] }  OU  { all: true }
+    """
+    permission_classes = [IsAuthenticated, IsStaffOrSuperuser]
+
+    def delete(self, request):
+        ids = request.data.get('ids')
+        delete_all = bool(request.data.get('all', False))
+
+        if delete_all:
+            count, _ = Notification.objects.all().delete()
+            return Response({'success': True, 'deletedCount': count})
+
+        if not isinstance(ids, list) or not ids:
+            return Response({'error': 'Aucun ID fourni.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        count, _ = Notification.objects.filter(id__in=ids).delete()
+        return Response({'success': True, 'deletedCount': count})

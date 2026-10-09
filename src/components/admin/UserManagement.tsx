@@ -1,29 +1,97 @@
-import React, { useState, useEffect } from 'react';
-import { User, UE } from '../../types';
-import { api } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
-import { Users, Search, Shield, KeyRound, CheckCircle, XCircle, X, Lock, Unlock, AlertCircle, UserPlus, Edit2, Trash2, Gift, Bot, BotOff, Crown, Sparkles, Check } from 'lucide-react';
-import { PasswordInput } from '../ui/PasswordInput';
+import React, { useState, useEffect } from "react";
+import { User, UE, Department, Program } from "../../types";
+import { api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
+import {
+  Users,
+  Search,
+  Shield,
+  KeyRound,
+  CheckCircle,
+  XCircle,
+  X,
+  Lock,
+  Unlock,
+  AlertCircle,
+  UserPlus,
+  Edit2,
+  Trash2,
+  Gift,
+  Bot,
+  BotOff,
+  Crown,
+  Sparkles,
+  Check,
+} from "lucide-react";
+import { PasswordInput } from "../ui/PasswordInput";
 
 const ALL_ADMIN_PERMISSIONS = [
-  { id: 'dashboard', label: 'Tableau de Bord', desc: 'Statistiques globales et activité récente' },
-  { id: 'users', label: 'Utilisateurs & Accès', desc: 'Gestion des étudiants, activation des comptes et des UE' },
-  { id: 'courses', label: 'UE & Séances / Chapitres', desc: 'Création et gestion des UE, séances, cours et QCM' },
-  { id: 'progress', label: 'Progression des Étudiants', desc: 'Suivi de l\'avancement et des résultats aux tests' },
-  { id: 'structure', label: 'Structure LMD', desc: 'Départements, Facultés et Filières' },
-  { id: 'forms', label: 'Formulaires & Enquêtes', desc: 'Création de formulaires et consultation des réponses' },
-  { id: 'config', label: 'Tarifs & Moyens de Paiement', desc: 'Numéros de paiement, QR Codes, tarifs et déblocages' },
-  { id: 'notifications', label: 'Notifications & Alertes', desc: 'Envoi et programmation de messages internes' },
-  { id: 'audit', label: 'Audit Logs', desc: 'Consultation des journaux de sécurité' },
+  {
+    id: "dashboard",
+    label: "Tableau de Bord",
+    desc: "Statistiques globales et activité récente",
+  },
+  {
+    id: "users",
+    label: "Utilisateurs & Accès",
+    desc: "Gestion des étudiants, activation des comptes et des UE",
+  },
+  {
+    id: "courses",
+    label: "UE & Séances / Chapitres",
+    desc: "Création et gestion des UE, séances, cours et QCM",
+  },
+  {
+    id: "progress",
+    label: "Progression des Étudiants",
+    desc: "Suivi de l'avancement et des résultats aux tests",
+  },
+  {
+    id: "structure",
+    label: "Structure LMD",
+    desc: "Départements, Facultés et Filières",
+  },
+  {
+    id: "forms",
+    label: "Formulaires & Enquêtes",
+    desc: "Création de formulaires et consultation des réponses",
+  },
+  {
+    id: "config",
+    label: "Tarifs & Moyens de Paiement",
+    desc: "Numéros de paiement, QR Codes, tarifs et déblocages",
+  },
+  {
+    id: "notifications",
+    label: "Notifications & Alertes",
+    desc: "Envoi et programmation de messages internes",
+  },
+  {
+    id: "ads",
+    label: "Publicités & Annonces",
+    desc: "Création et gestion des popups ciblés (annonces, promos, pubs)",
+  },
+  {
+    id: "export",
+    label: "Export de Données",
+    desc: "Téléchargement CSV/JSON : utilisateurs, progressions, logs d'audit",
+  },
+  {
+    id: "audit",
+    label: "Audit Logs",
+    desc: "Consultation des journaux de sécurité",
+  },
 ];
 
 export const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [courses, setCourses] = useState<UE[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterRole, setFilterRole] = useState<string>('ALL');
+  const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState<string>("ALL");
 
   // Notification state
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -38,53 +106,58 @@ export const UserManagement: React.FC = () => {
   // Create User Modal State
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    email: '',
-    department: 'FASEG',
-    program: 'Économie',
-    level: 'L1',
-    role: 'USER' as 'USER' | 'STAFF' | 'SUPERUSER',
-    password: '',
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    department: "FASEG",
+    program: "Économie",
+    level: "L1",
+    role: "USER" as "USER" | "STAFF" | "SUPERUSER",
+    password: "",
     isSponsored: false,
     isAiSuspended: false,
-    adminPermissions: ['dashboard', 'courses', 'progress'] as string[]
+    adminPermissions: ["dashboard", "courses", "progress"] as string[],
   });
 
   // Edit User Modal State
   const [editModalUser, setEditModalUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    email: '',
-    department: '',
-    program: '',
-    level: 'L1',
-    role: 'USER' as 'USER' | 'STAFF' | 'SUPERUSER',
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    department: "",
+    program: "",
+    level: "L1",
+    role: "USER" as "USER" | "STAFF" | "SUPERUSER",
     isActive: true,
     isSponsored: false,
     isAiSuspended: false,
     adminPermissions: [] as string[],
-    newPassword: ''
+    newPassword: "",
   });
 
   // Delete User Confirmation State
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
 
-  const isSuperuser = currentUser?.role === 'SUPERUSER';
+  const isSuperuser = currentUser?.role === "SUPERUSER";
 
   const loadData = async () => {
     try {
-      const [uRes, cRes] = await Promise.all([
+      const [uRes, cRes, metaRes] = await Promise.all([
         api.getAdminUsers(),
-        api.getCourses()
+        api.getCourses(),
+        api.getAcademicMeta(),
       ]);
       setUsers(uRes.users);
       setCourses(cRes.courses);
+      setDepartments(
+        (metaRes.departments || []).filter((d: any) => !d.isSuspended),
+      );
+      setPrograms((metaRes.programs || []).filter((p: any) => !p.isSuspended));
     } catch (err) {
-      console.error('Error loading users:', err);
+      console.error("Error loading users:", err);
     } finally {
       setLoading(false);
     }
@@ -109,25 +182,27 @@ export const UserManagement: React.FC = () => {
     e.preventDefault();
     try {
       await api.createAdminUser(createForm);
-      showSuccess(`Utilisateur ${createForm.firstName} ${createForm.lastName} créé avec succès.`);
+      showSuccess(
+        `Utilisateur ${createForm.firstName} ${createForm.lastName} créé avec succès.`,
+      );
       setCreateModalOpen(false);
       setCreateForm({
-        firstName: '',
-        lastName: '',
-        phone: '',
-        email: '',
-        department: 'FASEG',
-        program: 'Économie',
-        level: 'L1',
-        role: 'USER' as 'USER' | 'STAFF' | 'SUPERUSER',
-        password: '',
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        department: "FASEG",
+        program: "Économie",
+        level: "L1",
+        role: "USER" as "USER" | "STAFF" | "SUPERUSER",
+        password: "",
         isSponsored: false,
         isAiSuspended: false,
-        adminPermissions: ['dashboard', 'courses', 'progress']
+        adminPermissions: ["dashboard", "courses", "progress"],
       });
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur lors de la création du compte.');
+      showError(err.message || "Erreur lors de la création du compte.");
     }
   };
 
@@ -138,16 +213,19 @@ export const UserManagement: React.FC = () => {
       firstName: u.firstName,
       lastName: u.lastName,
       phone: u.displayPhone || u.phone,
-      email: u.email || '',
-      department: u.department || 'FASEG',
-      program: u.program || 'Général',
-      level: u.level || 'L1',
+      email: u.email || "",
+      department: u.department || "FASEG",
+      program: u.program || "Général",
+      level: u.level || "L1",
       role: u.role,
       isActive: u.isActive,
       isSponsored: Boolean(u.isSponsored),
       isAiSuspended: Boolean(u.isAiSuspended),
-      adminPermissions: u.adminPermissions && u.adminPermissions.length > 0 ? u.adminPermissions : ['dashboard', 'courses', 'progress'],
-      newPassword: ''
+      adminPermissions:
+        u.adminPermissions && u.adminPermissions.length > 0
+          ? u.adminPermissions
+          : ["dashboard", "courses", "progress"],
+      newPassword: "",
     });
   };
 
@@ -180,12 +258,12 @@ export const UserManagement: React.FC = () => {
         program: editForm.program,
         level: editForm.level,
         role: editForm.role,
-        isActive: editForm.isActive
+        isActive: editForm.isActive,
       };
       if (isSuperuser) {
         payload.isSponsored = editForm.isSponsored;
         payload.isAiSuspended = editForm.isAiSuspended;
-        if (editForm.role === 'STAFF') {
+        if (editForm.role === "STAFF") {
           payload.adminPermissions = editForm.adminPermissions;
         }
       }
@@ -198,7 +276,7 @@ export const UserManagement: React.FC = () => {
       setEditModalUser(null);
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur lors de la modification.');
+      showError(err.message || "Erreur lors de la modification.");
     }
   };
 
@@ -207,11 +285,13 @@ export const UserManagement: React.FC = () => {
     if (!deleteConfirmUser) return;
     try {
       await api.deleteAdminUser(deleteConfirmUser.id);
-      showSuccess(`Utilisateur ${deleteConfirmUser.firstName} ${deleteConfirmUser.lastName} supprimé.`);
+      showSuccess(
+        `Utilisateur ${deleteConfirmUser.firstName} ${deleteConfirmUser.lastName} supprimé.`,
+      );
       setDeleteConfirmUser(null);
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Impossible de supprimer cet utilisateur.');
+      showError(err.message || "Impossible de supprimer cet utilisateur.");
     }
   };
 
@@ -222,12 +302,13 @@ export const UserManagement: React.FC = () => {
       const nextVal = !u.isSponsored;
       await api.updateAdminUser(u.id, { isSponsored: nextVal });
       await loadData();
-      showSuccess(nextVal 
-        ? `⭐ ${u.firstName} ${u.lastName} est maintenant Sponsorisé (Accès 100% gratuit à toute la plateforme).`
-        : `Accès gratuit sponsorisé révoqué pour ${u.firstName}.`
+      showSuccess(
+        nextVal
+          ? `⭐ ${u.firstName} ${u.lastName} est maintenant Sponsorisé (Accès 100% gratuit à toute la plateforme).`
+          : `Accès gratuit sponsorisé révoqué pour ${u.firstName}.`,
       );
     } catch (err: any) {
-      showError(err.message || 'Action impossible.');
+      showError(err.message || "Action impossible.");
     }
   };
 
@@ -238,12 +319,13 @@ export const UserManagement: React.FC = () => {
       const nextVal = !u.isAiSuspended;
       await api.updateAdminUser(u.id, { isAiSuspended: nextVal });
       await loadData();
-      showSuccess(nextVal
-        ? `Accès à l'assistant IA suspendu pour ${u.firstName}.`
-        : `Accès à l'assistant IA rétabli pour ${u.firstName}.`
+      showSuccess(
+        nextVal
+          ? `Accès à l'assistant IA suspendu pour ${u.firstName}.`
+          : `Accès à l'assistant IA rétabli pour ${u.firstName}.`,
       );
     } catch (err: any) {
-      showError(err.message || 'Action impossible.');
+      showError(err.message || "Action impossible.");
     }
   };
 
@@ -251,17 +333,26 @@ export const UserManagement: React.FC = () => {
     try {
       await api.updateAdminUser(userId, { isActive: !currentStatus });
       await loadData();
-      showSuccess(`Statut utilisateur mis à jour (${!currentStatus ? 'Actif' : 'Suspendu'}).`);
+      showSuccess(
+        `Statut utilisateur mis à jour (${!currentStatus ? "Actif" : "Suspendu"}).`,
+      );
     } catch (err: any) {
-      showError(err.message || 'Erreur lors de la modification du statut.');
+      showError(err.message || "Erreur lors de la modification du statut.");
     }
   };
 
-  const handleToggleUeAccess = async (ueId: string, action: 'grant' | 'revoke') => {
+  const handleToggleUeAccess = async (
+    ueId: string,
+    action: "grant" | "revoke",
+  ) => {
     if (!accessModalUser) return;
     setUserAccessLoading(true);
     try {
-      const res = await api.toggleUserUeAccess(accessModalUser.id, ueId, action);
+      const res = await api.toggleUserUeAccess(
+        accessModalUser.id,
+        ueId,
+        action,
+      );
 
       // 1. Mise à jour ciblée des UE accordées dans la modal
       setGrantedUeIds(new Set(res.grantedUeIds));
@@ -271,15 +362,17 @@ export const UserManagement: React.FC = () => {
         prev.map((u) =>
           u.id === accessModalUser.id
             ? { ...u, accessCount: res.grantedUeIds.length }
-            : u
-        )
+            : u,
+        ),
       );
 
       setAccessModalUser((prev) =>
-        prev ? { ...prev, accessCount: res.grantedUeIds.length } : prev
+        prev ? { ...prev, accessCount: res.grantedUeIds.length } : prev,
       );
-      
-      showSuccess(`Accès ${action === 'grant' ? 'attribué' : 'révoqué'} avec succès.`);
+
+      showSuccess(
+        `Accès ${action === "grant" ? "attribué" : "révoqué"} avec succès.`,
+      );
     } catch (err: any) {
       showError(err.message || "Erreur d'attribution.");
     } finally {
@@ -287,7 +380,7 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  const filteredUsers = users.filter(u => {
+  const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.firstName.toLowerCase().includes(search.toLowerCase()) ||
       u.lastName.toLowerCase().includes(search.toLowerCase()) ||
@@ -296,9 +389,9 @@ export const UserManagement: React.FC = () => {
       (u.email && u.email.toLowerCase().includes(search.toLowerCase()));
 
     let matchesRole = true;
-    if (filterRole === 'SPONSORED') {
+    if (filterRole === "SPONSORED") {
       matchesRole = Boolean(u.isSponsored);
-    } else if (filterRole !== 'ALL') {
+    } else if (filterRole !== "ALL") {
       matchesRole = u.role === filterRole;
     }
 
@@ -310,9 +403,12 @@ export const UserManagement: React.FC = () => {
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#111B21] dark:text-white">Utilisateurs & Accès</h2>
+          <h2 className="text-xl font-bold text-[#111B21] dark:text-white">
+            Utilisateurs & Accès
+          </h2>
           <p className="text-xs text-[#667781] dark:text-[#8696A0]">
-            Création, modification et suppression des comptes · Attribution des UE · Parrainage/Sponsoring et contrôle IA.
+            Création, modification et suppression des comptes · Attribution des
+            UE · Parrainage/Sponsoring et contrôle IA.
           </p>
         </div>
 
@@ -352,15 +448,17 @@ export const UserManagement: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1 bg-white dark:bg-[#111B21] p-1 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] overflow-x-auto">
-          {['ALL', 'USER', 'STAFF', 'SUPERUSER', 'SPONSORED'].map((r) => (
+          {["ALL", "USER", "STAFF", "SUPERUSER", "SPONSORED"].map((r) => (
             <button
               key={r}
               onClick={() => setFilterRole(r)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                filterRole === r ? 'bg-[#075E54] dark:bg-[#25D366] text-white dark:text-[#075E54] shadow-2xs' : 'text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white'
+                filterRole === r
+                  ? "bg-[#075E54] dark:bg-[#25D366] text-white dark:text-[#075E54] shadow-2xs"
+                  : "text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white"
               }`}
             >
-              {r === 'ALL' ? 'Tous' : r === 'SPONSORED' ? '⭐ Sponsorisés' : r}
+              {r === "ALL" ? "Tous" : r === "SPONSORED" ? "⭐ Sponsorisés" : r}
             </button>
           ))}
         </div>
@@ -384,27 +482,38 @@ export const UserManagement: React.FC = () => {
             <tbody className="divide-y divide-[#E9EDEF] dark:divide-[#222E35]">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[#667781] dark:text-[#8696A0]">
+                  <td
+                    colSpan={7}
+                    className="p-8 text-center text-[#667781] dark:text-[#8696A0]"
+                  >
                     Chargement des comptes...
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[#667781] dark:text-[#8696A0]">
+                  <td
+                    colSpan={7}
+                    className="p-8 text-center text-[#667781] dark:text-[#8696A0]"
+                  >
                     Aucun utilisateur trouvé.
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((u) => {
-                  const isProtectedSuperuser = u.id === 'usr_super_1';
-                  const canEditThisUser = isSuperuser || (currentUser?.role === 'STAFF' && u.role !== 'SUPERUSER');
+                  const isProtectedSuperuser = u.id === "usr_super_1";
+                  const canEditThisUser =
+                    isSuperuser ||
+                    (currentUser?.role === "STAFF" && u.role !== "SUPERUSER");
 
                   return (
-                    <tr key={u.id} className="hover:bg-[#F0F2F5]/60 dark:hover:bg-[#1F2C34]/60 transition-colors">
+                    <tr
+                      key={u.id}
+                      className="hover:bg-[#F0F2F5]/60 dark:hover:bg-[#1F2C34]/60 transition-colors"
+                    >
                       <td className="p-4">
                         <div className="font-bold text-[#111B21] dark:text-white flex items-center gap-1.5">
                           {u.firstName} {u.lastName}
-                          {u.role === 'SUPERUSER' && (
+                          {u.role === "SUPERUSER" && (
                             <span title="Super-Administrateur">
                               <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                             </span>
@@ -419,7 +528,11 @@ export const UserManagement: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        {u.email && <div className="text-[11px] text-[#667781] dark:text-[#8696A0] truncate">{u.email}</div>}
+                        {u.email && (
+                          <div className="text-[11px] text-[#667781] dark:text-[#8696A0] truncate">
+                            {u.email}
+                          </div>
+                        )}
                       </td>
 
                       <td className="p-4 font-mono text-[#667781] dark:text-[#8696A0]">
@@ -427,30 +540,35 @@ export const UserManagement: React.FC = () => {
                       </td>
 
                       <td className="p-4 text-[#667781] dark:text-[#8696A0]">
-                        <span className="font-medium text-[#111B21] dark:text-white">{u.department}</span> · {u.level}
+                        <span className="font-medium text-[#111B21] dark:text-white">
+                          {u.department}
+                        </span>{" "}
+                        · {u.level}
                         <div className="text-[10px]">{u.program}</div>
                       </td>
 
                       <td className="p-4">
                         <div className="flex flex-col gap-1 items-start">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${
-                            u.role === 'SUPERUSER'
-                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border border-amber-300/40'
-                              : u.role === 'STAFF'
-                              ? 'bg-blue-100 dark:bg-blue-950 text-blue-900 dark:text-blue-300 border border-blue-300/40'
-                              : 'bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] border border-emerald-300/40'
-                          }`}>
-                            {u.role === 'STAFF' ? 'STAFF / TUTEUR' : u.role}
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${
+                              u.role === "SUPERUSER"
+                                ? "bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border border-amber-300/40"
+                                : u.role === "STAFF"
+                                  ? "bg-blue-100 dark:bg-blue-950 text-blue-900 dark:text-blue-300 border border-blue-300/40"
+                                  : "bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] border border-emerald-300/40"
+                            }`}
+                          >
+                            {u.role === "STAFF" ? "STAFF / TUTEUR" : u.role}
                           </span>
 
-                          {u.role === 'STAFF' && (
+                          {u.role === "STAFF" && (
                             <button
                               onClick={() => openEditModal(u)}
                               title="Cliquer pour configurer les permissions de ce staff"
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-300 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 transition-colors"
                             >
                               <Shield className="w-2.5 h-2.5 text-blue-600" />
-                              {(u.adminPermissions?.length ?? 3)}/9 rubriques
+                              {u.adminPermissions?.length ?? 3}/9 rubriques
                             </button>
                           )}
 
@@ -484,11 +602,11 @@ export const UserManagement: React.FC = () => {
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
                             u.isActive
-                              ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                              : 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900'
+                              ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                              : "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
                           }`}
                         >
-                          {u.isActive ? 'Actif' : 'Suspendu'}
+                          {u.isActive ? "Actif" : "Suspendu"}
                         </span>
                       </td>
 
@@ -499,11 +617,15 @@ export const UserManagement: React.FC = () => {
                             <>
                               <button
                                 onClick={() => handleToggleSponsor(u)}
-                                title={u.isSponsored ? 'Révoquer le sponsoring' : 'Sponsoriser ce compte (accès gratuit illimité)'}
+                                title={
+                                  u.isSponsored
+                                    ? "Révoquer le sponsoring"
+                                    : "Sponsoriser ce compte (accès gratuit illimité)"
+                                }
                                 className={`p-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   u.isSponsored
-                                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                                    : 'text-[#667781] hover:bg-amber-50 hover:text-amber-700'
+                                    ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                    : "text-[#667781] hover:bg-amber-50 hover:text-amber-700"
                                 }`}
                               >
                                 <Gift className="w-3.5 h-3.5" />
@@ -511,14 +633,22 @@ export const UserManagement: React.FC = () => {
 
                               <button
                                 onClick={() => handleToggleAiAccess(u)}
-                                title={u.isAiSuspended ? 'Réactiver l\'assistance IA' : 'Suspendre/Limiter l\'assistance IA'}
+                                title={
+                                  u.isAiSuspended
+                                    ? "Réactiver l'assistance IA"
+                                    : "Suspendre/Limiter l'assistance IA"
+                                }
                                 className={`p-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   u.isAiSuspended
-                                    ? 'bg-rose-100 text-rose-800 hover:bg-rose-200'
-                                    : 'text-[#667781] hover:bg-emerald-50 hover:text-[#075E54]'
+                                    ? "bg-rose-100 text-rose-800 hover:bg-rose-200"
+                                    : "text-[#667781] hover:bg-emerald-50 hover:text-[#075E54]"
                                 }`}
                               >
-                                {u.isAiSuspended ? <BotOff className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                                {u.isAiSuspended ? (
+                                  <BotOff className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Bot className="w-3.5 h-3.5" />
+                                )}
                               </button>
                             </>
                           )}
@@ -537,15 +667,25 @@ export const UserManagement: React.FC = () => {
                           {/* Suspend / Reactivate */}
                           {!isProtectedSuperuser && canEditThisUser && (
                             <button
-                              onClick={() => handleToggleActive(u.id, u.isActive)}
-                              title={u.isActive ? 'Suspendre le compte' : 'Réactiver le compte'}
+                              onClick={() =>
+                                handleToggleActive(u.id, u.isActive)
+                              }
+                              title={
+                                u.isActive
+                                  ? "Suspendre le compte"
+                                  : "Réactiver le compte"
+                              }
                               className={`p-1.5 rounded-lg text-xs font-semibold transition-colors ${
                                 u.isActive
-                                  ? 'text-amber-700 hover:bg-amber-50'
-                                  : 'text-emerald-700 hover:bg-emerald-50'
+                                  ? "text-amber-700 hover:bg-amber-50"
+                                  : "text-emerald-700 hover:bg-emerald-50"
                               }`}
                             >
-                              {u.isActive ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                              {u.isActive ? (
+                                <Lock className="w-3.5 h-3.5" />
+                              ) : (
+                                <Unlock className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           )}
 
@@ -586,32 +726,47 @@ export const UserManagement: React.FC = () => {
                 <UserPlus className="w-5 h-5 text-[#075E54] dark:text-[#25D366]" />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-[#111B21] dark:text-white">Créer un compte utilisateur</h3>
-                <p className="text-xs text-[#667781] dark:text-[#8696A0]">Ajout direct d'un étudiant, enseignant staff ou superuser.</p>
+                <h3 className="font-bold text-lg text-[#111B21] dark:text-white">
+                  Créer un compte utilisateur
+                </h3>
+                <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+                  Ajout direct d'un étudiant, enseignant staff ou superuser.
+                </p>
               </div>
             </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Prénom *</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Prénom *
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: Yawo"
                     value={createForm.firstName}
-                    onChange={(e) => setCreateForm({ ...createForm, firstName: e.target.value })}
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        firstName: e.target.value,
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:outline-none focus:border-[#25D366]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Nom de famille *</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Nom de famille *
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: Mensah"
                     value={createForm.lastName}
-                    onChange={(e) => setCreateForm({ ...createForm, lastName: e.target.value })}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, lastName: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:outline-none focus:border-[#25D366]"
                   />
                 </div>
@@ -619,23 +774,31 @@ export const UserManagement: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Téléphone (+228) *</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Téléphone (+228) *
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="90 12 34 56 ou +228 90..."
                     value={createForm.phone}
-                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, phone: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:outline-none focus:border-[#25D366]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Email (Optionnel)</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Email (Optionnel)
+                  </label>
                   <input
                     type="email"
                     placeholder="etudiant@domaine.com"
                     value={createForm.email}
-                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, email: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21] focus:outline-none focus:border-[#25D366]"
                   />
                 </div>
@@ -643,28 +806,75 @@ export const UserManagement: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Faculté / Dép.</label>
-                  <input
-                    type="text"
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Faculté / Dép.
+                  </label>
+                  <select
                     value={createForm.department}
-                    onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
+                    onChange={(e) => {
+                      const newDeptCode = e.target.value;
+                      const dept = departments.find(
+                        (d) => d.code === newDeptCode,
+                      );
+                      const firstProg = dept
+                        ? programs.find((p) => p.departmentId === dept.id)
+                        : null;
+                      setCreateForm({
+                        ...createForm,
+                        department: newDeptCode,
+                        program: firstProg?.name || "",
+                      });
+                    }}
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
-                  />
+                  >
+                    {departments.length === 0 ? (
+                      <option value="">Aucun département</option>
+                    ) : (
+                      departments.map((d) => (
+                        <option key={d.id} value={d.code}>
+                          {d.code} — {d.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Filière</label>
-                  <input
-                    type="text"
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Filière
+                  </label>
+                  <select
                     value={createForm.program}
-                    onChange={(e) => setCreateForm({ ...createForm, program: e.target.value })}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, program: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
-                  />
+                  >
+                    {(() => {
+                      const dept = departments.find(
+                        (d) => d.code === createForm.department,
+                      );
+                      const filtered = dept
+                        ? programs.filter((p) => p.departmentId === dept.id)
+                        : [];
+                      if (filtered.length === 0)
+                        return <option value="">Aucune filière</option>;
+                      return filtered.map((p) => (
+                        <option key={p.id} value={p.name}>
+                          {p.name}
+                        </option>
+                      ));
+                    })()}
+                  </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Niveau</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Niveau
+                  </label>
                   <select
                     value={createForm.level}
-                    onChange={(e) => setCreateForm({ ...createForm, level: e.target.value })}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, level: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
                   >
                     <option value="L1">L1</option>
@@ -676,22 +886,35 @@ export const UserManagement: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Rôle</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Rôle
+                  </label>
                   <select
                     value={createForm.role}
-                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as 'USER' | 'STAFF' | 'SUPERUSER' })}
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        role: e.target.value as "USER" | "STAFF" | "SUPERUSER",
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white dark:focus:bg-[#111B21] font-bold text-[#075E54] dark:text-[#25D366]"
                   >
                     <option value="USER">USER (Étudiant)</option>
                     <option value="STAFF">STAFF (Tuteur/Enseignant)</option>
-                    {isSuperuser && <option value="SUPERUSER">SUPERUSER (Admin)</option>}
+                    {isSuperuser && (
+                      <option value="SUPERUSER">SUPERUSER (Admin)</option>
+                    )}
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Mot de passe *</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Mot de passe *
+                  </label>
                   <PasswordInput
                     value={createForm.password}
-                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, password: e.target.value })
+                    }
                     placeholder="Min 6 caractères"
                     required
                     autoComplete="new-password"
@@ -700,7 +923,7 @@ export const UserManagement: React.FC = () => {
               </div>
 
               {/* Granular permissions for STAFF when created */}
-              {createForm.role === 'STAFF' && (
+              {createForm.role === "STAFF" && (
                 <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
@@ -710,14 +933,23 @@ export const UserManagement: React.FC = () => {
                     <div className="flex items-center gap-2 text-[10px]">
                       <button
                         type="button"
-                        onClick={() => setCreateForm({ ...createForm, adminPermissions: ALL_ADMIN_PERMISSIONS.map(p => p.id) })}
+                        onClick={() =>
+                          setCreateForm({
+                            ...createForm,
+                            adminPermissions: ALL_ADMIN_PERMISSIONS.map(
+                              (p) => p.id,
+                            ),
+                          })
+                        }
                         className="text-blue-700 dark:text-blue-300 font-bold hover:underline"
                       >
                         Tout cocher
                       </button>
                       <button
                         type="button"
-                        onClick={() => setCreateForm({ ...createForm, adminPermissions: [] })}
+                        onClick={() =>
+                          setCreateForm({ ...createForm, adminPermissions: [] })
+                        }
                         className="text-gray-500 hover:underline"
                       >
                         Tout décocher
@@ -725,18 +957,22 @@ export const UserManagement: React.FC = () => {
                     </div>
                   </div>
                   <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
-                    Cochez les pages visibles et accessibles pour cet enseignant / tuteur. Les pages non cochées seront complètement masquées.
+                    Cochez les pages visibles et accessibles pour cet enseignant
+                    / tuteur. Les pages non cochées seront complètement
+                    masquées.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                     {ALL_ADMIN_PERMISSIONS.map((perm) => {
-                      const isChecked = createForm.adminPermissions.includes(perm.id);
+                      const isChecked = createForm.adminPermissions.includes(
+                        perm.id,
+                      );
                       return (
                         <label
                           key={perm.id}
                           className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
                             isChecked
-                              ? 'bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700'
-                              : 'bg-white dark:bg-[#111B21] border-gray-200 dark:border-gray-700 opacity-70'
+                              ? "bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700"
+                              : "bg-white dark:bg-[#111B21] border-gray-200 dark:border-gray-700 opacity-70"
                           }`}
                         >
                           <input
@@ -744,16 +980,32 @@ export const UserManagement: React.FC = () => {
                             checked={isChecked}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setCreateForm({ ...createForm, adminPermissions: [...createForm.adminPermissions, perm.id] });
+                                setCreateForm({
+                                  ...createForm,
+                                  adminPermissions: [
+                                    ...createForm.adminPermissions,
+                                    perm.id,
+                                  ],
+                                });
                               } else {
-                                setCreateForm({ ...createForm, adminPermissions: createForm.adminPermissions.filter(p => p !== perm.id) });
+                                setCreateForm({
+                                  ...createForm,
+                                  adminPermissions:
+                                    createForm.adminPermissions.filter(
+                                      (p) => p !== perm.id,
+                                    ),
+                                });
                               }
                             }}
                             className="w-3.5 h-3.5 text-blue-600 rounded mt-0.5"
                           />
                           <div>
-                            <div className="font-bold text-[11px] text-[#111B21] dark:text-white">{perm.label}</div>
-                            <div className="text-[9px] text-[#667781] dark:text-[#8696A0] leading-tight">{perm.desc}</div>
+                            <div className="font-bold text-[11px] text-[#111B21] dark:text-white">
+                              {perm.label}
+                            </div>
+                            <div className="text-[9px] text-[#667781] dark:text-[#8696A0] leading-tight">
+                              {perm.desc}
+                            </div>
                           </div>
                         </label>
                       );
@@ -773,18 +1025,29 @@ export const UserManagement: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={createForm.isSponsored}
-                      onChange={(e) => setCreateForm({ ...createForm, isSponsored: e.target.checked })}
+                      onChange={(e) =>
+                        setCreateForm({
+                          ...createForm,
+                          isSponsored: e.target.checked,
+                        })
+                      }
                       className="w-4 h-4 text-[#25D366] rounded"
                     />
                     <span className="font-semibold text-amber-900 dark:text-amber-300">
-                      Sponsoriser l'utilisateur (Donner accès gratuit à toutes les UE du site)
+                      Sponsoriser l'utilisateur (Donner accès gratuit à toutes
+                      les UE du site)
                     </span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-xs">
                     <input
                       type="checkbox"
                       checked={createForm.isAiSuspended}
-                      onChange={(e) => setCreateForm({ ...createForm, isAiSuspended: e.target.checked })}
+                      onChange={(e) =>
+                        setCreateForm({
+                          ...createForm,
+                          isAiSuspended: e.target.checked,
+                        })
+                      }
                       className="w-4 h-4 text-rose-600 rounded"
                     />
                     <span className="text-rose-800 dark:text-rose-300">
@@ -831,31 +1094,42 @@ export const UserManagement: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-[#111B21] dark:text-white">
-                  Modifier le compte de {editModalUser.firstName} {editModalUser.lastName}
+                  Modifier le compte de {editModalUser.firstName}{" "}
+                  {editModalUser.lastName}
                 </h3>
-                <p className="text-xs text-[#667781] dark:text-[#8696A0]">Édition des coordonnées, du rôle et des privilèges d'accès.</p>
+                <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+                  Édition des coordonnées, du rôle et des privilèges d'accès.
+                </p>
               </div>
             </div>
 
             <form onSubmit={handleEditSubmit} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Prénom</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Prénom
+                  </label>
                   <input
                     type="text"
                     required
                     value={editForm.firstName}
-                    onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, firstName: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Nom de famille</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Nom de famille
+                  </label>
                   <input
                     type="text"
                     required
                     value={editForm.lastName}
-                    onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, lastName: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
                   />
                 </div>
@@ -863,21 +1137,29 @@ export const UserManagement: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Téléphone (+228)</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Téléphone (+228)
+                  </label>
                   <input
                     type="text"
                     required
                     value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, phone: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Email</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Email
+                  </label>
                   <input
                     type="email"
                     value={editForm.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, email: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
                   />
                 </div>
@@ -885,28 +1167,75 @@ export const UserManagement: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Faculté / Dép.</label>
-                  <input
-                    type="text"
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Faculté / Dép.
+                  </label>
+                  <select
                     value={editForm.department}
-                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                    onChange={(e) => {
+                      const newDeptCode = e.target.value;
+                      const dept = departments.find(
+                        (d) => d.code === newDeptCode,
+                      );
+                      const firstProg = dept
+                        ? programs.find((p) => p.departmentId === dept.id)
+                        : null;
+                      setEditForm({
+                        ...editForm,
+                        department: newDeptCode,
+                        program: firstProg?.name || "",
+                      });
+                    }}
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
-                  />
+                  >
+                    {departments.length === 0 ? (
+                      <option value="">Aucun département</option>
+                    ) : (
+                      departments.map((d) => (
+                        <option key={d.id} value={d.code}>
+                          {d.code} — {d.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Filière</label>
-                  <input
-                    type="text"
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Filière
+                  </label>
+                  <select
                     value={editForm.program}
-                    onChange={(e) => setEditForm({ ...editForm, program: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, program: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
-                  />
+                  >
+                    {(() => {
+                      const dept = departments.find(
+                        (d) => d.code === editForm.department,
+                      );
+                      const filtered = dept
+                        ? programs.filter((p) => p.departmentId === dept.id)
+                        : [];
+                      if (filtered.length === 0)
+                        return <option value="">Aucune filière</option>;
+                      return filtered.map((p) => (
+                        <option key={p.id} value={p.name}>
+                          {p.name}
+                        </option>
+                      ));
+                    })()}
+                  </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Niveau</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Niveau
+                  </label>
                   <select
                     value={editForm.level}
-                    onChange={(e) => setEditForm({ ...editForm, level: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, level: e.target.value })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
                   >
                     <option value="L1">L1</option>
@@ -918,24 +1247,40 @@ export const UserManagement: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Rôle</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Rôle
+                  </label>
                   <select
                     value={editForm.role}
-                    disabled={editModalUser.id === 'usr_super_1'}
-                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value as 'USER' | 'STAFF' | 'SUPERUSER' })}
+                    disabled={editModalUser.id === "usr_super_1"}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        role: e.target.value as "USER" | "STAFF" | "SUPERUSER",
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white dark:focus:bg-[#111B21] font-bold text-[#075E54] dark:text-[#25D366]"
                   >
                     <option value="USER">USER (Étudiant)</option>
                     <option value="STAFF">STAFF (Tuteur/Enseignant)</option>
-                    {isSuperuser && <option value="SUPERUSER">SUPERUSER (Admin)</option>}
+                    {isSuperuser && (
+                      <option value="SUPERUSER">SUPERUSER (Admin)</option>
+                    )}
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Statut du compte</label>
+                  <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                    Statut du compte
+                  </label>
                   <select
-                    value={editForm.isActive ? 'active' : 'suspended'}
-                    disabled={editModalUser.id === 'usr_super_1'}
-                    onChange={(e) => setEditForm({ ...editForm, isActive: e.target.value === 'active' })}
+                    value={editForm.isActive ? "active" : "suspended"}
+                    disabled={editModalUser.id === "usr_super_1"}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        isActive: e.target.value === "active",
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#111B21]"
                   >
                     <option value="active">Actif</option>
@@ -950,14 +1295,16 @@ export const UserManagement: React.FC = () => {
                 </label>
                 <PasswordInput
                   value={editForm.newPassword}
-                  onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, newPassword: e.target.value })
+                  }
                   placeholder="Nouveau mot de passe..."
                   autoComplete="new-password"
                 />
               </div>
 
               {/* Granular permissions for STAFF when edited */}
-              {editForm.role === 'STAFF' && isSuperuser && (
+              {editForm.role === "STAFF" && isSuperuser && (
                 <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-900 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
@@ -967,14 +1314,23 @@ export const UserManagement: React.FC = () => {
                     <div className="flex items-center gap-2 text-[10px]">
                       <button
                         type="button"
-                        onClick={() => setEditForm({ ...editForm, adminPermissions: ALL_ADMIN_PERMISSIONS.map(p => p.id) })}
+                        onClick={() =>
+                          setEditForm({
+                            ...editForm,
+                            adminPermissions: ALL_ADMIN_PERMISSIONS.map(
+                              (p) => p.id,
+                            ),
+                          })
+                        }
                         className="text-blue-700 dark:text-blue-300 font-bold hover:underline"
                       >
                         Tout cocher
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEditForm({ ...editForm, adminPermissions: [] })}
+                        onClick={() =>
+                          setEditForm({ ...editForm, adminPermissions: [] })
+                        }
                         className="text-gray-500 hover:underline"
                       >
                         Tout décocher
@@ -982,18 +1338,22 @@ export const UserManagement: React.FC = () => {
                     </div>
                   </div>
                   <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
-                    Paramétrez précisément les pages de l'administration autorisées pour ce membre du staff. Les pages non cochées seront invisibles et inaccessibles.
+                    Paramétrez précisément les pages de l'administration
+                    autorisées pour ce membre du staff. Les pages non cochées
+                    seront invisibles et inaccessibles.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                     {ALL_ADMIN_PERMISSIONS.map((perm) => {
-                      const isChecked = editForm.adminPermissions.includes(perm.id);
+                      const isChecked = editForm.adminPermissions.includes(
+                        perm.id,
+                      );
                       return (
                         <label
                           key={perm.id}
                           className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
                             isChecked
-                              ? 'bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700'
-                              : 'bg-white dark:bg-[#111B21] border-gray-200 dark:border-gray-700 opacity-70'
+                              ? "bg-blue-100/60 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700"
+                              : "bg-white dark:bg-[#111B21] border-gray-200 dark:border-gray-700 opacity-70"
                           }`}
                         >
                           <input
@@ -1001,16 +1361,32 @@ export const UserManagement: React.FC = () => {
                             checked={isChecked}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setEditForm({ ...editForm, adminPermissions: [...editForm.adminPermissions, perm.id] });
+                                setEditForm({
+                                  ...editForm,
+                                  adminPermissions: [
+                                    ...editForm.adminPermissions,
+                                    perm.id,
+                                  ],
+                                });
                               } else {
-                                setEditForm({ ...editForm, adminPermissions: editForm.adminPermissions.filter(p => p !== perm.id) });
+                                setEditForm({
+                                  ...editForm,
+                                  adminPermissions:
+                                    editForm.adminPermissions.filter(
+                                      (p) => p !== perm.id,
+                                    ),
+                                });
                               }
                             }}
                             className="w-3.5 h-3.5 text-blue-600 rounded mt-0.5"
                           />
                           <div>
-                            <div className="font-bold text-[11px] text-[#111B21] dark:text-white">{perm.label}</div>
-                            <div className="text-[9px] text-[#667781] dark:text-[#8696A0] leading-tight">{perm.desc}</div>
+                            <div className="font-bold text-[11px] text-[#111B21] dark:text-white">
+                              {perm.label}
+                            </div>
+                            <div className="text-[9px] text-[#667781] dark:text-[#8696A0] leading-tight">
+                              {perm.desc}
+                            </div>
                           </div>
                         </label>
                       );
@@ -1030,22 +1406,34 @@ export const UserManagement: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={editForm.isSponsored}
-                      onChange={(e) => setEditForm({ ...editForm, isSponsored: e.target.checked })}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          isSponsored: e.target.checked,
+                        })
+                      }
                       className="w-4 h-4 text-[#25D366] rounded"
                     />
                     <span className="font-bold text-amber-900 dark:text-amber-300">
-                      ⭐ Sponsoriser cet utilisateur (Accès 100% gratuit au site sans paiement d'UE)
+                      ⭐ Sponsoriser cet utilisateur (Accès 100% gratuit au site
+                      sans paiement d'UE)
                     </span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-xs">
                     <input
                       type="checkbox"
                       checked={editForm.isAiSuspended}
-                      onChange={(e) => setEditForm({ ...editForm, isAiSuspended: e.target.checked })}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          isAiSuspended: e.target.checked,
+                        })
+                      }
                       className="w-4 h-4 text-rose-600 rounded"
                     />
                     <span className="font-medium text-rose-800 dark:text-rose-300">
-                      Limiter ou suspendre l'accès à l'assistance IA pour cet étudiant
+                      Limiter ou suspendre l'accès à l'assistance IA pour cet
+                      étudiant
                     </span>
                   </label>
                 </div>
@@ -1080,11 +1468,16 @@ export const UserManagement: React.FC = () => {
             </div>
 
             <div>
-              <h3 className="font-bold text-base text-[#111B21] dark:text-white">Confirmer la suppression</h3>
+              <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+                Confirmer la suppression
+              </h3>
               <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-1 leading-relaxed">
-                Êtes-vous sûr de vouloir supprimer définitivement le compte de{' '}
-                <strong className="text-[#111B21] dark:text-white">{deleteConfirmUser.firstName} {deleteConfirmUser.lastName}</strong> ({deleteConfirmUser.displayPhone}) ?
-                Cette action supprimera également ses progressions et soumissions associées.
+                Êtes-vous sûr de vouloir supprimer définitivement le compte de{" "}
+                <strong className="text-[#111B21] dark:text-white">
+                  {deleteConfirmUser.firstName} {deleteConfirmUser.lastName}
+                </strong>{" "}
+                ({deleteConfirmUser.displayPhone}) ? Cette action supprimera
+                également ses progressions et soumissions associées.
               </p>
             </div>
 
@@ -1110,106 +1503,124 @@ export const UserManagement: React.FC = () => {
 
       {/* Grant / Revoke UE Access Modal */}
       {accessModalUser && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-        <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 max-h-[90vh] overflow-y-auto transition-colors">
-          <button
-            onClick={() => { setAccessModalUser(null); setGrantedUeIds(new Set()); }}
-            className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold">
-              <KeyRound className="w-5 h-5 text-[#25D366]" />
-            </div>
-            <div>
-              <h3 className="font-bold text-base text-[#111B21] dark:text-white">
-                Gestion des accès UE : {accessModalUser.firstName} {accessModalUser.lastName}
-              </h3>
-              <p className="text-xs text-[#667781] dark:text-[#8696A0]">
-                Activer ou révoquer les Unités d'Enseignement pour cet utilisateur.
-              </p>
-            </div>
-          </div>
-
-          {accessInitialLoading ? (
-            <div className="py-10 text-center text-xs text-[#667781] dark:text-[#8696A0]">
-              Chargement des accès...
-            </div>
-          ) : (
-            <div className="space-y-2 pt-2">
-              {courses.map((course) => {
-                const isGranted = grantedUeIds.has(course.id);
-                return (
-                  <div
-                    key={course.id}
-                    className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
-                      isGranted
-                        ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20'
-                        : 'border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5]/50 dark:bg-[#1F2C34]/50'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-xs text-[#075E54] dark:text-[#25D366]">{course.code}</span>
-                        <span className="text-[10px] text-[#667781] dark:text-[#8696A0]">({course.level})</span>
-                        {isGranted && (
-                          <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500 text-white inline-flex items-center gap-0.5">
-                            <Check className="w-2.5 h-2.5" />
-                            ACTIVE
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs font-medium text-[#111B21] dark:text-white truncate">{course.title}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {/* Bouton ACCORDER */}
-                      <button
-                        disabled={userAccessLoading || isGranted}
-                        onClick={() => handleToggleUeAccess(course.id, 'grant')}
-                        className={`px-2.5 py-1 text-xs rounded-lg transition-all flex items-center gap-1 ${
-                          isGranted
-                            ? 'font-extrabold text-white bg-[#25D366] ring-2 ring-[#25D366]/50 ring-offset-1 dark:ring-offset-[#111B21] shadow-md cursor-default'
-                            : 'font-bold text-[#075E54] bg-[#25D366]/30 hover:bg-[#25D366]/60 opacity-80 hover:opacity-100'
-                        }`}
-                      >
-                        <Unlock className="w-3 h-3" />
-                        Accorder
-                      </button>
-
-                      {/* Bouton REVOQUER */}
-                      <button
-                        disabled={userAccessLoading || !isGranted}
-                        onClick={() => handleToggleUeAccess(course.id, 'revoke')}
-                        className={`px-2.5 py-1 text-xs rounded-lg transition-all flex items-center gap-1 ${
-                          !isGranted
-                            ? 'font-extrabold text-white bg-rose-500 ring-2 ring-rose-500/50 ring-offset-1 dark:ring-offset-[#111B21] shadow-md cursor-default'
-                            : 'font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950 hover:bg-rose-100 dark:hover:bg-rose-900 opacity-80 hover:opacity-100'
-                        }`}
-                      >
-                        <Lock className="w-3 h-3" />
-                        Révoquer
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] flex justify-end">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 max-h-[90vh] overflow-y-auto transition-colors">
             <button
-              onClick={() => { setAccessModalUser(null); setGrantedUeIds(new Set()); }}
-              className="px-4 py-2 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl"
+              onClick={() => {
+                setAccessModalUser(null);
+                setGrantedUeIds(new Set());
+              }}
+              className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
             >
-              Fermer
+              <X className="w-5 h-5" />
             </button>
+
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold">
+                <KeyRound className="w-5 h-5 text-[#25D366]" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+                  Gestion des accès UE : {accessModalUser.firstName}{" "}
+                  {accessModalUser.lastName}
+                </h3>
+                <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+                  Activer ou révoquer les Unités d'Enseignement pour cet
+                  utilisateur.
+                </p>
+              </div>
+            </div>
+
+            {accessInitialLoading ? (
+              <div className="py-10 text-center text-xs text-[#667781] dark:text-[#8696A0]">
+                Chargement des accès...
+              </div>
+            ) : (
+              <div className="space-y-2 pt-2">
+                {courses.map((course) => {
+                  const isGranted = grantedUeIds.has(course.id);
+                  return (
+                    <div
+                      key={course.id}
+                      className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
+                        isGranted
+                          ? "border-emerald-300 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20"
+                          : "border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5]/50 dark:bg-[#1F2C34]/50"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-xs text-[#075E54] dark:text-[#25D366]">
+                            {course.code}
+                          </span>
+                          <span className="text-[10px] text-[#667781] dark:text-[#8696A0]">
+                            ({course.level})
+                          </span>
+                          {isGranted && (
+                            <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500 text-white inline-flex items-center gap-0.5">
+                              <Check className="w-2.5 h-2.5" />
+                              ACTIVE
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-[#111B21] dark:text-white truncate">
+                          {course.title}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Bouton ACCORDER */}
+                        <button
+                          disabled={userAccessLoading || isGranted}
+                          onClick={() =>
+                            handleToggleUeAccess(course.id, "grant")
+                          }
+                          className={`px-2.5 py-1 text-xs rounded-lg transition-all flex items-center gap-1 ${
+                            isGranted
+                              ? "font-extrabold text-white bg-[#25D366] ring-2 ring-[#25D366]/50 ring-offset-1 dark:ring-offset-[#111B21] shadow-md cursor-default"
+                              : "font-bold text-[#075E54] bg-[#25D366]/30 hover:bg-[#25D366]/60 opacity-80 hover:opacity-100"
+                          }`}
+                        >
+                          <Unlock className="w-3 h-3" />
+                          Accorder
+                        </button>
+
+                        {/* Bouton REVOQUER */}
+                        <button
+                          disabled={userAccessLoading || !isGranted}
+                          onClick={() =>
+                            handleToggleUeAccess(course.id, "revoke")
+                          }
+                          className={`px-2.5 py-1 text-xs rounded-lg transition-all flex items-center gap-1 ${
+                            !isGranted
+                              ? "font-extrabold text-white bg-rose-500 ring-2 ring-rose-500/50 ring-offset-1 dark:ring-offset-[#111B21] shadow-md cursor-default"
+                              : "font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950 hover:bg-rose-100 dark:hover:bg-rose-900 opacity-80 hover:opacity-100"
+                          }`}
+                        >
+                          <Lock className="w-3 h-3" />
+                          Révoquer
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] flex justify-end">
+              <button
+                onClick={() => {
+                  setAccessModalUser(null);
+                  setGrantedUeIds(new Set());
+                }}
+                className="px-4 py-2 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl"
+              >
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 };

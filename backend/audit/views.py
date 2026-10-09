@@ -8,7 +8,7 @@ from rest_framework import status, permissions
 from .models import AuditLog
 from .serializers import AuditLogSerializer
 from .utils import log_audit
-from accounts.permissions import IsStaffOrSuperuser, IsSuperuserOnly
+from accounts.permissions import IsStaffOrSuperuser, IsSuperuserOnly, require_admin_permission
 from accounts.models import User
 from courses.models import UE, Session, QuizAttempt, SessionProgress
 from forms_builder.models import DynamicForm, FormSubmission
@@ -118,7 +118,11 @@ class AdminStatsView(APIView):
 
 
 class AdminExportView(APIView):
-    permission_classes = [IsStaffOrSuperuser]
+    """
+    Export CSV/JSON des données (users, progress, quiz_attempts, submissions, audit).
+    Accès : SUPERUSER + STAFF avec permission 'export'.
+    """
+    permission_classes = [require_admin_permission('export')]
 
     def get(self, request, export_type):
         fmt = request.GET.get('format', 'json').lower()
@@ -196,7 +200,7 @@ class AdminExportView(APIView):
 
         if fmt == 'csv':
             output = StringIO()
-            output.write('\ufeff') # UTF-8 BOM
+            output.write('\ufeff')  # UTF-8 BOM pour Excel
             if data:
                 headers = list(data[0].keys())
                 writer = csv.DictWriter(output, fieldnames=headers, delimiter=';', quoting=csv.QUOTE_MINIMAL)
@@ -208,6 +212,9 @@ class AdminExportView(APIView):
 
             response = HttpResponse(output.getvalue(), content_type='text/csv; charset=utf-8')
             response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+            # ⭐ CORS : permet au navigateur de lire le nom du fichier
+            response['Access-Control-Expose-Headers'] = 'Content-Disposition'
             return response
 
+        # ⭐ JSON : retour direct
         return Response(data)

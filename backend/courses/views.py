@@ -6,6 +6,7 @@ from rest_framework import status, permissions
 from .models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt
 from .serializers import UESerializer, SessionSerializer, ChapterSerializer, QuizAttemptSerializer
 from accounts.permissions import IsStaffOrSuperuser
+from notifications.utils import notify_quiz_passed
 
 class CourseCatalogView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -238,6 +239,19 @@ class QuizSubmitView(APIView):
             user_answers=answers,
             submitted_at=timezone.now()
         )
+
+        # ⭐ Notification si quiz réussi
+        if attempt.passed:
+            try:
+                ue_code = attempt.ue.code if hasattr(attempt, 'ue') and attempt.ue else None
+                notify_quiz_passed(
+                    user=request.user,
+                    quiz_title=attempt.quiz.title if hasattr(attempt, 'quiz') and attempt.quiz else 'Quiz',
+                    score_percent=attempt.percentage,
+                    ue_code=ue_code,
+                )
+            except Exception as e:
+                print(f"[courses] Erreur notif quiz : {e}")
 
         # Si le quiz est réussi et lié à une séance, marquer la séance comme complétée
         if passed and session:

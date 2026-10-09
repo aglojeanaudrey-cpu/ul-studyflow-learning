@@ -1,16 +1,35 @@
 from django.conf import settings as django_settings
 from django.db.models import Q
 from django.utils import timezone
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from .throttles import LoginRateThrottle, RegisterRateThrottle
 from .models import User, AuthToken
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
 from .permissions import IsStaffOrSuperuser
 from .utils import normalize_phone
+from notifications.utils import (
+    notify_welcome,
+    notify_account_suspended,
+    notify_account_reactivated,
+    notify_ai_suspended,
+    notify_ai_reactivated,
+    notify_ue_access_granted,
+    notify_ue_access_revoked,
+)
+from django.middleware.csrf import get_token
+
+class GetCSRFTokenView(APIView):
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request):
+        return Response({'csrfToken': get_token(request)})
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegisterRateThrottle]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -20,6 +39,12 @@ class RegisterView(APIView):
             return Response({'error': err_msg}, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
+        # ⭐ Récupérer le code de parrainage (optionnel)
+        referral_code_used = (
+            request.data.get('referralCode') or
+            request.data.get('ref') or
+            ''
+        ).strip().upper()
         user = User.objects.create_user(
             phone=data['canonical_phone'],
             password=data['password'],
@@ -31,6 +56,29 @@ class RegisterView(APIView):
             role='USER',
             display_phone=data['display_phone']
         )
+
+        # ⭐ Notification de bienvenue
+        try:
+            notify_welcome(user)
+        except Exception as e:
+            print(f"[accounts] Erreur notif welcome : {e}")
+
+                # ⭐ Créer le code de parrainage de ce nouvel utilisateur
+        try:
+            from referrals.models import ReferralCode
+            ReferralCode.objects.create(user=user)
+        except Exception as e:
+            print(f"[accounts] Erreur création code parrainage : {e}")
+
+        # ⭐ Créer le parrainage si un code a été utilisé
+        if referral_code_used:
+            try:
+                from referrals.utils import create_referral_from_code
+                create_referral_from_code(user, referral_code_used)
+            except Exception as e:
+                print(f"[accounts] Erreur création parrainage : {e}")
+
+        token = AuthToken.create_for_user(user)
 
         # Auto-grant access to UEs matching student's department or level
         try:
@@ -65,24 +113,31 @@ class RegisterView(APIView):
             pass
 
         token = AuthToken.create_for_user(user)
+
+        # ⭐ Plus de token dans le body — uniquement dans le cookie HttpOnly
         response = Response({
-            'token': token.key,
             'user': UserSerializer(user).data
         }, status=status.HTTP_201_CREATED)
-        response.set_cookie(
-            'ulsf_session',
-            token.key,
-            httponly=True,
-            secure=not django_settings.DEBUG,
-            samesite='Lax',
-            max_age=7 * 24 * 60 * 60,
-            path='/'
-        )
+
+        self._set_auth_cookie(response, token.key)
         return response
 
+    @staticmethod
+    def _set_auth_cookie(response, token_key):
+        """Helper centralisé pour poser le cookie de session."""
+        response.set_cookie(
+            'ulsf_session',
+            token_key,
+            httponly=True,               # 🔒 JS ne peut pas lire
+            secure=not settings.DEBUG,   # 🔒 HTTPS en prod, HTTP en local
+            samesite='Lax',              # 🛡️ anti-CSRF
+            max_age=7 * 24 * 60 * 60,    # 7 jours
+            path='/'
+        )
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -99,7 +154,6 @@ class LoginView(APIView):
         raw_digits = ''.join(c for c in raw_id if c.isdigit())
         lower_id = raw_id.lower()
 
-        # Find user by email, canonical phone, raw digits, or special superuser phones
         user = None
         users_qs = User.objects.all()
 
@@ -129,7 +183,6 @@ class LoginView(APIView):
         user.last_login_at = timezone.now()
         user.save(update_fields=['last_login_at'])
 
-        # Audit log
         try:
             from audit.utils import log_audit
             log_audit(
@@ -143,40 +196,46 @@ class LoginView(APIView):
             pass
 
         token = AuthToken.create_for_user(user)
+
+        # ⭐ Plus de token dans le body
         response = Response({
-            'token': token.key,
             'user': UserSerializer(user).data
         })
+
         response.set_cookie(
             'ulsf_session',
             token.key,
             httponly=True,
-            secure=not django_settings.DEBUG,
+            secure=not settings.DEBUG,
             samesite='Lax',
             max_age=7 * 24 * 60 * 60,
             path='/'
         )
         return response
 
-
 class MeView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        if not request.user or not request.user.is_authenticated:
+            return Response({'user': None}, status=status.HTTP_200_OK)
         return Response({'user': UserSerializer(request.user).data})
 
-
 class LogoutView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]  # ⭐ AllowAny pour pouvoir logout même si token expiré
 
     def post(self, request):
-        # Delete the token from DB
+        # 1. Supprimer le token de la DB
         if hasattr(request, 'auth') and request.auth:
-            request.auth.delete()
+            try:
+                request.auth.delete()
+            except Exception:
+                pass
+
+        # 2. Supprimer le cookie côté navigateur
         response = Response({'success': True})
         response.delete_cookie('ulsf_session', path='/')
         return response
-
 
 class AdminUsersListView(APIView):
     permission_classes = [IsStaffOrSuperuser]
@@ -288,9 +347,22 @@ class AdminUserDetailView(APIView):
                 target_user.phone = canonical
                 target_user.display_phone = display
 
-        is_active = data.get('isActive')
+                is_active = data.get('isActive')
         if is_active is not None and target_user.id != 'usr_super_1':
+            was_active = target_user.is_active
             target_user.is_active = bool(is_active)
+
+            # ⭐ Notification si changement de statut
+            if was_active and not target_user.is_active:
+                try:
+                    notify_account_suspended(target_user)
+                except Exception as e:
+                    print(f"[accounts] Erreur notif suspend : {e}")
+            elif not was_active and target_user.is_active:
+                try:
+                    notify_account_reactivated(target_user)
+                except Exception as e:
+                    print(f"[accounts] Erreur notif reactivate : {e}")
 
         role = data.get('role')
         if role and role in ('USER', 'STAFF', 'SUPERUSER'):
@@ -314,12 +386,26 @@ class AdminUserDetailView(APIView):
                 return Response({'error': 'Seul le Super-Administrateur peut sponsoriser un compte pour un accès gratuit.'}, status=status.HTTP_403_FORBIDDEN)
             target_user.is_sponsored = bool(is_sponsored)
 
-        # AI Suspension: Superuser only
+                # AI Suspension: Superuser only
         is_ai_suspended = data.get('isAiSuspended')
         if is_ai_suspended is not None:
             if actor.role != 'SUPERUSER':
                 return Response({'error': 'Seul le Super-Administrateur peut limiter ou suspendre l\'accès à l\'IA.'}, status=status.HTTP_403_FORBIDDEN)
+
+            was_ai_suspended = target_user.is_ai_suspended
             target_user.is_ai_suspended = bool(is_ai_suspended)
+
+            # ⭐ Notification si changement d'état IA
+            if not was_ai_suspended and target_user.is_ai_suspended:
+                try:
+                    notify_ai_suspended(target_user)
+                except Exception as e:
+                    print(f"[accounts] Erreur notif IA suspend : {e}")
+            elif was_ai_suspended and not target_user.is_ai_suspended:
+                try:
+                    notify_ai_reactivated(target_user)
+                except Exception as e:
+                    print(f"[accounts] Erreur notif IA reactivate : {e}")
 
         # Password update
         password = data.get('password')
@@ -470,6 +556,15 @@ class AdminUserAccessView(APIView):
             access.status = 'active' if action == 'grant' else 'revoked'
             access.granted_by = actor.phone
             access.save()
+
+        # ⭐ Notification à l'étudiant
+        try:
+            if action == 'grant':
+                notify_ue_access_granted(target_user, ue, granted_by=actor)
+            else:
+                notify_ue_access_revoked(target_user, ue)
+        except Exception as e:
+            print(f"[accounts] Erreur notif accès UE : {e}")
 
         # Audit log
         try:

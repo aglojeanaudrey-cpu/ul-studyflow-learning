@@ -8,6 +8,7 @@ from rest_framework import status, permissions
 from .models import DynamicForm, FormSubmission
 from .serializers import DynamicFormSerializer, FormSubmissionSerializer, DynamicFormPublicSerializer
 from accounts.permissions import IsStaffOrSuperuser
+from notifications.utils import notify_form_submission_received
 
 class FormListView(APIView):
     """Liste PUBLIQUE des formulaires actifs."""
@@ -70,6 +71,12 @@ class FormSubmitView(APIView):
             )
         except Exception:
             pass
+
+        # ⭐ Notification (uniquement si l'utilisateur est connecté)
+        try:
+            notify_form_submission_received(form, user=user, guest_name=guest_name)
+        except Exception as e:
+            print(f"[forms] Erreur notif submit : {e}")
 
         return Response({'success': True, 'submissionId': submission.id})
 

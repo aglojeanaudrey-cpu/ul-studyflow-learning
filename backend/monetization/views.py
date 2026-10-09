@@ -5,6 +5,12 @@ from rest_framework import status, permissions
 from .models import PromoCode, UnlockRequest, PlatformConfig, PaymentMethod
 from .serializers import PromoCodeSerializer, UnlockRequestSerializer, PlatformConfigSerializer, PaymentMethodSerializer
 from accounts.permissions import IsStaffOrSuperuser, IsSuperuserOnly
+from notifications.utils import (
+    notify_unlock_request_submitted,
+    notify_unlock_request_approved,
+    notify_unlock_request_rejected,
+    notify_admins_new_unlock_request,
+)
 
 class ValidatePromoCodeView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -97,6 +103,18 @@ class SubmitUnlockRequestView(APIView):
         except Exception:
             pass
 
+                # ⭐ Notification à l'étudiant (confirmation)
+        try:
+            notify_unlock_request_submitted(unlock_req)
+        except Exception as e:
+            print(f"[monetization] Erreur notif submit : {e}")
+
+        # ⭐ Notification aux superusers (nouvelle demande à traiter)
+        try:
+            notify_admins_new_unlock_request(unlock_req)
+        except Exception as e:
+            print(f"[monetization] Erreur notif admins : {e}")
+
         return Response({
             'success': True,
             'request': UnlockRequestSerializer(unlock_req).data,
@@ -163,6 +181,26 @@ class AdminApproveUnlockRequestView(APIView):
                     access.expires_at = expires_at
                     access.save()
 
+        # ⭐ Valider le parrainage si l'étudiant a été parrainé
+        try:
+            from referrals.utils import validate_referral_if_applicable
+            ue_code = unlock_req.ue_codes[0] if unlock_req.ue_codes else None
+            validate_referral_if_applicable(unlock_req.user, ue_code=ue_code)
+        except Exception as e:
+            print(f"[monetization] Erreur validation parrainage : {e}")
+
+        # ⭐ Notification à l'étudiant
+        try:
+            notify_unlock_request_approved(unlock_req)
+        except Exception as e:
+            print(f"[monetization] Erreur notif approve : {e}")
+
+        # ⭐ Notification à l'étudiant
+        try:
+            notify_unlock_request_approved(unlock_req)
+        except Exception as e:
+            print(f"[monetization] Erreur notif approve : {e}")
+
         try:
             from audit.utils import log_audit
             log_audit(
@@ -197,6 +235,12 @@ class AdminRejectUnlockRequestView(APIView):
             prefix = f"{unlock_req.notes} - " if unlock_req.notes else ""
             unlock_req.notes = f"{prefix}Refusé : {reason}"
         unlock_req.save()
+
+        # ⭐ Notification à l'étudiant
+        try:
+            notify_unlock_request_rejected(unlock_req, reason=reason)
+        except Exception as e:
+            print(f"[monetization] Erreur notif reject : {e}")
 
         return Response({'success': True, 'request': UnlockRequestSerializer(unlock_req).data})
 

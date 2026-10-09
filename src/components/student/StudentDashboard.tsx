@@ -1,18 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { UE, StudentProgressOverview } from '../../types';
-import { api } from '../../lib/api';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { UE, StudentProgressOverview } from "../../types";
+import { api } from "../../lib/api";
 import {
   BookOpen,
   Play,
   ArrowRight,
   Sparkles,
   TrendingUp,
-  CheckCircle2,
-  Clock,
-  MessageCircle,
-  FileCheck
-} from 'lucide-react';
+  Gift,
+  Share2,
+} from "lucide-react";
 
 interface StudentDashboardProps {
   onOpenUe: (ueId: string) => void;
@@ -23,11 +21,12 @@ interface StudentDashboardProps {
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   onOpenUe,
   onOpenSession,
-  onNavigateTab
+  onNavigateTab,
 }) => {
   const { user } = useAuth();
   const [courses, setCourses] = useState<UE[]>([]);
-  const [progressData, setProgressData] = useState<StudentProgressOverview | null>(null);
+  const [progressData, setProgressData] =
+    useState<StudentProgressOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,12 +34,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       try {
         const [coursesRes, progRes] = await Promise.all([
           api.getMyCourses(),
-          api.getProgress()
+          api.getProgress(),
         ]);
         setCourses(coursesRes.myCourses);
         setProgressData(progRes);
       } catch (err) {
-        console.error('Error loading dashboard data:', err);
+        console.error("Error loading dashboard data:", err);
       } finally {
         setLoading(false);
       }
@@ -57,7 +56,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   }
 
   // Active / next session to resume
-  const activeCourse = courses.find(c => (c.progressPercent || 0) < 100) || courses[0];
+  const activeCourse =
+    courses.find((c) => (c.progressPercent || 0) < 100) || courses[0];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -75,7 +75,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </span>
         </div>
         <p className="text-xs text-emerald-100/90 dark:text-[#8696A0]">
-          Semestre en cours. Continue ton parcours d'apprentissage aujourd'hui sur tes matières.
+          Semestre en cours. Continue ton parcours d'apprentissage aujourd'hui
+          sur tes matières.
         </p>
       </div>
 
@@ -93,7 +94,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold text-[#667781] dark:text-[#8696A0]">{activeCourse.code}</p>
+              <p className="text-xs font-semibold text-[#667781] dark:text-[#8696A0]">
+                {activeCourse.code}
+              </p>
               <h2 className="text-base sm:text-lg font-bold text-[#111B21] dark:text-white mt-0.5">
                 {activeCourse.title}
               </h2>
@@ -123,9 +126,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       {/* Mes UE (WhatsApp-like vertical list) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-base text-[#111B21] dark:text-white">Mes Unités d'Enseignement</h3>
+          <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+            Mes Unités d'Enseignement
+          </h3>
           <button
-            onClick={() => onNavigateTab('student_courses')}
+            onClick={() => onNavigateTab("student_courses")}
             className="text-xs font-semibold text-[#075E54] dark:text-[#25D366] hover:underline flex items-center gap-1"
           >
             Toutes les matières
@@ -136,7 +141,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] overflow-hidden divide-y divide-[#E9EDEF] dark:divide-[#222E35] shadow-sm transition-colors">
           {courses.length === 0 ? (
             <div className="p-8 text-center text-xs text-[#667781] dark:text-[#8696A0]">
-              Aucune UE débloquée pour le moment. Accédez au catalogue pour explorer les cours.
+              Aucune UE débloquée pour le moment. Accédez au catalogue pour
+              explorer les cours.
             </div>
           ) : (
             courses.map((course) => {
@@ -157,11 +163,16 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                           {course.code}
                         </span>
                         <span className="text-[11px] text-[#667781] dark:text-[#8696A0]">
-                          {course.completedSessionsCount || 0} / {course.sessionsCount || 0} séances
+                          {course.completedSessionsCount || 0} /{" "}
+                          {course.sessionsCount || 0} séances
                         </span>
                         {course.expiresAt && (
                           <span className="text-[10px] text-[#667781] dark:text-[#8696A0] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                            Exp. {new Date(course.expiresAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                            Exp.{" "}
+                            {new Date(course.expiresAt).toLocaleDateString(
+                              "fr-FR",
+                              { day: "2-digit", month: "short" },
+                            )}
                           </span>
                         )}
                       </div>
@@ -192,11 +203,33 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </div>
       </div>
 
+      {/* ⭐ Bloc Parrainage */}
+      <button
+        onClick={() => onNavigateTab("student_referral")}
+        className="w-full p-4 bg-gradient-to-r from-amber-50 to-amber-50/40 dark:from-amber-950/30 dark:to-amber-950/10 rounded-2xl border-2 border-amber-200 dark:border-amber-800 shadow-sm hover:border-amber-400 dark:hover:border-amber-600 transition-all flex items-center gap-3 text-left group"
+      >
+        <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+          <Gift className="w-6 h-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="font-bold text-sm text-[#111B21] dark:text-white group-hover:text-amber-700 dark:group-hover:text-amber-400">
+            🎁 Parraine tes amis, gagne des récompenses
+          </h4>
+          <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-0.5">
+            -10% dès 1 parrainage · 1 UE offerte à 5 · 1 mois sponsorisé à 25 !
+          </p>
+        </div>
+        <div className="shrink-0 flex items-center gap-1">
+          <Share2 className="w-4 h-4 text-amber-600" />
+          <ArrowRight className="w-4 h-4 text-[#667781] dark:text-[#8696A0] group-hover:text-amber-600 transition-transform group-hover:translate-x-0.5" />
+        </div>
+      </button>
+
       {/* Quick shortcuts for Student */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Assistant IA shortcut */}
         <button
-          onClick={() => onNavigateTab('student_ai')}
+          onClick={() => onNavigateTab("student_ai")}
           className="p-4 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-sm hover:border-[#25D366] dark:hover:border-[#25D366] transition-all flex items-center gap-3 text-left group"
         >
           <div className="w-10 h-10 rounded-xl bg-[#25D366]/20 text-[#075E54] dark:text-[#25D366] flex items-center justify-center shrink-0">
@@ -207,14 +240,15 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               Poser une question à l'IA
             </h4>
             <p className="text-xs text-[#667781] dark:text-[#8696A0]">
-              Aide instantanée sur tes cours et explications des notions complexes.
+              Aide instantanée sur tes cours et explications des notions
+              complexes.
             </p>
           </div>
         </button>
 
         {/* Progression shortcut */}
         <button
-          onClick={() => onNavigateTab('student_progress')}
+          onClick={() => onNavigateTab("student_progress")}
           className="p-4 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-sm hover:border-[#25D366] dark:hover:border-[#25D366] transition-all flex items-center gap-3 text-left group"
         >
           <div className="w-10 h-10 rounded-xl bg-[#128C7E]/20 text-[#075E54] dark:text-[#25D366] flex items-center justify-center shrink-0">
@@ -225,7 +259,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               Statistiques & Quiz ({progressData?.globalProgress || 0}%)
             </h4>
             <p className="text-xs text-[#667781] dark:text-[#8696A0]">
-              Consulte tes scores aux examens blancs et ton rythme d'apprentissage.
+              Consulte tes scores aux examens blancs et ton rythme
+              d'apprentissage.
             </p>
           </div>
         </button>
@@ -234,21 +269,33 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       {/* Activité Récente */}
       {progressData && progressData.recentActivities.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-bold text-base text-[#111B21] dark:text-white">Activité récente</h3>
+          <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+            Activité récente
+          </h3>
           <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] p-4 shadow-sm space-y-3 transition-colors">
             {progressData.recentActivities.slice(0, 4).map((act, idx) => (
-              <div key={idx} className="flex items-center justify-between text-xs py-2 border-b border-[#F0F2F5] dark:border-[#1F2C34] last:border-none">
+              <div
+                key={idx}
+                className="flex items-center justify-between text-xs py-2 border-b border-[#F0F2F5] dark:border-[#1F2C34] last:border-none"
+              >
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold">
-                    {act.type === 'quiz' ? '✍️' : '📖'}
+                    {act.type === "quiz" ? "✍️" : "📖"}
                   </div>
                   <div>
-                    <p className="font-semibold text-[#111B21] dark:text-white">{act.title}</p>
-                    <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">{act.subtitle}</p>
+                    <p className="font-semibold text-[#111B21] dark:text-white">
+                      {act.title}
+                    </p>
+                    <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
+                      {act.subtitle}
+                    </p>
                   </div>
                 </div>
                 <span className="text-[10px] text-[#667781] dark:text-[#8696A0] font-mono">
-                  {new Date(act.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                  {new Date(act.date).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  })}
                 </span>
               </div>
             ))}

@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'audit.apps.AuditConfig',
     'assistant_ai.apps.AssistantAiConfig',
     'notifications.apps.NotificationsConfig',
+    'ads.apps.AdsConfig',
+    'referrals.apps.ReferralsConfig',
 ]
 
 MIDDLEWARE = [
@@ -171,8 +173,10 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '30/minute',
+        'anon': '60/minute',
         'user': '120/minute',
+        'login': '5/minute',       # 5 tentatives/min par IP
+        'register': '3/minute',    # 3 inscriptions/min par IP
     },
 }
 
@@ -196,7 +200,13 @@ AI_MAX_HISTORY_MESSAGES = 10
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    APP_URL,
+]

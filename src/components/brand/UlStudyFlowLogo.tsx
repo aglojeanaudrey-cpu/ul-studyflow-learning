@@ -1,23 +1,23 @@
-import React from 'react';
-import logoImg from '../../assets/images/ul_study_logo_1790588296770.jpg';
-import { UlStudyFlowIcon } from './UlStudyFlowIcon';
+import React from "react";
+import logoImg from "../../assets/images/ul_study_logo_1790588296770.jpg";
+import { UlStudyFlowIcon } from "./UlStudyFlowIcon";
 
 interface UlStudyFlowLogoProps {
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
-  variant?: 'image' | 'vector';
+  size?: "sm" | "md" | "lg";
+  variant?: "image" | "vector";
   showTagline?: boolean;
   lightText?: boolean;
 }
 
 export const UlStudyFlowLogo: React.FC<UlStudyFlowLogoProps> = ({
-  className = '',
-  size = 'md',
-  variant = 'vector',
+  className = "",
+  size = "md",
+  variant = "vector",
   showTagline = true,
-  lightText = false
+  lightText = false,
 }) => {
-  if (variant === 'image') {
+  if (variant === "image") {
     return (
       <img
         src={logoImg}
@@ -27,26 +27,57 @@ export const UlStudyFlowLogo: React.FC<UlStudyFlowLogoProps> = ({
     );
   }
 
-  const iconSizeClass = size === 'sm' ? 'w-8 h-8' : size === 'lg' ? 'w-12 h-12' : 'w-10 h-10';
-  const titleClass = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
-  const taglineClass = size === 'sm' ? 'text-[9px]' : size === 'lg' ? 'text-[11px]' : 'text-[10px]';
+  // ⭐ Icône : taille responsive
+  const iconSizeClass =
+    size === "sm"
+      ? "w-7 h-7 sm:w-8 sm:h-8"
+      : size === "lg"
+        ? "w-10 h-10 sm:w-12 sm:h-12"
+        : "w-8 h-8 sm:w-10 sm:h-10";
+
+  // ⭐ Titre "UL STUDYFLOW" : responsive (petit mobile, normal desktop)
+  const titleClass =
+    size === "sm"
+      ? "text-xs sm:text-base"
+      : size === "lg"
+        ? "text-lg sm:text-2xl"
+        : "text-sm sm:text-lg";
+
+  // ⭐ Tagline : TAILLE FIXE, identique partout (même taille que mobile)
+  const taglineClass = "text-[7px]";
+
+  // Gap et marge responsive (légèrement plus serrés sur mobile)
+  const gapClass = "gap-1.5 sm:gap-2";
+  const taglineMarginClass = "mt-0.5";
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`flex items-center ${gapClass} ${className}`}>
       <UlStudyFlowIcon className={iconSizeClass} />
       <div className="flex flex-col">
-        <div className="flex items-baseline gap-1.5 leading-none">
-          <span className={`font-black tracking-tight ${titleClass} ${lightText ? 'text-white' : 'text-[#075E54] dark:text-[#25D366]'}`}>
+        <div className="flex items-baseline gap-1 sm:gap-1.5 leading-none">
+          <span
+            className={`font-black tracking-tight ${titleClass} ${
+              lightText ? "text-white" : "text-[#075E54] dark:text-[#25D366]"
+            }`}
+          >
             UL
           </span>
-          <span className={`font-black tracking-tight ${titleClass} ${lightText ? 'text-emerald-300' : 'text-[#25D366] dark:text-emerald-400'}`}>
+          <span
+            className={`font-black tracking-tight ${titleClass} ${
+              lightText
+                ? "text-emerald-300"
+                : "text-[#25D366] dark:text-emerald-400"
+            }`}
+          >
             STUDYFLOW
           </span>
         </div>
         {showTagline && (
           <span
-            className={`font-semibold tracking-wider uppercase mt-1 ${taglineClass} ${
-              lightText ? 'text-emerald-200/90' : 'text-[#128C7E] dark:text-emerald-300/80'
+            className={`font-semibold tracking-wider uppercase ${taglineMarginClass} ${taglineClass} ${
+              lightText
+                ? "text-emerald-200/90"
+                : "text-[#128C7E] dark:text-emerald-300/80"
             }`}
           >
             Apprendre • Comprendre • Progresser

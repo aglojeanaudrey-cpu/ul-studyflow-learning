@@ -1,11 +1,12 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from accounts import views as acc_views
 from academic import views as acad_views
 from courses import views as crs_views
 from forms_builder import views as frm_views
 from monetization import views as mon_views
 from audit import views as aud_views
+from ads import views as ads_views
 from assistant_ai import views as ai_views
 from notifications import views as notif_views
 
@@ -13,6 +14,7 @@ urlpatterns = [
     # Django Administration UI
     path('admin/', admin.site.urls),
 
+    path('api/csrf-token', acc_views.GetCSRFTokenView.as_view(), name='api-csrf-token'),
     # -------------------------------------------------------------
     # API: AUTHENTICATION
     # -------------------------------------------------------------
@@ -129,6 +131,9 @@ urlpatterns = [
     path('api/notifications', notif_views.UserNotificationsListView.as_view(), name='api-notifications-list'),
     path('api/notifications/read-all', notif_views.NotificationMarkAllReadView.as_view(), name='api-notifications-read-all'),
     path('api/notifications/<str:notif_id>/read', notif_views.NotificationMarkReadView.as_view(), name='api-notifications-read-single'),
+    path('api/notifications/<str:notif_id>/delete', notif_views.NotificationDeleteView.as_view(), name='api-notification-delete'),
+    path('api/notifications/bulk-delete', notif_views.NotificationBulkDeleteView.as_view(), name='api-notifications-bulk-delete'),
+
 
     # Admin Notifications Management
     path('api/admin/notifications', notif_views.AdminNotificationsView.as_view(), name='api-admin-notifications'),
@@ -138,5 +143,15 @@ urlpatterns = [
     # Audit & Config Management
     path('api/admin/audit-logs', aud_views.AuditLogsListView.as_view(), name='api-admin-audit-logs'),
     path('api/admin/config', mon_views.AdminConfigView.as_view(), name='api-admin-config'),
-    path('api/admin/export/<str:export_type>', aud_views.AdminExportView.as_view(), name='api-admin-export'),
+    path('api/admin/export/<str:export_type>/', aud_views.AdminExportView.as_view(), name='api-admin-export'),
+
+    # -------------------------------------------------------------
+    # API: POPUPS / PUBLICITÉS / ANNONCES
+    # -------------------------------------------------------------
+    path('api/', include('ads.urls')),
+
+    # -------------------------------------------------------------
+    # API: PARRAINAGE & AFFILIATION
+    # -------------------------------------------------------------
+    path('api/', include('referrals.urls')),
 ]
