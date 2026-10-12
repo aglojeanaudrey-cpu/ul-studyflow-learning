@@ -1,10 +1,11 @@
-from django.conf import settings as django_settings
+from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
-from django.conf import settings
+from django.middleware.csrf import get_token
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+
 from .throttles import LoginRateThrottle, RegisterRateThrottle
 from .models import User, AuthToken
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
@@ -20,16 +21,28 @@ from notifications.utils import (
     notify_ue_access_granted,
     notify_ue_access_revoked,
 )
-from django.middleware.csrf import get_token
+
+
+# =============================================================================
+# CSRF TOKEN (public)
+# =============================================================================
 
 class GetCSRFTokenView(APIView):
+    """Retourne un CSRF token pour le front. Endpoint PUBLIC."""
     permission_classes = [permissions.AllowAny]
-    
+    authentication_classes = []   # ⭐ Aucune authentification requise
+
     def get(self, request):
         return Response({'csrfToken': get_token(request)})
 
+
+# =============================================================================
+# AUTHENTIFICATION
+# =============================================================================
+
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     throttle_classes = [RegisterRateThrottle]
 
     def post(self, request):
@@ -40,12 +53,14 @@ class RegisterView(APIView):
             return Response({'error': err_msg}, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
+
         # ⭐ Récupérer le code de parrainage (optionnel)
         referral_code_used = (
             request.data.get('referralCode') or
             request.data.get('ref') or
             ''
         ).strip().upper()
+
         user = User.objects.create_user(
             phone=data['canonical_phone'],
             password=data['password'],
@@ -79,15 +94,15 @@ class RegisterView(APIView):
             except Exception as e:
                 print(f"[accounts] Erreur création parrainage : {e}")
 
-        token = AuthToken.create_for_user(user)
-
         # Auto-grant access to UEs matching student's department or level
         try:
             from courses.models import UE, UserUEAccess
             matching_ues = UE.objects.filter(is_published=True, is_suspended=False).filter(
                 Q(department__code__iexact=user.department) | Q(level=user.level)
             )
-            granted_ues = list(matching_ues) if matching_ues.exists() else list(UE.objects.filter(is_published=True, is_suspended=False)[:2])
+            granted_ues = list(matching_ues) if matching_ues.exists() else list(
+                UE.objects.filter(is_published=True, is_suspended=False)[:2]
+            )
             for ue in granted_ues:
                 UserUEAccess.objects.get_or_create(
                     user=user,
@@ -113,6 +128,7 @@ class RegisterView(APIView):
         except Exception:
             pass
 
+        # ⭐ Créer UN SEUL token (pas de doublon)
         token = AuthToken.create_for_user(user)
 
         # ⭐ Plus de token dans le body — uniquement dans le cookie HttpOnly
@@ -128,17 +144,18 @@ class RegisterView(APIView):
         """Helper centralisé pour poser le cookie de session."""
         response.set_cookie(
             'ulsf_session',
-            token_key,
+            token_key,               # ⭐ Utiliser token_key (paramètre)
             httponly=True,
-            secure=True,             # ⭐ toujours True en prod
-            samesite='None',         # ⭐ CRITIQUE : permet le cross-origin
+            secure=True,
+            samesite='None',
             max_age=7 * 24 * 60 * 60,
             path='/',
-            domain=None,             # ⭐ laisse Django gérer le domaine
         )
+
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
@@ -146,7 +163,12 @@ class LoginView(APIView):
         if not serializer.is_valid():
             return Response({'error': 'Identifiant et mot de passe requis.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        raw_id = (request.data.get('phone') or request.data.get('identifier') or request.data.get('email') or '').strip()
+        raw_id = (
+            request.data.get('phone') or
+            request.data.get('identifier') or
+            request.data.get('email') or
+            ''
+        ).strip()
         password = request.data.get('password', '')
 
         if not raw_id or not password:
@@ -199,7 +221,6 @@ class LoginView(APIView):
 
         token = AuthToken.create_for_user(user)
 
-        # ⭐ Plus de token dans le body
         response = Response({
             'user': UserSerializer(user).data
         })
@@ -215,6 +236,7 @@ class LoginView(APIView):
         )
         return response
 
+
 class MeView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -223,8 +245,9 @@ class MeView(APIView):
             return Response({'user': None}, status=status.HTTP_200_OK)
         return Response({'user': UserSerializer(request.user).data})
 
+
 class LogoutView(APIView):
-    permission_classes = [permissions.AllowAny]  # ⭐ AllowAny pour pouvoir logout même si token expiré
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         # 1. Supprimer le token de la DB
@@ -238,6 +261,11 @@ class LogoutView(APIView):
         response = Response({'success': True})
         response.delete_cookie('ulsf_session', path='/')
         return response
+
+
+# =============================================================================
+# ADMIN — GESTION DES UTILISATEURS
+# =============================================================================
 
 class AdminUsersListView(APIView):
     permission_classes = [IsStaffOrSuperuser]
@@ -255,7 +283,10 @@ class AdminUsersListView(APIView):
         password = data.get('password')
 
         if not phone or not first_name or not last_name or not password:
-            return Response({'error': 'Téléphone, prénom, nom et mot de passe requis.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Téléphone, prénom, nom et mot de passe requis.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         canonical, display, is_valid = normalize_phone(phone)
         if not is_valid:
@@ -266,7 +297,10 @@ class AdminUsersListView(APIView):
 
         role = data.get('role', 'USER')
         if role == 'SUPERUSER' and actor.role != 'SUPERUSER':
-            return Response({'error': 'Seul le Super-Administrateur peut créer un autre Superuser.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'error': 'Seul le Super-Administrateur peut créer un autre Superuser.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         admin_perms = data.get('adminPermissions') or data.get('admin_permissions')
         if not isinstance(admin_perms, list):
@@ -285,7 +319,9 @@ class AdminUsersListView(APIView):
             role=role if role in ('USER', 'STAFF', 'SUPERUSER') else 'USER',
             is_sponsored=bool(data.get('isSponsored')) if actor.role == 'SUPERUSER' else False,
             is_ai_suspended=bool(data.get('isAiSuspended')) if actor.role == 'SUPERUSER' else False,
-            admin_permissions=admin_perms if actor.role == 'SUPERUSER' else (['dashboard', 'courses', 'progress'] if role == 'STAFF' else [])
+            admin_permissions=admin_perms if actor.role == 'SUPERUSER' else (
+                ['dashboard', 'courses', 'progress'] if role == 'STAFF' else []
+            )
         )
 
         try:
@@ -300,7 +336,10 @@ class AdminUsersListView(APIView):
         except Exception:
             pass
 
-        return Response({'success': True, 'user': UserSerializer(new_user).data}, status=status.HTTP_201_CREATED)
+        return Response(
+            {'success': True, 'user': UserSerializer(new_user).data},
+            status=status.HTTP_201_CREATED
+        )
 
 
 class AdminUserDetailView(APIView):
@@ -314,13 +353,20 @@ class AdminUserDetailView(APIView):
             return Response({'error': 'Utilisateur introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
         if actor.role == 'STAFF' and target_user.role == 'SUPERUSER':
-            return Response({'error': 'Le personnel ne peut pas modifier un compte Super-Administrateur.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'error': 'Le personnel ne peut pas modifier un compte Super-Administrateur.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         data = request.data
+
         if target_user.id == 'usr_super_1':
             role = data.get('role')
             if role and role != 'SUPERUSER':
-                return Response({'error': 'Le Super-Administrateur principal ne peut pas être dégradé.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'error': 'Le Super-Administrateur principal ne peut pas être dégradé.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         first_name = data.get('firstName') or data.get('first_name')
         if first_name:
@@ -345,16 +391,18 @@ class AdminUserDetailView(APIView):
         phone = data.get('phone')
         if phone:
             canonical, display, is_valid = normalize_phone(phone)
-            if is_valid and (canonical == target_user.phone or not User.objects.filter(phone=canonical).exclude(id=target_user.id).exists()):
+            if is_valid and (
+                canonical == target_user.phone or
+                not User.objects.filter(phone=canonical).exclude(id=target_user.id).exists()
+            ):
                 target_user.phone = canonical
                 target_user.display_phone = display
 
-                is_active = data.get('isActive')
+        is_active = data.get('isActive')
         if is_active is not None and target_user.id != 'usr_super_1':
             was_active = target_user.is_active
             target_user.is_active = bool(is_active)
 
-            # ⭐ Notification si changement de statut
             if was_active and not target_user.is_active:
                 try:
                     notify_account_suspended(target_user)
@@ -369,35 +417,43 @@ class AdminUserDetailView(APIView):
         role = data.get('role')
         if role and role in ('USER', 'STAFF', 'SUPERUSER'):
             if role == 'SUPERUSER' and actor.role != 'SUPERUSER':
-                return Response({'error': 'Seul le Super-Administrateur peut attribuer le rôle Superuser.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {'error': 'Seul le Super-Administrateur peut attribuer le rôle Superuser.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             if target_user.id != 'usr_super_1':
                 target_user.role = role
 
-        # Granular admin permissions for STAFF: Superuser only
         admin_perms = data.get('adminPermissions') if 'adminPermissions' in data else data.get('admin_permissions')
         if admin_perms is not None:
             if actor.role != 'SUPERUSER':
-                return Response({'error': 'Seul le Super-Administrateur peut modifier les permissions administratives.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {'error': 'Seul le Super-Administrateur peut modifier les permissions administratives.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             if isinstance(admin_perms, list):
                 target_user.admin_permissions = admin_perms
 
-        # Sponsoring: Superuser only
         is_sponsored = data.get('isSponsored')
         if is_sponsored is not None:
             if actor.role != 'SUPERUSER':
-                return Response({'error': 'Seul le Super-Administrateur peut sponsoriser un compte pour un accès gratuit.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {'error': 'Seul le Super-Administrateur peut sponsoriser un compte pour un accès gratuit.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             target_user.is_sponsored = bool(is_sponsored)
 
-                # AI Suspension: Superuser only
         is_ai_suspended = data.get('isAiSuspended')
         if is_ai_suspended is not None:
             if actor.role != 'SUPERUSER':
-                return Response({'error': 'Seul le Super-Administrateur peut limiter ou suspendre l\'accès à l\'IA.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {'error': 'Seul le Super-Administrateur peut limiter ou suspendre l\'accès à l\'IA.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
             was_ai_suspended = target_user.is_ai_suspended
             target_user.is_ai_suspended = bool(is_ai_suspended)
 
-            # ⭐ Notification si changement d'état IA
             if not was_ai_suspended and target_user.is_ai_suspended:
                 try:
                     notify_ai_suspended(target_user)
@@ -409,7 +465,6 @@ class AdminUserDetailView(APIView):
                 except Exception as e:
                     print(f"[accounts] Erreur notif IA reactivate : {e}")
 
-        # Password update
         password = data.get('password')
         if password and len(str(password).strip()) >= 6:
             target_user.set_password(str(password).strip())
@@ -438,12 +493,16 @@ class AdminUserDetailView(APIView):
             return Response({'error': 'Utilisateur introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
         if target_user.id == 'usr_super_1':
-            return Response({'error': 'Impossible de supprimer le Super-Administrateur principal.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'Impossible de supprimer le Super-Administrateur principal.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if target_user.role == 'SUPERUSER' and actor.role != 'SUPERUSER':
-            return Response({'error': 'Le personnel ne peut pas supprimer un Super-Administrateur.'}, status=status.HTTP_403_FORBIDDEN)
-
-        user_desc = f"{target_user.phone} ({target_user.first_name} {target_user.last_name})"
+            return Response(
+                {'error': 'Le personnel ne peut pas supprimer un Super-Administrateur.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         # ⭐ Déplacement vers la corbeille
         try:
@@ -471,81 +530,6 @@ class AdminUserDetailView(APIView):
                 {'error': f"Erreur lors de la suppression : {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        actor = request.user
-        try:
-            target_user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({'error': 'Utilisateur introuvable.'}, status=status.HTTP_404_NOT_FOUND)
-
-        if target_user.id == 'usr_super_1':
-            return Response({'error': 'Impossible de supprimer le Super-Administrateur principal.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if target_user.role == 'SUPERUSER' and actor.role != 'SUPERUSER':
-            return Response({'error': 'Le personnel ne peut pas supprimer un Super-Administrateur.'}, status=status.HTTP_403_FORBIDDEN)
-
-        user_desc = f"{target_user.phone} ({target_user.first_name} {target_user.last_name})"
-        target_user.delete()
-
-        try:
-            from audit.utils import log_audit
-            log_audit(
-                action='USER_DELETE',
-                resource=user_id,
-                details=f"Suppression utilisateur {user_desc}",
-                user=actor,
-                ip=request.META.get('REMOTE_ADDR')
-            )
-        except Exception:
-            pass
-
-        return Response({'success': True})
-
-
-    permission_classes = [IsStaffOrSuperuser]
-
-    def post(self, request, user_id):
-        actor = request.user
-        ue_id = request.data.get('ueId')
-        action = request.data.get('action') # 'grant' | 'revoke'
-
-        try:
-            target_user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({'error': 'Utilisateur introuvable.'}, status=status.HTTP_404_NOT_FOUND)
-
-        from courses.models import UE, UserUEAccess
-        try:
-            ue = UE.objects.get(id=ue_id)
-        except UE.DoesNotExist:
-            return Response({'error': 'UE introuvable.'}, status=status.HTTP_404_NOT_FOUND)
-
-        access, created = UserUEAccess.objects.get_or_create(
-            user=target_user,
-            ue=ue,
-            defaults={
-                'granted_by': actor.phone,
-                'status': 'active' if action == 'grant' else 'revoked'
-            }
-        )
-
-        if not created:
-            access.status = 'active' if action == 'grant' else 'revoked'
-            access.granted_by = actor.phone
-            access.save()
-
-        try:
-            from audit.utils import log_audit
-            log_audit(
-                action='ACCESS_CHANGE',
-                resource=target_user.id,
-                details=f"{'Attribution' if action == 'grant' else 'Révocation'} de l'UE {ue.code} pour {target_user.phone}",
-                user=actor,
-                ip=request.META.get('REMOTE_ADDR')
-            )
-        except Exception:
-            pass
-
-        return Response({'success': True})
 
 
 class AdminUserAccessView(APIView):
@@ -621,7 +605,7 @@ class AdminUserAccessView(APIView):
         except Exception:
             pass
 
-        # ⭐ Retourne l'état à jour pour éviter un refetch côté front
+        # ⭐ Retourne l'état à jour
         granted_ids = list(
             UserUEAccess.objects
             .filter(user=target_user, status='active')
