@@ -29,6 +29,9 @@ import { StudentProfileView } from "./components/student/StudentProfileView";
 import { AdminView } from "./components/admin/AdminView";
 import { ActivePopup } from "./components/marketing/ActivePopup";
 import { ReferralView } from "./components/student/ReferralView";
+import { PageProgressBar } from "./components/ui/PageProgressBar";
+import { AppSplashScreen } from "./components/ui/AppSplashScreen";
+import { useLoading } from "./context/LoadingContext";
 
 // Mobile Bottom Nav Icons
 import {
@@ -46,6 +49,7 @@ import { DynamicForm, PopupCampaign } from "./types";
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const { isLoading } = useLoading();
 
   // Navigation State
   const [currentTab, setCurrentTab] = useState<string>("home");
@@ -56,7 +60,8 @@ function AppContent() {
   >(undefined);
   // ⭐ Mémorise l'onglet précédent quand on ouvre l'IA (pour y retourner à la fermeture)
   const [previousTab, setPreviousTab] = useState<string | null>(null);
-
+  // ⭐ Code promo en attente (depuis Mon Parrainage → déblocage UE)
+  const [pendingPromoCode, setPendingPromoCode] = useState<string | null>(null);
   // Modals State
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -208,18 +213,9 @@ function AppContent() {
     );
   }
 
-  // If loading session check
+  // ⭐ Splash screen initial (chargement de la session)
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F0F2F5]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-[#25D366] border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs font-bold text-[#075E54] tracking-wider uppercase">
-            UL Study Flow Learning...
-          </span>
-        </div>
-      </div>
-    );
+    return <AppSplashScreen visible={true} />;
   }
 
   // Choose appropriate view based on authentication & currentTab
@@ -320,7 +316,15 @@ function AppContent() {
             />
           );
         case "student_referral":
-          return <ReferralView />;
+          return (
+            <ReferralView
+              onNavigateToUnlock={(promoCode) => {
+                // Stocker le code et rediriger vers le déblocage
+                setPendingPromoCode(promoCode);
+                setCurrentTab("student_courses");
+              }}
+            />
+          );
         case "student_profile":
           return <StudentProfileView />;
         default:
@@ -398,6 +402,9 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F0F2F5] dark:bg-[#0B141A] text-[#111B21] dark:text-[#E9EDEF] font-sans pb-16 lg:pb-0 transition-colors duration-200">
+      {/* ⭐ Barre de progression globale en haut */}
+      <PageProgressBar loading={isLoading} />
+
       {/* Top Navbar */}
       <Navbar
         currentTab={currentTab}

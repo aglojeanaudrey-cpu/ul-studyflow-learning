@@ -10,6 +10,7 @@ from .models import User, AuthToken
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
 from .permissions import IsStaffOrSuperuser
 from .utils import normalize_phone
+from audit.trash_service import move_to_trash_user
 from notifications.utils import (
     notify_welcome,
     notify_account_suspended,
@@ -429,6 +430,46 @@ class AdminUserDetailView(APIView):
         return Response({'success': True, 'user': UserSerializer(target_user).data})
 
     def delete(self, request, user_id):
+        actor = request.user
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'Utilisateur introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if target_user.id == 'usr_super_1':
+            return Response({'error': 'Impossible de supprimer le Super-Administrateur principal.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if target_user.role == 'SUPERUSER' and actor.role != 'SUPERUSER':
+            return Response({'error': 'Le personnel ne peut pas supprimer un Super-Administrateur.'}, status=status.HTTP_403_FORBIDDEN)
+
+        user_desc = f"{target_user.phone} ({target_user.first_name} {target_user.last_name})"
+
+        # ⭐ Déplacement vers la corbeille
+        try:
+            entry = move_to_trash_user(target_user, deleted_by=actor)
+
+            try:
+                from audit.utils import log_audit
+                log_audit(
+                    action='USER_DELETE',
+                    resource=user_id,
+                    details=f"Utilisateur « {entry.display_name} » déplacé vers la corbeille",
+                    user=actor,
+                    ip=request.META.get('REMOTE_ADDR')
+                )
+            except Exception:
+                pass
+
+            return Response({
+                'success': True,
+                'message': "Utilisateur déplacé vers la corbeille. Restaurable pendant 30 jours.",
+                'trashId': entry.id,
+            })
+        except Exception as e:
+            return Response(
+                {'error': f"Erreur lors de la suppression : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         actor = request.user
         try:
             target_user = User.objects.get(id=user_id)

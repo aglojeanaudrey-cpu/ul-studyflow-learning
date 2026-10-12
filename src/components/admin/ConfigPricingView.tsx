@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { PlatformConfig, PromoCode, UnlockRequest, PaymentMethod } from '../../types';
-import { api } from '../../lib/api';
+import React, { useState, useEffect } from "react";
+import {
+  PlatformConfig,
+  PromoCode,
+  UnlockRequest,
+  PaymentMethod,
+} from "../../types";
+import { api } from "../../lib/api";
 import {
   Settings,
   Save,
@@ -23,8 +28,9 @@ import {
   Image as ImageIcon,
   ArrowUpDown,
   Eye,
-  Copy,
-} from 'lucide-react';
+  Calendar,
+  Clock,
+} from "lucide-react";
 
 export const ConfigPricingView: React.FC = () => {
   const [config, setConfig] = useState<PlatformConfig | null>(null);
@@ -35,22 +41,29 @@ export const ConfigPricingView: React.FC = () => {
   const [saved, setSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [promoSuccessMsg, setPromoSuccessMsg] = useState<string | null>(null);
-  const [requestSuccessMsg, setRequestSuccessMsg] = useState<string | null>(null);
-  const [paymentSuccessMsg, setPaymentSuccessMsg] = useState<string | null>(null);
+  const [requestSuccessMsg, setRequestSuccessMsg] = useState<string | null>(
+    null,
+  );
+  const [paymentSuccessMsg, setPaymentSuccessMsg] = useState<string | null>(
+    null,
+  );
 
   // New promo code form
-  const [newPromoCode, setNewPromoCode] = useState('');
+  const [newPromoCode, setNewPromoCode] = useState("");
   const [newPromoPercent, setNewPromoPercent] = useState<number>(20);
-  const [newPromoApplicable, setNewPromoApplicable] = useState<'all' | 'ue_unlock' | 'tutoring'>('all');
+  const [newPromoApplicable, setNewPromoApplicable] = useState<
+    "all" | "ue_unlock" | "tutoring"
+  >("all");
 
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Payment Method Modal
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [editingPaymentMethod, setEditingPaymentMethod] =
+    useState<PaymentMethod | null>(null);
   const [paymentForm, setPaymentForm] = useState<{
     name: string;
-    type: 'phone_account' | 'payment_link' | 'qr_code' | 'other';
+    type: "phone_account" | "payment_link" | "qr_code" | "other";
     accountNumber: string;
     paymentUrl: string;
     qrCodeImage: string;
@@ -59,15 +72,15 @@ export const ConfigPricingView: React.FC = () => {
     order: number;
     isActive: boolean;
   }>({
-    name: '',
-    type: 'phone_account',
-    accountNumber: '',
-    paymentUrl: '',
-    qrCodeImage: '',
-    instructions: '',
-    logoUrl: '',
+    name: "",
+    type: "phone_account",
+    accountNumber: "",
+    paymentUrl: "",
+    qrCodeImage: "",
+    instructions: "",
+    logoUrl: "",
     order: 1,
-    isActive: true
+    isActive: true,
   });
 
   const loadAll = async () => {
@@ -76,14 +89,17 @@ export const ConfigPricingView: React.FC = () => {
         api.getAdminConfig(),
         api.getAdminPromoCodes(),
         api.getAdminUnlockRequests(),
-        api.getAdminPaymentMethods()
+        api.getAdminPaymentMethods(),
       ]);
       setConfig(cRes.config);
       setPromoCodes(pRes.promoCodes);
       setUnlockRequests(rRes.requests || []);
       setPaymentMethods(pmRes.paymentMethods || []);
     } catch (err) {
-      console.error('Error fetching admin config, promo codes, requests, or payment methods:', err);
+      console.error(
+        "Error fetching admin config, promo codes, requests, or payment methods:",
+        err,
+      );
     } finally {
       setLoading(false);
     }
@@ -101,8 +117,8 @@ export const ConfigPricingView: React.FC = () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      console.error('Error updating config:', err);
-      setErrorMsg('Erreur lors de la mise à jour des paramètres.');
+      console.error("Error updating config:", err);
+      setErrorMsg("Erreur lors de la mise à jour des paramètres.");
       setTimeout(() => setErrorMsg(null), 4000);
     }
   };
@@ -115,15 +131,17 @@ export const ConfigPricingView: React.FC = () => {
       const res = await api.createAdminPromoCode({
         code: newPromoCode.trim().toUpperCase(),
         discountPercent: Number(newPromoPercent),
-        applicableTo: newPromoApplicable
+        applicableTo: newPromoApplicable,
       });
-      setNewPromoCode('');
-      setPromoSuccessMsg(`Offre promo "${res.promoCode.code}" créée avec succès (${res.promoCode.discountPercent}% de réduction).`);
+      setNewPromoCode("");
+      setPromoSuccessMsg(
+        `Offre promo "${res.promoCode.code}" créée avec succès (${res.promoCode.discountPercent}% de réduction).`,
+      );
       setTimeout(() => setPromoSuccessMsg(null), 3500);
       const pRes = await api.getAdminPromoCodes();
       setPromoCodes(pRes.promoCodes);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Impossible de créer ce code promo.');
+      setErrorMsg(err.message || "Impossible de créer ce code promo.");
       setTimeout(() => setErrorMsg(null), 4000);
     }
   };
@@ -134,7 +152,7 @@ export const ConfigPricingView: React.FC = () => {
       const pRes = await api.getAdminPromoCodes();
       setPromoCodes(pRes.promoCodes);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Action impossible.');
+      setErrorMsg(err.message || "Action impossible.");
       setTimeout(() => setErrorMsg(null), 3000);
     }
   };
@@ -142,12 +160,12 @@ export const ConfigPricingView: React.FC = () => {
   const handleDeletePromo = async (id: string) => {
     try {
       await api.deleteAdminPromoCode(id);
-      setPromoSuccessMsg('Offre promo supprimée avec succès.');
+      setPromoSuccessMsg("Offre promo supprimée avec succès.");
       setTimeout(() => setPromoSuccessMsg(null), 3000);
       const pRes = await api.getAdminPromoCodes();
       setPromoCodes(pRes.promoCodes);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erreur de suppression.');
+      setErrorMsg(err.message || "Erreur de suppression.");
       setTimeout(() => setErrorMsg(null), 3000);
     }
   };
@@ -156,15 +174,16 @@ export const ConfigPricingView: React.FC = () => {
   const openCreatePaymentModal = () => {
     setEditingPaymentMethod(null);
     setPaymentForm({
-      name: '',
-      type: 'phone_account',
-      accountNumber: '',
-      paymentUrl: '',
-      qrCodeImage: '',
-      instructions: 'Effectuez votre transfert puis conservez la confirmation SMS.',
-      logoUrl: '',
+      name: "",
+      type: "phone_account",
+      accountNumber: "",
+      paymentUrl: "",
+      qrCodeImage: "",
+      instructions:
+        "Effectuez votre transfert puis conservez la confirmation SMS.",
+      logoUrl: "",
       order: paymentMethods.length + 1,
-      isActive: true
+      isActive: true,
     });
     setIsPaymentModalOpen(true);
   };
@@ -174,13 +193,13 @@ export const ConfigPricingView: React.FC = () => {
     setPaymentForm({
       name: pm.name,
       type: pm.type,
-      accountNumber: pm.accountNumber || '',
-      paymentUrl: pm.paymentUrl || '',
-      qrCodeImage: pm.qrCodeImage || '',
-      instructions: pm.instructions || '',
-      logoUrl: pm.logoUrl || '',
+      accountNumber: pm.accountNumber || "",
+      paymentUrl: pm.paymentUrl || "",
+      qrCodeImage: pm.qrCodeImage || "",
+      instructions: pm.instructions || "",
+      logoUrl: pm.logoUrl || "",
       order: pm.order,
-      isActive: pm.isActive
+      isActive: pm.isActive,
     });
     setIsPaymentModalOpen(true);
   };
@@ -191,18 +210,27 @@ export const ConfigPricingView: React.FC = () => {
 
     try {
       if (editingPaymentMethod) {
-        await api.updateAdminPaymentMethod(editingPaymentMethod.id, paymentForm);
-        setPaymentSuccessMsg(`Moyen de paiement "${paymentForm.name}" modifié.`);
+        await api.updateAdminPaymentMethod(
+          editingPaymentMethod.id,
+          paymentForm,
+        );
+        setPaymentSuccessMsg(
+          `Moyen de paiement "${paymentForm.name}" modifié.`,
+        );
       } else {
         await api.createAdminPaymentMethod(paymentForm);
-        setPaymentSuccessMsg(`Moyen de paiement "${paymentForm.name}" ajouté avec succès.`);
+        setPaymentSuccessMsg(
+          `Moyen de paiement "${paymentForm.name}" ajouté avec succès.`,
+        );
       }
       setIsPaymentModalOpen(false);
       setTimeout(() => setPaymentSuccessMsg(null), 3500);
       const res = await api.getAdminPaymentMethods();
       setPaymentMethods(res.paymentMethods || []);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erreur lors de l\'enregistrement du moyen de paiement.');
+      setErrorMsg(
+        err.message || "Erreur lors de l'enregistrement du moyen de paiement.",
+      );
       setTimeout(() => setErrorMsg(null), 4000);
     }
   };
@@ -213,13 +241,18 @@ export const ConfigPricingView: React.FC = () => {
       const res = await api.getAdminPaymentMethods();
       setPaymentMethods(res.paymentMethods || []);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Action impossible.');
+      setErrorMsg(err.message || "Action impossible.");
       setTimeout(() => setErrorMsg(null), 3000);
     }
   };
 
   const handleDeletePaymentMethod = async (id: string, name: string) => {
-    if (!window.confirm(`Voulez-vous vraiment supprimer le moyen de paiement "${name}" ?`)) return;
+    if (
+      !window.confirm(
+        `Voulez-vous vraiment supprimer le moyen de paiement "${name}" ?`,
+      )
+    )
+      return;
     try {
       await api.deleteAdminPaymentMethod(id);
       setPaymentSuccessMsg(`Moyen de paiement "${name}" supprimé.`);
@@ -227,7 +260,7 @@ export const ConfigPricingView: React.FC = () => {
       const res = await api.getAdminPaymentMethods();
       setPaymentMethods(res.paymentMethods || []);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erreur lors de la suppression.');
+      setErrorMsg(err.message || "Erreur lors de la suppression.");
       setTimeout(() => setErrorMsg(null), 3000);
     }
   };
@@ -235,12 +268,14 @@ export const ConfigPricingView: React.FC = () => {
   const handleApproveRequest = async (reqId: string, studentName: string) => {
     try {
       await api.approveUnlockRequest(reqId);
-      setRequestSuccessMsg(`Demande de ${studentName} validée : les UE ont été débloquées avec succès !`);
+      setRequestSuccessMsg(
+        `Demande de ${studentName} validée : les UE ont été débloquées avec succès !`,
+      );
       setTimeout(() => setRequestSuccessMsg(null), 4000);
       const rRes = await api.getAdminUnlockRequests();
       setUnlockRequests(rRes.requests || []);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erreur lors de la validation du déblocage.');
+      setErrorMsg(err.message || "Erreur lors de la validation du déblocage.");
       setTimeout(() => setErrorMsg(null), 4000);
     }
   };
@@ -253,7 +288,7 @@ export const ConfigPricingView: React.FC = () => {
       const rRes = await api.getAdminUnlockRequests();
       setUnlockRequests(rRes.requests || []);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erreur lors du rejet.');
+      setErrorMsg(err.message || "Erreur lors du rejet.");
       setTimeout(() => setErrorMsg(null), 4000);
     }
   };
@@ -266,15 +301,19 @@ export const ConfigPricingView: React.FC = () => {
     );
   }
 
-  const pendingRequests = unlockRequests.filter(r => r.status === 'pending');
-  const pastRequests = unlockRequests.filter(r => r.status !== 'pending');
+  const pendingRequests = unlockRequests.filter((r) => r.status === "pending");
+  const pastRequests = unlockRequests.filter((r) => r.status !== "pending");
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h2 className="text-xl font-bold text-[#111B21] dark:text-white">Tarifs, Offres & Moyens de Paiement</h2>
+        <h2 className="text-xl font-bold text-[#111B21] dark:text-white">
+          Tarifs, Offres & Moyens de Paiement
+        </h2>
         <p className="text-xs text-[#667781] dark:text-[#8696A0]">
-          Gestion des demandes de déblocage · Configuration des moyens de paiement (Numéros, Liens, QR Codes) · Codes promo · Tarification officielle.
+          Gestion des demandes de déblocage · Configuration des moyens de
+          paiement (Numéros, Liens, QR Codes) · Codes promo · Tarification
+          officielle.
         </p>
       </div>
 
@@ -320,17 +359,21 @@ export const ConfigPricingView: React.FC = () => {
 
         {pendingRequests.length === 0 ? (
           <div className="p-6 text-center text-xs text-[#667781] dark:text-[#8696A0] bg-[#F0F2F5]/60 dark:bg-[#1F2C34]/40 rounded-xl">
-            Toutes les demandes de déblocage ont été traitées. Aucune demande en attente.
+            Toutes les demandes de déblocage ont été traitées. Aucune demande en
+            attente.
           </div>
         ) : (
           <div className="divide-y divide-[#E9EDEF] dark:divide-[#222E35] border border-[#E9EDEF] dark:border-[#222E35] rounded-xl overflow-hidden">
             {pendingRequests.map((req) => {
-              const displayName = req.userName || req.studentName || 'Étudiant';
-              const displayPhone = req.userPhone || req.studentPhone || '';
+              const displayName = req.userName || req.studentName || "Étudiant";
+              const displayPhone = req.userPhone || req.studentPhone || "";
               const promo = req.promoCode || req.appliedPromoCode;
 
               return (
-                <div key={req.id} className="p-4 bg-white dark:bg-[#111B21] flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#F0F2F5]/40 dark:hover:bg-[#1F2C34]/40 transition-colors">
+                <div
+                  key={req.id}
+                  className="p-4 bg-white dark:bg-[#111B21] flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#F0F2F5]/40 dark:hover:bg-[#1F2C34]/40 transition-colors"
+                >
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-xs text-[#111B21] dark:text-white">
@@ -347,17 +390,30 @@ export const ConfigPricingView: React.FC = () => {
                     </div>
 
                     <p className="text-xs text-[#075E54] dark:text-[#25D366] font-medium">
-                      Matières demandées ({req.ueCodes.length}) : <strong>{req.ueCodes.join(', ')}</strong>
+                      Matières demandées ({req.ueCodes.length}) :{" "}
+                      <strong>{req.ueCodes.join(", ")}</strong>
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2 text-[10px] text-[#667781] dark:text-[#8696A0]">
-                      <span>Montant total : <strong className="text-[#111B21] dark:text-white">{req.totalFcfa} FCFA</strong> (avec +100F frais)</span>
+                      <span>
+                        Montant total :{" "}
+                        <strong className="text-[#111B21] dark:text-white">
+                          {req.totalFcfa} FCFA
+                        </strong>{" "}
+                        (avec +100F frais)
+                      </span>
                       {promo && (
                         <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
                           Promo: {promo} (-{req.discountPercent}%)
                         </span>
                       )}
-                      <span>· Date : {new Date(req.createdAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>
+                        · Date :{" "}
+                        {new Date(req.createdAt).toLocaleDateString("fr-FR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                     </div>
                   </div>
 
@@ -388,21 +444,31 @@ export const ConfigPricingView: React.FC = () => {
           <div className="pt-2">
             <details className="cursor-pointer">
               <summary className="text-[11px] font-semibold text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white">
-                Voir l'historique des {pastRequests.length} demandes déjà traitées
+                Voir l'historique des {pastRequests.length} demandes déjà
+                traitées
               </summary>
               <div className="mt-2 divide-y divide-[#E9EDEF] dark:divide-[#222E35] border border-[#E9EDEF] dark:border-[#222E35] rounded-xl max-h-48 overflow-y-auto">
-                {pastRequests.map(r => (
-                  <div key={r.id} className="p-2.5 flex items-center justify-between text-[11px] bg-white dark:bg-[#111B21]">
+                {pastRequests.map((r) => (
+                  <div
+                    key={r.id}
+                    className="p-2.5 flex items-center justify-between text-[11px] bg-white dark:bg-[#111B21]"
+                  >
                     <div>
-                      <span className="font-semibold text-[#111B21] dark:text-white">{r.studentName || r.userName || 'Étudiant'}</span>
-                      <span className="text-[#667781] dark:text-[#8696A0] ml-2">({r.ueCodes.join(', ')})</span>
+                      <span className="font-semibold text-[#111B21] dark:text-white">
+                        {r.studentName || r.userName || "Étudiant"}
+                      </span>
+                      <span className="text-[#667781] dark:text-[#8696A0] ml-2">
+                        ({r.ueCodes.join(", ")})
+                      </span>
                     </div>
-                    <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                      r.status === 'approved'
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-[#25D366]'
-                        : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                    }`}>
-                      {r.status === 'approved' ? 'Validé' : 'Rejeté'}
+                    <span
+                      className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                        r.status === "approved"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-[#25D366]"
+                          : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                      }`}
+                    >
+                      {r.status === "approved" ? "Validé" : "Rejeté"}
                     </span>
                   </div>
                 ))}
@@ -421,7 +487,9 @@ export const ConfigPricingView: React.FC = () => {
               Moyens de Paiement Officiels (Numéros, Liens & QR Codes)
             </h3>
             <p className="text-[11px] text-[#667781] dark:text-[#8696A0] mt-0.5">
-              Configurez directement les numéros de téléphone (T-Money, Flooz), les boutons de redirection ou les images de QR Code affichés aux étudiants.
+              Configurez directement les numéros de téléphone (T-Money, Flooz),
+              les boutons de redirection ou les images de QR Code affichés aux
+              étudiants.
             </p>
           </div>
 
@@ -459,18 +527,18 @@ export const ConfigPricingView: React.FC = () => {
                   key={pm.id}
                   className={`p-4 rounded-xl border transition-all space-y-3 relative ${
                     pm.isActive
-                      ? 'bg-white dark:bg-[#111B21] border-[#E9EDEF] dark:border-[#222E35] shadow-xs'
-                      : 'bg-[#F0F2F5]/60 dark:bg-[#1F2C34]/40 border-dashed border-gray-300 dark:border-gray-700 opacity-60'
+                      ? "bg-white dark:bg-[#111B21] border-[#E9EDEF] dark:border-[#222E35] shadow-xs"
+                      : "bg-[#F0F2F5]/60 dark:bg-[#1F2C34]/40 border-dashed border-gray-300 dark:border-gray-700 opacity-60"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366] flex items-center justify-center font-bold">
-                        {pm.type === 'phone_account' ? (
+                        {pm.type === "phone_account" ? (
                           <Smartphone className="w-4 h-4" />
-                        ) : pm.type === 'payment_link' ? (
+                        ) : pm.type === "payment_link" ? (
                           <LinkIcon className="w-4 h-4" />
-                        ) : pm.type === 'qr_code' ? (
+                        ) : pm.type === "qr_code" ? (
                           <QrCode className="w-4 h-4" />
                         ) : (
                           <CreditCard className="w-4 h-4" />
@@ -482,13 +550,13 @@ export const ConfigPricingView: React.FC = () => {
                         </h4>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-gray-100 dark:bg-gray-800 text-[#667781] dark:text-[#8696A0]">
-                            {pm.type === 'phone_account'
-                              ? 'Numéro / Compte'
-                              : pm.type === 'payment_link'
-                              ? 'Lien de Paiement'
-                              : pm.type === 'qr_code'
-                              ? 'QR Code'
-                              : 'Autre'}
+                            {pm.type === "phone_account"
+                              ? "Numéro / Compte"
+                              : pm.type === "payment_link"
+                                ? "Lien de Paiement"
+                                : pm.type === "qr_code"
+                                  ? "QR Code"
+                                  : "Autre"}
                           </span>
                           <span className="text-[10px] text-[#667781] dark:text-[#8696A0]">
                             Ordre: {pm.order}
@@ -500,14 +568,22 @@ export const ConfigPricingView: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleTogglePaymentMethod(pm.id)}
-                        title={pm.isActive ? 'Désactiver ce moyen' : 'Activer ce moyen'}
+                        title={
+                          pm.isActive
+                            ? "Désactiver ce moyen"
+                            : "Activer ce moyen"
+                        }
                         className={`p-1.5 rounded-lg text-xs font-semibold transition-colors ${
                           pm.isActive
-                            ? 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950'
-                            : 'text-emerald-700 dark:text-[#25D366] hover:bg-emerald-50 dark:hover:bg-emerald-950'
+                            ? "text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950"
+                            : "text-emerald-700 dark:text-[#25D366] hover:bg-emerald-50 dark:hover:bg-emerald-950"
                         }`}
                       >
-                        {pm.isActive ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                        {pm.isActive ? (
+                          <Lock className="w-3.5 h-3.5" />
+                        ) : (
+                          <Unlock className="w-3.5 h-3.5" />
+                        )}
                       </button>
                       <button
                         onClick={() => openEditPaymentModal(pm)}
@@ -517,7 +593,9 @@ export const ConfigPricingView: React.FC = () => {
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => handleDeletePaymentMethod(pm.id, pm.name)}
+                        onClick={() =>
+                          handleDeletePaymentMethod(pm.id, pm.name)
+                        }
                         title="Supprimer"
                         className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950 transition-colors"
                       >
@@ -530,13 +608,19 @@ export const ConfigPricingView: React.FC = () => {
                   <div className="space-y-1.5 bg-[#F0F2F5] dark:bg-[#1F2C34] p-2.5 rounded-lg text-[11px]">
                     {pm.accountNumber && (
                       <div className="flex items-center justify-between">
-                        <span className="text-[#667781] dark:text-[#8696A0]">Numéro / Compte :</span>
-                        <strong className="font-mono text-[#111B21] dark:text-white font-bold">{pm.accountNumber}</strong>
+                        <span className="text-[#667781] dark:text-[#8696A0]">
+                          Numéro / Compte :
+                        </span>
+                        <strong className="font-mono text-[#111B21] dark:text-white font-bold">
+                          {pm.accountNumber}
+                        </strong>
                       </div>
                     )}
                     {pm.paymentUrl && (
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[#667781] dark:text-[#8696A0] shrink-0">Lien :</span>
+                        <span className="text-[#667781] dark:text-[#8696A0] shrink-0">
+                          Lien :
+                        </span>
                         <a
                           href={pm.paymentUrl}
                           target="_blank"
@@ -566,8 +650,12 @@ export const ConfigPricingView: React.FC = () => {
                           </div>
                         </button>
                         <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-[10px] font-bold text-[#075E54] dark:text-[#25D366]">QR Code prêt</span>
-                          <span className="text-[9px] text-[#667781] dark:text-[#8696A0]">Cliquer pour agrandir</span>
+                          <span className="text-[10px] font-bold text-[#075E54] dark:text-[#25D366]">
+                            QR Code prêt
+                          </span>
+                          <span className="text-[9px] text-[#667781] dark:text-[#8696A0]">
+                            Cliquer pour agrandir
+                          </span>
                         </div>
                       </div>
                     )}
@@ -593,7 +681,8 @@ export const ConfigPricingView: React.FC = () => {
               Création d'Offre Promotionnelle (Code Promo)
             </h3>
             <p className="text-[11px] text-[#667781] dark:text-[#8696A0] mt-0.5">
-              L'utilisateur pourra saisir ce code promo lors d'une demande de déblocage d'UE ou de tutorat.
+              L'utilisateur pourra saisir ce code promo lors d'une demande de
+              déblocage d'UE ou de tutorat.
             </p>
           </div>
         </div>
@@ -606,10 +695,15 @@ export const ConfigPricingView: React.FC = () => {
         )}
 
         {/* Create Offer Form */}
-        <form onSubmit={handleCreatePromo} className="p-4 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl border border-[#E9EDEF] dark:border-[#222E35] space-y-3">
+        <form
+          onSubmit={handleCreatePromo}
+          className="p-4 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl border border-[#E9EDEF] dark:border-[#222E35] space-y-3"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Code promo à saisir *</label>
+              <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                Code promo à saisir *
+              </label>
               <input
                 type="text"
                 required
@@ -621,7 +715,9 @@ export const ConfigPricingView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Réduction en pourcentage (%) *</label>
+              <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                Réduction en pourcentage (%) *
+              </label>
               <div className="relative">
                 <input
                   type="number"
@@ -637,7 +733,9 @@ export const ConfigPricingView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">Applicable sur</label>
+              <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+                Applicable sur
+              </label>
               <select
                 value={newPromoApplicable}
                 onChange={(e) => setNewPromoApplicable(e.target.value as any)}
@@ -677,7 +775,9 @@ export const ConfigPricingView: React.FC = () => {
                 <div
                   key={p.id}
                   className={`p-3.5 flex items-center justify-between gap-3 transition-colors ${
-                    p.isActive ? 'bg-white dark:bg-[#111B21]' : 'bg-[#F0F2F5]/60 dark:bg-[#1F2C34]/40 opacity-60'
+                    p.isActive
+                      ? "bg-white dark:bg-[#111B21]"
+                      : "bg-[#F0F2F5]/60 dark:bg-[#1F2C34]/40 opacity-60"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -699,7 +799,12 @@ export const ConfigPricingView: React.FC = () => {
                         )}
                       </div>
                       <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">
-                        Valable pour : {p.applicableTo === 'all' ? 'Toutes les offres' : p.applicableTo === 'ue_unlock' ? 'Déblocage UE' : 'Tutorat en ligne'}
+                        Valable pour :{" "}
+                        {p.applicableTo === "all"
+                          ? "Toutes les offres"
+                          : p.applicableTo === "ue_unlock"
+                            ? "Déblocage UE"
+                            : "Tutorat en ligne"}
                       </p>
                     </div>
                   </div>
@@ -707,14 +812,22 @@ export const ConfigPricingView: React.FC = () => {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleTogglePromo(p.id)}
-                      title={p.isActive ? 'Désactiver le code promo' : 'Activer le code promo'}
+                      title={
+                        p.isActive
+                          ? "Désactiver le code promo"
+                          : "Activer le code promo"
+                      }
                       className={`p-1.5 rounded-lg text-xs font-semibold transition-colors ${
                         p.isActive
-                          ? 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950'
-                          : 'text-emerald-700 dark:text-[#25D366] hover:bg-emerald-50 dark:hover:bg-emerald-950'
+                          ? "text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950"
+                          : "text-emerald-700 dark:text-[#25D366] hover:bg-emerald-50 dark:hover:bg-emerald-950"
                       }`}
                     >
-                      {p.isActive ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                      {p.isActive ? (
+                        <Lock className="w-3.5 h-3.5" />
+                      ) : (
+                        <Unlock className="w-3.5 h-3.5" />
+                      )}
                     </button>
                     <button
                       onClick={() => handleDeletePromo(p.id)}
@@ -732,7 +845,10 @@ export const ConfigPricingView: React.FC = () => {
       </div>
 
       {/* SECTION 4: TARIFS PRINCIPAUX */}
-      <form onSubmit={handleSave} className="bg-white dark:bg-[#111B21] p-6 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-xs space-y-4 text-xs transition-colors">
+      <form
+        onSubmit={handleSave}
+        className="bg-white dark:bg-[#111B21] p-6 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-xs space-y-4 text-xs transition-colors"
+      >
         <h3 className="font-bold text-sm text-[#111B21] dark:text-white flex items-center gap-1.5 pb-2 border-b border-[#E9EDEF] dark:border-[#222E35]">
           <Settings className="w-4 h-4 text-[#075E54] dark:text-[#25D366]" />
           Grille Tarifaire Officielle
@@ -746,10 +862,17 @@ export const ConfigPricingView: React.FC = () => {
             <input
               type="number"
               value={config.defaultUePriceFcfa}
-              onChange={(e) => setConfig({ ...config, defaultUePriceFcfa: Number(e.target.value) })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  defaultUePriceFcfa: Number(e.target.value),
+                })
+              }
               className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white font-bold"
             />
-            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">Valeur officielle : 500 FCFA</p>
+            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">
+              Valeur officielle : 500 FCFA
+            </p>
           </div>
 
           <div>
@@ -759,10 +882,17 @@ export const ConfigPricingView: React.FC = () => {
             <input
               type="number"
               value={config.discountedUePriceFcfa || 300}
-              onChange={(e) => setConfig({ ...config, discountedUePriceFcfa: Number(e.target.value) })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  discountedUePriceFcfa: Number(e.target.value),
+                })
+              }
               className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white font-bold"
             />
-            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">Offre spéciale pack : 300 FCFA / UE</p>
+            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">
+              Offre spéciale pack : 300 FCFA / UE
+            </p>
           </div>
         </div>
 
@@ -774,10 +904,17 @@ export const ConfigPricingView: React.FC = () => {
             <input
               type="number"
               value={config.onlineAssistancePerHourFcfa}
-              onChange={(e) => setConfig({ ...config, onlineAssistancePerHourFcfa: Number(e.target.value) })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  onlineAssistancePerHourFcfa: Number(e.target.value),
+                })
+              }
               className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white font-bold"
             />
-            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">Via Google Meet ou WhatsApp</p>
+            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">
+              Via Google Meet ou WhatsApp
+            </p>
           </div>
 
           <div>
@@ -790,7 +927,9 @@ export const ConfigPricingView: React.FC = () => {
               value={100}
               className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white opacity-70 font-bold"
             />
-            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">+100 FCFA ajoutés aux demandes de déblocage</p>
+            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">
+              +100 FCFA ajoutés aux demandes de déblocage
+            </p>
           </div>
         </div>
 
@@ -799,10 +938,16 @@ export const ConfigPricingView: React.FC = () => {
             <input
               type="checkbox"
               checked={config.firstChapterFreeEnabled}
-              onChange={(e) => setConfig({ ...config, firstChapterFreeEnabled: e.target.checked })}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  firstChapterFreeEnabled: e.target.checked,
+                })
+              }
               className="w-4 h-4 text-[#25D366] rounded"
             />
-            Offrir la Séance 01 gratuitement à tous les étudiants inscrits (Non verrouillable)
+            Offrir la Séance 01 gratuitement à tous les étudiants inscrits (Non
+            verrouillable)
           </label>
 
           <button
@@ -815,6 +960,102 @@ export const ConfigPricingView: React.FC = () => {
         </div>
       </form>
 
+      {/* SECTION 5: RÉTENTION DES ACTIVITÉS ÉTUDIANTES */}
+      <form
+        onSubmit={handleSave}
+        className="bg-white dark:bg-[#111B21] p-6 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-xs space-y-4 text-xs transition-colors"
+      >
+        <h3 className="font-bold text-sm text-[#111B21] dark:text-white flex items-center gap-1.5 pb-2 border-b border-[#E9EDEF] dark:border-[#222E35]">
+          <Clock className="w-4 h-4 text-[#075E54] dark:text-[#25D366]" />
+          Rétention des Activités Étudiantes
+        </h3>
+
+        <p className="text-[11px] text-[#667781] dark:text-[#8696A0] leading-relaxed">
+          Contrôlez la durée d'affichage des <strong>activités récentes</strong>{" "}
+          et de l'<strong>historique d'apprentissage</strong> sur les tableaux
+          de bord étudiants.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
+              Afficher les activités des X derniers jours
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                min={1}
+                max={3650}
+                value={config.activitiesRetentionDays || 30}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    activitiesRetentionDays: Number(e.target.value),
+                  })
+                }
+                className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white focus:bg-white dark:focus:bg-[#0B141A] font-bold pl-10"
+              />
+              <Calendar className="w-4 h-4 text-[#667781] dark:text-[#8696A0] absolute left-3 top-3" />
+            </div>
+            <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">
+              Valeur recommandée : <strong>30 jours</strong> · Max : 3650 (10
+              ans)
+            </p>
+          </div>
+
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-[10px] text-amber-900 dark:text-amber-300 leading-relaxed">
+              <strong>ℹ️ Important :</strong> Cette durée affecte{" "}
+              <strong>uniquement l'affichage</strong> sur le dashboard et la
+              page progression. <strong>Aucune donnée n'est supprimée</strong>{" "}
+              de la base de données.
+            </div>
+          </div>
+        </div>
+
+        {/* Aperçu rapide */}
+        <div className="p-3 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl border border-[#E9EDEF] dark:border-[#222E35]">
+          <p className="text-[10px] font-bold text-[#667781] dark:text-[#8696A0] uppercase tracking-wider mb-2">
+            📅 Aperçu des périodes
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
+            {[7, 30, 90, 365].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() =>
+                  setConfig({ ...config, activitiesRetentionDays: d })
+                }
+                className={`px-2 py-1.5 rounded-lg font-bold transition-colors ${
+                  (config.activitiesRetentionDays || 30) === d
+                    ? "bg-[#25D366] text-[#075E54]"
+                    : "bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] border border-[#E9EDEF] dark:border-[#222E35] hover:border-[#25D366]"
+                }`}
+              >
+                {d === 7
+                  ? "7 jours"
+                  : d === 30
+                    ? "30 jours"
+                    : d === 90
+                      ? "3 mois"
+                      : "1 an"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="pt-2 flex justify-end">
+          <button
+            type="submit"
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-xl transition-all shadow-xs"
+          >
+            <Save className="w-3.5 h-3.5" />
+            Enregistrer la durée
+          </button>
+        </div>
+      </form>
+
       {/* MODAL: CREATE / EDIT PAYMENT METHOD */}
       {isPaymentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -822,7 +1063,9 @@ export const ConfigPricingView: React.FC = () => {
             <div className="flex items-center justify-between pb-2 border-b border-[#E9EDEF] dark:border-[#222E35]">
               <h3 className="font-bold text-sm text-[#111B21] dark:text-white flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-[#25D366]" />
-                {editingPaymentMethod ? 'Modifier le moyen de paiement' : 'Nouveau moyen de paiement'}
+                {editingPaymentMethod
+                  ? "Modifier le moyen de paiement"
+                  : "Nouveau moyen de paiement"}
               </h3>
               <button
                 onClick={() => setIsPaymentModalOpen(false)}
@@ -832,7 +1075,10 @@ export const ConfigPricingView: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSavePaymentMethod} className="space-y-3.5 text-xs">
+            <form
+              onSubmit={handleSavePaymentMethod}
+              className="space-y-3.5 text-xs"
+            >
               <div>
                 <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
                   Nom affiché du moyen de paiement *
@@ -842,7 +1088,9 @@ export const ConfigPricingView: React.FC = () => {
                   required
                   placeholder="Ex : Mix Togo (T-Money), Flooz Togo (Moov Money), Paiement Sécurisé..."
                   value={paymentForm.name}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, name: e.target.value })}
+                  onChange={(e) =>
+                    setPaymentForm({ ...paymentForm, name: e.target.value })
+                  }
                   className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-medium focus:bg-white"
                 />
               </div>
@@ -854,11 +1102,20 @@ export const ConfigPricingView: React.FC = () => {
                   </label>
                   <select
                     value={paymentForm.type}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, type: e.target.value as any })}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        type: e.target.value as any,
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-medium"
                   >
-                    <option value="phone_account">📱 Numéro de téléphone / Compte</option>
-                    <option value="payment_link">🔗 Bouton / Lien de paiement externe</option>
+                    <option value="phone_account">
+                      📱 Numéro de téléphone / Compte
+                    </option>
+                    <option value="payment_link">
+                      🔗 Bouton / Lien de paiement externe
+                    </option>
                     <option value="qr_code">📷 Image QR Code</option>
                     <option value="other">Autre moyen</option>
                   </select>
@@ -872,13 +1129,19 @@ export const ConfigPricingView: React.FC = () => {
                     type="number"
                     min="1"
                     value={paymentForm.order}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, order: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        order: Number(e.target.value),
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-bold"
                   />
                 </div>
               </div>
 
-              {(paymentForm.type === 'phone_account' || paymentForm.type === 'other') && (
+              {(paymentForm.type === "phone_account" ||
+                paymentForm.type === "other") && (
                 <div>
                   <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
                     Numéro de téléphone / Compte de versement
@@ -887,13 +1150,19 @@ export const ConfigPricingView: React.FC = () => {
                     type="text"
                     placeholder="Ex : +228 71 67 69 45 ou 99 70 59 20"
                     value={paymentForm.accountNumber}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        accountNumber: e.target.value,
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-mono font-bold"
                   />
                 </div>
               )}
 
-              {(paymentForm.type === 'payment_link' || paymentForm.type === 'other') && (
+              {(paymentForm.type === "payment_link" ||
+                paymentForm.type === "other") && (
                 <div>
                   <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
                     Lien / URL de redirection de paiement
@@ -902,13 +1171,19 @@ export const ConfigPricingView: React.FC = () => {
                     type="url"
                     placeholder="https://pay.example.com/checkout..."
                     value={paymentForm.paymentUrl}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentUrl: e.target.value })}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        paymentUrl: e.target.value,
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-mono"
                   />
                 </div>
               )}
 
-              {(paymentForm.type === 'qr_code' || paymentForm.type === 'other') && (
+              {(paymentForm.type === "qr_code" ||
+                paymentForm.type === "other") && (
                 <div>
                   <label className="block font-semibold mb-1 text-[#111B21] dark:text-white">
                     URL de l'image QR Code
@@ -917,7 +1192,12 @@ export const ConfigPricingView: React.FC = () => {
                     type="text"
                     placeholder="https://.../qrcode.png ou data:image/..."
                     value={paymentForm.qrCodeImage}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, qrCodeImage: e.target.value })}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        qrCodeImage: e.target.value,
+                      })
+                    }
                     className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-mono"
                   />
                 </div>
@@ -931,7 +1211,9 @@ export const ConfigPricingView: React.FC = () => {
                   type="text"
                   placeholder="https://.../logo-tmoney.png"
                   value={paymentForm.logoUrl}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, logoUrl: e.target.value })}
+                  onChange={(e) =>
+                    setPaymentForm({ ...paymentForm, logoUrl: e.target.value })
+                  }
                   className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white font-mono"
                 />
               </div>
@@ -944,7 +1226,12 @@ export const ConfigPricingView: React.FC = () => {
                   rows={2}
                   placeholder="Ex : Effectuez votre transfert par Mix Togo puis conservez le SMS de confirmation..."
                   value={paymentForm.instructions}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, instructions: e.target.value })}
+                  onChange={(e) =>
+                    setPaymentForm({
+                      ...paymentForm,
+                      instructions: e.target.value,
+                    })
+                  }
                   className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#111B21] dark:text-white"
                 />
               </div>
@@ -954,7 +1241,12 @@ export const ConfigPricingView: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={paymentForm.isActive}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, isActive: e.target.checked })}
+                    onChange={(e) =>
+                      setPaymentForm({
+                        ...paymentForm,
+                        isActive: e.target.checked,
+                      })
+                    }
                     className="w-4 h-4 text-[#25D366] rounded"
                   />
                   Actif (Visible par les étudiants)
@@ -996,19 +1288,21 @@ export const ConfigPricingView: React.FC = () => {
               className="absolute top-3 right-3 p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
             >
               <X className="w-4 h-4" />
-              </button>
-                  <h3 className="font-bold text-sm text-[#111B21] dark:text-white mb-3">Aperçu du QR Code</h3>
-                  <img
-                    src={lightboxImage}
-                    alt="QR Code agrandi"
-                    className="w-full max-h-[70vh] object-contain rounded-xl bg-white p-2"
-                  />
-                  <p className="text-[10px] text-center text-[#667781] dark:text-[#8696A0] mt-3">
-                    Scannez avec T-Money / Flooz / une app bancaire
-                  </p>
-                </div>
-              </div>
-            )}
+            </button>
+            <h3 className="font-bold text-sm text-[#111B21] dark:text-white mb-3">
+              Aperçu du QR Code
+            </h3>
+            <img
+              src={lightboxImage}
+              alt="QR Code agrandi"
+              className="w-full max-h-[70vh] object-contain rounded-xl bg-white p-2"
+            />
+            <p className="text-[10px] text-center text-[#667781] dark:text-[#8696A0] mt-3">
+              Scannez avec T-Money / Flooz / une app bancaire
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

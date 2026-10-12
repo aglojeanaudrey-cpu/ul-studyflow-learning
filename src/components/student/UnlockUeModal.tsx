@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { UE, PaymentMethod } from '../../types';
-import { api } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState, useEffect } from "react";
+import { UE, PaymentMethod } from "../../types";
+import { api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import {
   X,
   Unlock,
@@ -17,11 +17,12 @@ import {
   QrCode,
   CreditCard,
   Eye,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface UnlockUeModalProps {
   isOpen: boolean;
   initialSelectedUeId?: string;
+  initialPromoCode?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -29,21 +30,26 @@ interface UnlockUeModalProps {
 export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
   isOpen,
   initialSelectedUeId,
+  initialPromoCode,
   onClose,
-  onSuccess
+  onSuccess,
 }) => {
   const { user } = useAuth();
   const [courses, setCourses] = useState<UE[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedUeIds, setSelectedUeIds] = useState<string[]>([]);
-  const [nom, setNom] = useState('');
-  const [prenom, setPrenom] = useState('');
-  const [numero, setNumero] = useState('');
-  const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountPercent: number } | null>(null);
+  const [nom, setNom] = useState("");
+  const [prenom, setPrenom] = useState("");
+  const [numero, setNumero] = useState("");
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    discountPercent: number;
+  } | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
-  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('');
-  const [notes, setNotes] = useState('');
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] =
+    useState<string>("");
+  const [notes, setNotes] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<any | null>(null);
@@ -57,17 +63,22 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
       try {
         const [cRes, pmRes] = await Promise.all([
           api.getCourses(),
-          api.getPaymentMethods().catch(() => ({ paymentMethods: [] }))
+          api.getPaymentMethods().catch(() => ({ paymentMethods: [] })),
         ]);
         // Filter published courses
-        setCourses(cRes.courses.filter(c => !c.isSuspended));
-        const activeMethods = (pmRes.paymentMethods || []).filter(pm => pm.isActive);
+        setCourses(cRes.courses.filter((c) => !c.isSuspended));
+        const activeMethods = (pmRes.paymentMethods || []).filter(
+          (pm) => pm.isActive,
+        );
         setPaymentMethods(activeMethods);
         if (activeMethods.length > 0) {
           setSelectedPaymentMethodId(activeMethods[0].id);
         }
       } catch (err) {
-        console.error('Error loading courses or payment methods for unlock:', err);
+        console.error(
+          "Error loading courses or payment methods for unlock:",
+          err,
+        );
       }
     }
     if (isOpen) {
@@ -77,27 +88,64 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
 
   useEffect(() => {
     if (user) {
-      setNom(user.lastName || '');
-      setPrenom(user.firstName || '');
-      setNumero(user.displayPhone || user.phone || '');
+      setNom(user.lastName || "");
+      setPrenom(user.firstName || "");
+      setNumero(user.displayPhone || user.phone || "");
     }
     if (initialSelectedUeId) {
       setSelectedUeIds([initialSelectedUeId]);
     }
-  }, [user, initialSelectedUeId, isOpen]);
+    // ⭐ Pré-remplir le code promo si fourni
+    if (initialPromoCode && isOpen) {
+      setPromoCodeInput(initialPromoCode);
+    }
+  }, [user, initialSelectedUeId, initialPromoCode, isOpen]);
+
+  // ⭐ Auto-appliquer le code promo quand il est pré-rempli
+  useEffect(() => {
+    if (
+      isOpen &&
+      initialPromoCode &&
+      initialPromoCode.trim() &&
+      !appliedPromo
+    ) {
+      // Petit délai pour laisser le state se mettre à jour
+      const timer = setTimeout(() => {
+        api
+          .validatePromoCode(initialPromoCode.trim())
+          .then((res) => {
+            if (res.valid && res.discountPercent) {
+              setAppliedPromo({
+                code: res.code || initialPromoCode.trim().toUpperCase(),
+                discountPercent: res.discountPercent,
+              });
+            }
+          })
+          .catch(() => {
+            // Silencieux : l'utilisateur pourra appliquer manuellement
+          });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, initialPromoCode]);
 
   if (!isOpen) return null;
 
   const toggleUeSelection = (ueId: string) => {
     if (selectedUeIds.includes(ueId)) {
-      setSelectedUeIds(selectedUeIds.filter(id => id !== ueId));
+      setSelectedUeIds(selectedUeIds.filter((id) => id !== ueId));
     } else {
-      setSelectedUeIds([...selectedUeIds, ueId]);
+      // Si un code 100% est appliqué, on ne peut sélectionner qu'UNE SEULE UE
+      if (appliedPromo && appliedPromo.discountPercent >= 100) {
+        setSelectedUeIds([ueId]);
+      } else {
+        setSelectedUeIds([...selectedUeIds, ueId]);
+      }
     }
   };
 
   const selectAllUes = () => {
-    const lockedIds = courses.filter(c => !c.isUnlocked).map(c => c.id);
+    const lockedIds = courses.filter((c) => !c.isUnlocked).map((c) => c.id);
     setSelectedUeIds(lockedIds);
   };
 
@@ -109,13 +157,13 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
       if (res.valid && res.discountPercent) {
         setAppliedPromo({
           code: res.code || promoCodeInput.trim().toUpperCase(),
-          discountPercent: res.discountPercent
+          discountPercent: res.discountPercent,
         });
       } else {
-        setPromoError(res.error || 'Code promo invalide.');
+        setPromoError(res.error || "Code promo invalide.");
       }
     } catch (err: any) {
-      setPromoError(err.message || 'Code promo invalide ou expiré.');
+      setPromoError(err.message || "Code promo invalide ou expiré.");
     }
   };
 
@@ -124,7 +172,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
   // Tier pricing: 500 standard, 300 if 3 or more UEs
   const unitPrice = count >= 3 ? 300 : 500;
   const rawSubtotal = count * unitPrice;
-  const discountAmount = appliedPromo ? Math.round((rawSubtotal * appliedPromo.discountPercent) / 100) : 0;
+  const discountAmount = appliedPromo
+    ? Math.round((rawSubtotal * appliedPromo.discountPercent) / 100)
+    : 0;
   const discountedSubtotal = Math.max(0, rawSubtotal - discountAmount);
   const transactionFee = 100;
   const totalToPay = count > 0 ? discountedSubtotal + transactionFee : 0;
@@ -135,18 +185,20 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
     setTimeout(() => setCopiedNumber(null), 2500);
   };
 
-  const activeSelectedPaymentMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethodId) || paymentMethods[0];
+  const activeSelectedPaymentMethod =
+    paymentMethods.find((pm) => pm.id === selectedPaymentMethodId) ||
+    paymentMethods[0];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (selectedUeIds.length === 0) {
-      setError('Veuillez sélectionner au moins une UE à débloquer.');
+      setError("Veuillez sélectionner au moins une UE à débloquer.");
       return;
     }
     if (!nom.trim() || !prenom.trim() || !numero.trim()) {
-      setError('Veuillez remplir votre nom, prénom et numéro de téléphone.');
+      setError("Veuillez remplir votre nom, prénom et numéro de téléphone.");
       return;
     }
 
@@ -154,7 +206,7 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
     try {
       const pMethodLabel = activeSelectedPaymentMethod
         ? `${activeSelectedPaymentMethod.name} (${activeSelectedPaymentMethod.accountNumber || activeSelectedPaymentMethod.type})`
-        : 'Mix Togo (+228 71 67 69 45)';
+        : "Mix Togo (+228 71 67 69 45)";
 
       const res = await api.submitUnlockRequest({
         nom: nom.trim(),
@@ -163,13 +215,13 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
         ueIds: selectedUeIds,
         promoCode: appliedPromo?.code,
         paymentMethod: pMethodLabel,
-        notes: notes.trim()
+        notes: notes.trim(),
       });
 
       setSubmittedRequest(res.request);
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de l\'envoi de la demande.');
+      setError(err.message || "Erreur lors de l'envoi de la demande.");
     } finally {
       setLoading(false);
     }
@@ -193,16 +245,25 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
             </div>
 
             <div>
-              <h3 className="text-xl font-extrabold text-[#111B21]">Demande de Déblocage Enregistrée !</h3>
+              <h3 className="text-xl font-extrabold text-[#111B21]">
+                Demande de Déblocage Enregistrée !
+              </h3>
               <p className="text-xs text-[#667781] mt-1">
-                Réf: <span className="font-mono font-bold text-[#111B21]">{submittedRequest.id}</span> · UEs demandées : <strong>{submittedRequest.ueCodes.join(', ')}</strong>
+                Réf:{" "}
+                <span className="font-mono font-bold text-[#111B21]">
+                  {submittedRequest.id}
+                </span>{" "}
+                · UEs demandées :{" "}
+                <strong>{submittedRequest.ueCodes.join(", ")}</strong>
               </p>
             </div>
 
             {/* Total and numbers box */}
             <div className="p-5 bg-amber-50 rounded-2xl border-2 border-amber-300 text-left space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-amber-200">
-                <span className="font-bold text-xs text-amber-900">Montant total exact à verser :</span>
+                <span className="font-bold text-xs text-amber-900">
+                  Montant total exact à verser :
+                </span>
                 <span className="text-xl font-extrabold text-[#075E54] tabular-nums">
                   {submittedRequest.totalFcfa} FCFA
                 </span>
@@ -217,26 +278,32 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                 <div className="space-y-2.5 pt-1">
                   {paymentMethods.length > 0 ? (
                     paymentMethods.map((pm) => (
-                      <div key={pm.id} className="p-3 bg-white rounded-xl border border-amber-200 space-y-2">
+                      <div
+                        key={pm.id}
+                        className="p-3 bg-white rounded-xl border border-amber-200 space-y-2"
+                      >
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-[#667781] uppercase block">
                             {pm.name}
                           </span>
-                          {pm.type === 'payment_link' && pm.paymentUrl && (
+                          {pm.type === "payment_link" && pm.paymentUrl && (
                             <a
                               href={pm.paymentUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:underline"
                             >
-                              Ouvrir le lien de paiement <ExternalLink className="w-3.5 h-3.5" />
+                              Ouvrir le lien de paiement{" "}
+                              <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                           )}
                         </div>
 
                         {pm.accountNumber && (
                           <div className="flex items-center justify-between">
-                            <span className="font-mono font-bold text-sm text-[#111B21]">{pm.accountNumber}</span>
+                            <span className="font-mono font-bold text-sm text-[#111B21]">
+                              {pm.accountNumber}
+                            </span>
                             <button
                               onClick={() => handleCopy(pm.accountNumber!)}
                               className="p-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 flex items-center gap-1 text-[11px] font-semibold"
@@ -255,23 +322,32 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                               alt={pm.name}
                               className="w-20 h-20 rounded-lg object-contain bg-white border border-gray-200 p-1"
                             />
-                            <p className="text-[11px] text-gray-600">{pm.instructions || 'Scannez le QR Code pour régler.'}</p>
+                            <p className="text-[11px] text-gray-600">
+                              {pm.instructions ||
+                                "Scannez le QR Code pour régler."}
+                            </p>
                           </div>
                         )}
 
                         {pm.instructions && !pm.qrCodeImage && (
-                          <p className="text-[11px] text-gray-600 italic">{pm.instructions}</p>
+                          <p className="text-[11px] text-gray-600 italic">
+                            {pm.instructions}
+                          </p>
                         )}
                       </div>
                     ))
                   ) : (
                     <div className="p-3 bg-white rounded-xl border border-amber-200 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] font-bold text-[#667781] block">Mix Togo (T-Money)</span>
-                        <span className="font-mono font-bold text-sm text-[#111B21]">+228 71 67 69 45</span>
+                        <span className="text-[10px] font-bold text-[#667781] block">
+                          Mix Togo (T-Money)
+                        </span>
+                        <span className="font-mono font-bold text-sm text-[#111B21]">
+                          +228 71 67 69 45
+                        </span>
                       </div>
                       <button
-                        onClick={() => handleCopy('+22871676945')}
+                        onClick={() => handleCopy("+22871676945")}
                         className="p-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100"
                         title="Copier le numéro"
                       >
@@ -282,7 +358,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                 </div>
 
                 <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-[#075E54] text-[11px] leading-relaxed">
-                  ✓ <strong>Activation garantie :</strong> L'administration validera l'accès à vos UE dans les prochaines <strong>12h</strong> après vérification.
+                  ✓ <strong>Activation garantie :</strong> L'administration
+                  validera l'accès à vos UE dans les prochaines{" "}
+                  <strong>12h</strong> après vérification.
                 </div>
               </div>
             </div>
@@ -303,9 +381,13 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                   <Unlock className="w-5 h-5 text-amber-800" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-[#111B21]">Demande de déblocage d'UE</h3>
+                  <h3 className="text-lg font-bold text-[#111B21]">
+                    Demande de déblocage d'UE
+                  </h3>
                   <p className="text-xs text-[#667781]">
-                    Accédez à toutes les séances, exercices corrigés et polycopiés de vos matières pendant <strong>6 mois et 10 jours</strong>.
+                    Accédez à toutes les séances, exercices corrigés et
+                    polycopiés de vos matières pendant{" "}
+                    <strong>6 mois et 10 jours</strong>.
                   </p>
                 </div>
               </div>
@@ -326,7 +408,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Nom *</label>
+                  <label className="block font-semibold mb-1 text-[#111B21]">
+                    Nom *
+                  </label>
                   <input
                     type="text"
                     required
@@ -336,7 +420,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Prénom *</label>
+                  <label className="block font-semibold mb-1 text-[#111B21]">
+                    Prénom *
+                  </label>
                   <input
                     type="text"
                     required
@@ -346,7 +432,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-[#111B21]">Numéro de téléphone (+228) *</label>
+                  <label className="block font-semibold mb-1 text-[#111B21]">
+                    Numéro de téléphone (+228) *
+                  </label>
                   <input
                     type="tel"
                     required
@@ -362,7 +450,8 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-xs uppercase tracking-wider text-[#667781]">
-                  2. Choisissez la ou les UE à débloquer ({selectedUeIds.length} sélectionnée(s))
+                  2. Choisissez la ou les UE à débloquer ({selectedUeIds.length}{" "}
+                  sélectionnée(s))
                 </span>
                 <button
                   type="button"
@@ -381,26 +470,34 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                   return (
                     <div
                       key={ue.id}
-                      onClick={() => !isAlreadyUnlocked && toggleUeSelection(ue.id)}
+                      onClick={() =>
+                        !isAlreadyUnlocked && toggleUeSelection(ue.id)
+                      }
                       className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-2 cursor-pointer ${
                         isAlreadyUnlocked
-                          ? 'bg-emerald-50/60 border-emerald-200 cursor-default opacity-80'
+                          ? "bg-emerald-50/60 border-emerald-200 cursor-default opacity-80"
                           : isSelected
-                          ? 'bg-emerald-50 border-[#25D366] shadow-2xs'
-                          : 'bg-white border-[#E9EDEF] hover:border-slate-300'
+                            ? "bg-emerald-50 border-[#25D366] shadow-2xs"
+                            : "bg-white border-[#E9EDEF] hover:border-slate-300"
                       }`}
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-xs text-[#075E54]">{ue.code}</span>
-                          <span className="text-[10px] text-[#667781]">({ue.level})</span>
+                          <span className="font-bold text-xs text-[#075E54]">
+                            {ue.code}
+                          </span>
+                          <span className="text-[10px] text-[#667781]">
+                            ({ue.level})
+                          </span>
                           {isAlreadyUnlocked && (
                             <span className="text-[9px] font-bold text-[#25D366] bg-white px-1.5 rounded">
                               Déjà actif
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] font-medium text-[#111B21] truncate">{ue.title}</p>
+                        <p className="text-[11px] font-medium text-[#111B21] truncate">
+                          {ue.title}
+                        </p>
                       </div>
 
                       <div className="shrink-0">
@@ -423,11 +520,13 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
               {count >= 3 ? (
                 <div className="p-2 bg-emerald-50 text-[#075E54] rounded-xl text-[11px] font-bold flex items-center gap-1.5 border border-emerald-200">
                   <Sparkles className="w-3.5 h-3.5" />
-                  Tarif pack activé : 300 FCFA par UE (au lieu de 500 FCFA) dès 3 matières !
+                  Tarif pack activé : 300 FCFA par UE (au lieu de 500 FCFA) dès
+                  3 matières !
                 </div>
               ) : count > 0 ? (
                 <p className="text-[11px] text-[#667781] italic">
-                  💡 Conseil : Choisissez 3 UE ou plus pour bénéficier du tarif réduit à 300 FCFA l'unité !
+                  💡 Conseil : Choisissez 3 UE ou plus pour bénéficier du tarif
+                  réduit à 300 FCFA l'unité !
                 </p>
               ) : null}
             </div>
@@ -442,24 +541,28 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                     onClick={() => setSelectedPaymentMethodId(pm.id)}
                     className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
                       isSelected
-                        ? 'bg-emerald-50 border-[#25D366] shadow-2xs font-bold'
-                        : 'bg-white border-[#E9EDEF] hover:border-gray-300'
+                        ? "bg-emerald-50 border-[#25D366] shadow-2xs font-bold"
+                        : "bg-white border-[#E9EDEF] hover:border-gray-300"
                     }`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      {pm.type === 'phone_account' ? (
+                      {pm.type === "phone_account" ? (
                         <Smartphone className="w-4 h-4 text-[#075E54] shrink-0" />
-                      ) : pm.type === 'payment_link' ? (
+                      ) : pm.type === "payment_link" ? (
                         <ExternalLink className="w-4 h-4 text-blue-600 shrink-0" />
-                      ) : pm.type === 'qr_code' ? (
+                      ) : pm.type === "qr_code" ? (
                         <QrCode className="w-4 h-4 text-purple-600 shrink-0" />
                       ) : (
                         <CreditCard className="w-4 h-4 text-[#075E54] shrink-0" />
                       )}
                       <div className="truncate">
-                        <span className="text-xs text-[#111B21] block truncate">{pm.name}</span>
+                        <span className="text-xs text-[#111B21] block truncate">
+                          {pm.name}
+                        </span>
                         {pm.accountNumber && (
-                          <span className="text-[10px] text-[#667781] font-mono">{pm.accountNumber}</span>
+                          <span className="text-[10px] text-[#667781] font-mono">
+                            {pm.accountNumber}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -482,16 +585,17 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                   <span className="text-[10px] font-bold text-[#667781] uppercase tracking-wider">
                     Détails : {activeSelectedPaymentMethod.name}
                   </span>
-                  {activeSelectedPaymentMethod.type === 'payment_link' && activeSelectedPaymentMethod.paymentUrl && (
-                    <a
-                      href={activeSelectedPaymentMethod.paymentUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
-                    >
-                      Ouvrir le lien <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
+                  {activeSelectedPaymentMethod.type === "payment_link" &&
+                    activeSelectedPaymentMethod.paymentUrl && (
+                      <a
+                        href={activeSelectedPaymentMethod.paymentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
+                      >
+                        Ouvrir le lien <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                 </div>
 
                 {activeSelectedPaymentMethod.accountNumber && (
@@ -502,11 +606,14 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleCopy(activeSelectedPaymentMethod.accountNumber!)}
+                        onClick={() =>
+                          handleCopy(activeSelectedPaymentMethod.accountNumber!)
+                        }
                         className="p-1.5 rounded-lg bg-emerald-50 text-[#075E54] hover:bg-emerald-100 flex items-center gap-1 text-[11px] font-semibold"
                         title="Copier le numéro"
                       >
-                        {copiedNumber === activeSelectedPaymentMethod.accountNumber ? (
+                        {copiedNumber ===
+                        activeSelectedPaymentMethod.accountNumber ? (
                           <>
                             <Check className="w-3 h-3" /> Copié
                           </>
@@ -533,7 +640,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                     </a>
                     <button
                       type="button"
-                      onClick={() => handleCopy(activeSelectedPaymentMethod.paymentUrl!)}
+                      onClick={() =>
+                        handleCopy(activeSelectedPaymentMethod.paymentUrl!)
+                      }
                       className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 shrink-0"
                       title="Copier le lien"
                     >
@@ -546,7 +655,11 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                   <div className="flex items-center gap-3 pt-1 border-t border-[#E9EDEF]">
                     <button
                       type="button"
-                      onClick={() => setLightboxImage(activeSelectedPaymentMethod.qrCodeImage!)}
+                      onClick={() =>
+                        setLightboxImage(
+                          activeSelectedPaymentMethod.qrCodeImage!,
+                        )
+                      }
                       className="group relative shrink-0"
                       title="Cliquer pour agrandir le QR Code"
                     >
@@ -560,9 +673,15 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                       </div>
                     </button>
                     <div className="text-[11px] text-[#667781] leading-relaxed">
-                      <p className="font-semibold text-[#111B21]">Scannez ce QR Code</p>
-                      <p className="text-[10px] mt-0.5">avec T-Money, Flooz ou votre app bancaire.</p>
-                      <p className="text-[10px] mt-1 italic">Cliquez sur l'image pour agrandir.</p>
+                      <p className="font-semibold text-[#111B21]">
+                        Scannez ce QR Code
+                      </p>
+                      <p className="text-[10px] mt-0.5">
+                        avec T-Money, Flooz ou votre app bancaire.
+                      </p>
+                      <p className="text-[10px] mt-1 italic">
+                        Cliquez sur l'image pour agrandir.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -577,14 +696,18 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
 
             {/* Code Promo */}
             <div className="p-3.5 bg-[#F0F2F5] rounded-2xl space-y-2">
-              <label className="block font-semibold text-[#111B21]">Code promo / Offre de réduction (Optionnel)</label>
+              <label className="block font-semibold text-[#111B21]">
+                Code promo / Offre de réduction (Optionnel)
+              </label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input
                     type="text"
                     placeholder="Saisissez votre code promo..."
                     value={promoCodeInput}
-                    onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                    onChange={(e) =>
+                      setPromoCodeInput(e.target.value.toUpperCase())
+                    }
                     className="w-full p-2 rounded-xl border border-[#E9EDEF] bg-white uppercase tracking-wider font-mono font-bold pl-8 focus:outline-none focus:border-[#25D366]"
                   />
                   <Tag className="w-3.5 h-3.5 text-[#667781] absolute left-2.5 top-3" />
@@ -600,11 +723,14 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
 
               {appliedPromo && (
                 <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
-                  ✓ Code {appliedPromo.code} appliqué (-{appliedPromo.discountPercent}% de remise)
+                  ✓ Code {appliedPromo.code} appliqué (-
+                  {appliedPromo.discountPercent}% de remise)
                 </p>
               )}
               {promoError && (
-                <p className="text-[11px] text-rose-600 font-semibold">{promoError}</p>
+                <p className="text-[11px] text-rose-600 font-semibold">
+                  {promoError}
+                </p>
               )}
             </div>
 
@@ -612,8 +738,12 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
             <div className="p-4 bg-emerald-50/70 border-2 border-emerald-300 rounded-2xl space-y-3">
               <div className="space-y-1.5 text-xs text-slate-800 pb-2 border-b border-emerald-200">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#667781]">Matières sélectionnées :</span>
-                  <span className="font-semibold">{count} UE ({unitPrice} FCFA / unité)</span>
+                  <span className="text-[#667781]">
+                    Matières sélectionnées :
+                  </span>
+                  <span className="font-semibold">
+                    {count} UE ({unitPrice} FCFA / unité)
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[#667781]">Sous-total UE :</span>
@@ -621,7 +751,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                 </div>
                 {appliedPromo && (
                   <div className="flex items-center justify-between text-emerald-700 font-semibold">
-                    <span>Remise Code Promo (-{appliedPromo.discountPercent}%) :</span>
+                    <span>
+                      Remise Code Promo (-{appliedPromo.discountPercent}%) :
+                    </span>
                     <span>-{discountAmount} FCFA</span>
                   </div>
                 )}
@@ -636,7 +768,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                   <span className="font-bold text-xs uppercase tracking-wider text-[#075E54] block">
                     Somme totale à payer :
                   </span>
-                  <span className="text-[10px] text-[#667781]">Montant exact du versement</span>
+                  <span className="text-[10px] text-[#667781]">
+                    Montant exact du versement
+                  </span>
                 </div>
                 <div className="text-2xl font-black text-[#075E54] tabular-nums">
                   {totalToPay} FCFA
@@ -650,7 +784,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                 4. Instructions de versement
               </span>
               <p className="leading-relaxed">
-                Après avoir confirmé votre demande, effectuez votre paiement de <strong>{totalToPay} FCFA</strong>. Vos matières seront activées sous 12h après validation.
+                Après avoir confirmé votre demande, effectuez votre paiement de{" "}
+                <strong>{totalToPay} FCFA</strong>. Vos matières seront activées
+                sous 12h après validation.
               </p>
 
               <div>
@@ -682,7 +818,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-xl transition-all disabled:opacity-50 shadow-xs"
               >
                 <Send className="w-3.5 h-3.5" />
-                {loading ? 'Traitement en cours...' : `Confirmer la demande (${totalToPay} FCFA)`}
+                {loading
+                  ? "Traitement en cours..."
+                  : `Confirmer la demande (${totalToPay} FCFA)`}
               </button>
             </div>
           </form>
@@ -705,7 +843,9 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
             >
               <X className="w-4 h-4" />
             </button>
-            <h3 className="font-bold text-sm text-[#111B21] mb-3">Aperçu du QR Code</h3>
+            <h3 className="font-bold text-sm text-[#111B21] mb-3">
+              Aperçu du QR Code
+            </h3>
             <img
               src={lightboxImage}
               alt="QR Code agrandi"

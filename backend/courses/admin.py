@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt
+from .models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt, UEReview
+
 
 class SessionInline(admin.TabularInline):
     model = Session
@@ -39,6 +40,13 @@ class ChapterAdmin(admin.ModelAdmin):
     list_display = ('session', 'number', 'title', 'order')
     list_filter = ('session__ue', 'session')
     search_fields = ('title', 'objectives', 'session__title')
+    readonly_fields = ('summary_json_preview',)
+
+    def summary_json_preview(self, obj):
+        if obj.summary_json:
+            return f"✅ Contenu riche ({len(obj.summary_json.get('content', []))} blocs)"
+        return "— Aucun contenu riche —"
+    summary_json_preview.short_description = "Contenu TipTap"
 
 
 @admin.register(Session)
@@ -68,3 +76,24 @@ class QuizAttemptAdmin(admin.ModelAdmin):
     list_display = ('user', 'quiz', 'session', 'score', 'max_score', 'percentage', 'passed', 'submitted_at')
     list_filter = ('passed', 'ue')
     search_fields = ('user__phone', 'user__first_name', 'quiz__title')
+
+
+@admin.register(UEReview)
+class UEReviewAdmin(admin.ModelAdmin):
+    list_display = ('ue', 'user', 'rating', 'is_visible', 'created_at')
+    list_filter = ('rating', 'is_visible', 'created_at')
+    search_fields = ('user__phone', 'user__first_name', 'user__last_name', 'ue__code', 'ue__title', 'comment')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+
+    actions = ['hide_reviews', 'show_reviews']
+
+    @admin.action(description="Masquer les avis sélectionnés")
+    def hide_reviews(self, request, queryset):
+        queryset.update(is_visible=False)
+        self.message_user(request, f"{queryset.count()} avis masqué(s).")
+
+    @admin.action(description="Afficher les avis sélectionnés")
+    def show_reviews(self, request, queryset):
+        queryset.update(is_visible=True)
+        self.message_user(request, f"{queryset.count()} avis affiché(s).")

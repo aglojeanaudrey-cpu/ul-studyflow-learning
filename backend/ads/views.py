@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-
+from audit.trash_service import move_to_trash_popup
 from accounts.permissions import IsStaffOrSuperuser, IsSuperuserOnly, require_admin_permission
 from .models import PopupTemplate, PopupCampaign, PopupView, PopupClick
 from .serializers import (
@@ -252,23 +252,32 @@ class AdminPopupDetailView(APIView):
         if not popup:
             return Response({'error': 'Popup introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-        title = popup.title
-        popup.delete()
-
+        # ⭐ Déplacement vers la corbeille
         try:
-            from audit.utils import log_audit
-            log_audit(
-                action='POPUP_DELETE',
-                resource=popup_id,
-                details=f"Suppression popup « {title} »",
-                user=request.user,
-                ip=request.META.get('REMOTE_ADDR')
+            entry = move_to_trash_popup(popup, deleted_by=request.user)
+
+            try:
+                from audit.utils import log_audit
+                log_audit(
+                    action='POPUP_DELETE',
+                    resource=popup_id,
+                    details=f"Popup « {entry.display_name} » déplacé vers la corbeille",
+                    user=request.user,
+                    ip=request.META.get('REMOTE_ADDR')
+                )
+            except Exception:
+                pass
+
+            return Response({
+                'success': True,
+                'message': "Campagne déplacée vers la corbeille. Restaurable 30 jours.",
+                'trashId': entry.id,
+            })
+        except Exception as e:
+            return Response(
+                {'error': f"Erreur lors de la suppression : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        except Exception:
-            pass
-
-        return Response({'success': True})
-
 
 class AdminPopupToggleView(APIView):
     permission_classes = [require_admin_permission('ads')]

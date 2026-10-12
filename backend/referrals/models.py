@@ -162,15 +162,30 @@ class ReferralReward(models.Model):
     reward_type = models.CharField(max_length=30, choices=REWARD_TYPES, verbose_name="Type de récompense")
     milestone = models.IntegerField(verbose_name="Palier atteint (nombre de parrainages)")
 
-    # Lien vers le code promo créé (pour discount_10, discount_20)
+    # Lien vers le code promo créé (pour discount_10, discount_20, free_ue)
     promo_code = models.CharField(max_length=50, blank=True, null=True, verbose_name="Code promo généré")
 
     granted_at = models.DateTimeField(default=timezone.now, verbose_name="Date d'obtention")
 
-    # Validité
-    expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Date d'expiration")
+    # Validité du code promo (discount_10, discount_20, free_ue)
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Date d'expiration du code")
     is_used = models.BooleanField(default=False, verbose_name="Utilisé")
     used_at = models.DateTimeField(null=True, blank=True, verbose_name="Date d'utilisation")
+
+    # Sponsorisation MANUELLE (uniquement pour reward_type='sponsored_1m')
+    # L'utilisateur doit cliquer sur "Activer" pour lancer sa sponsorisation
+    is_activated = models.BooleanField(
+        default=False,
+        verbose_name="Activée manuellement par l'utilisateur"
+    )
+    activated_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Date d'activation de la sponsorisation"
+    )
+    sponsorship_expires_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Date d'expiration de la sponsorisation (30 jours après activation)"
+    )
 
     class Meta:
         verbose_name = "Récompense de parrainage"
@@ -184,3 +199,22 @@ class ReferralReward(models.Model):
         if not self.id:
             self.id = f"rw_{int(timezone.now().timestamp())}_{secrets.token_hex(2)}"
         super().save(*args, **kwargs)
+
+    @property
+    def is_sponsorship_active(self):
+        """La sponsorisation est-elle actuellement active ?"""
+        if self.reward_type != 'sponsored_1m':
+            return False
+        if not self.is_activated:
+            return False
+        if not self.sponsorship_expires_at:
+            return False
+        return timezone.now() < self.sponsorship_expires_at
+
+    @property
+    def days_remaining_sponsorship(self):
+        """Nombre de jours restants pour la sponsorisation."""
+        if not self.is_sponsorship_active:
+            return 0
+        delta = self.sponsorship_expires_at - timezone.now()
+        return max(0, delta.days)

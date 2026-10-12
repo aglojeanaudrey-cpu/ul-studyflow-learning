@@ -14,6 +14,7 @@ import {
   Lock,
   Megaphone,
   Gift,
+  Trash2,
 } from "lucide-react";
 import { AdminDashboard } from "./AdminDashboard";
 import { UserManagement } from "./UserManagement";
@@ -27,6 +28,7 @@ import { UserProgressView } from "./UserProgressView";
 import { AdsManagerView } from "./AdsManagerView";
 import { AdsTemplatesView } from "./AdsTemplatesView";
 import { AdminReferralsView } from "./AdminReferralsView";
+import { TrashBinView } from "./TrashBinView";
 
 interface AdminViewProps {
   onBackToStudent: () => void;
@@ -50,6 +52,7 @@ export const ADMIN_NAV_TABS: AdminNavTab[] = [
   { id: "notifications", label: "Notifications & Alertes", icon: Bell },
   { id: "ads", label: "Publicités & Annonces", icon: Megaphone },
   { id: "referrals", label: "Parrainage", icon: Gift },
+  { id: "trash", label: "Corbeille", icon: Trash2, superuserOnly: true },
   { id: "audit", label: "Audit Logs", icon: Shield, superuserOnly: true },
 ];
 
@@ -215,6 +218,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBackToStudent }) => {
         {activeSection === "referrals" && hasAccessToTab("users") && (
           <AdminReferralsView />
         )}
+        {activeSection === "trash" && isSuperuser && <TrashBinView />}
         {activeSection === "audit" && hasAccessToTab("audit") && (
           <AuditLogsView />
         )}

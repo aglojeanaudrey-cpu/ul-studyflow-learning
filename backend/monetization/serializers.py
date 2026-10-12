@@ -50,15 +50,16 @@ class PlatformConfigSerializer(serializers.ModelSerializer):
     academicYearCurrent = serializers.CharField(source='academic_year_current')
     contactPhones = serializers.JSONField(source='contact_phones')
     contactEmail = serializers.EmailField(source='contact_email')
+    activitiesRetentionDays = serializers.IntegerField(source='activities_retention_days', required=False)
 
     class Meta:
         model = PlatformConfig
         fields = [
             'defaultUePriceFcfa', 'discountedUePriceFcfa', 'onlineAssistancePerHourFcfa',
             'inPersonAssistancePerHourFcfa', 'firstChapterFreeEnabled', 'allowSelfRegistration',
-            'universityName', 'academicYearCurrent', 'contactPhones', 'contactEmail'
+            'universityName', 'academicYearCurrent', 'contactPhones', 'contactEmail',
+            'activitiesRetentionDays'
         ]
-
 
 class PaymentMethodSerializer(serializers.ModelSerializer):
     type = serializers.CharField(source='method_type')

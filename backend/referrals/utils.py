@@ -218,15 +218,17 @@ def grant_reward(user, reward_type, milestone, milestone_config):
         expires_at = timezone.now() + timedelta(days=60)  # Valable 60 jours
 
     elif reward_type == 'free_ue':
-        # Code promo 100% pour 1 UE (à utiliser sur la prochaine demande de déblocage)
+        # Code promo 100% mais VALABLE SUR UNE SEULE UE
+        # On utilise un discount_percent de 100 mais on limite via le front :
+        # - l'utilisateur ne pourra sélectionner qu'UNE SEULE UE avec ce code
         promo_code_str = _generate_unique_promo_code(user, 100)
         expires_at = timezone.now() + timedelta(days=60)
 
     elif reward_type == 'sponsored_1m':
-        # Passer le user en sponsorisé pour 1 mois
-        user.is_sponsored = True
-        user.save(update_fields=['is_sponsored'])
-        expires_at = timezone.now() + timedelta(days=30)
+        # ATTENTION : On N'ACTIVE PAS automatiquement
+        # L'utilisateur devra cliquer sur "Activer ma sponsorisation" dans son espace
+        # Cela évite qu'il soit sponsorisé à un moment où il n'en a pas besoin
+        pass
 
     # Créer l'entrée historique
     reward = ReferralReward.objects.create(
@@ -364,3 +366,99 @@ def notify_referrer_milestone_reached(user, milestone, label, promo_code=None):
     )
     notif.recipients.set([user])
     return notif
+
+# =============================================================================
+# ACTIVATION MANUELLE DE LA SPONSORISATION
+# =============================================================================
+
+def activate_sponsorship(reward):
+    """
+    Active manuellement une récompense 'sponsored_1m'.
+    - Vérifie que la récompense est bien de type 'sponsored_1m'
+    - Vérifie qu'elle n'est pas déjà activée
+    - Active user.is_sponsored pour 30 jours
+    - Enregistre les timestamps
+    """
+    from .models import ReferralReward
+
+    if reward.reward_type != 'sponsored_1m':
+        return False, "Cette récompense n'est pas une sponsorisation."
+
+    if reward.is_activated:
+        return False, "Cette sponsorisation est déjà activée."
+
+    now = timezone.now()
+    expiry = now + timedelta(days=30)
+
+    # Activer sur le user
+    user = reward.user
+    user.is_sponsored = True
+    user.save(update_fields=['is_sponsored'])
+
+    # Marquer la récompense comme activée
+    reward.is_activated = True
+    reward.activated_at = now
+    reward.sponsorship_expires_at = expiry
+    reward.save(update_fields=['is_activated', 'activated_at', 'sponsorship_expires_at'])
+
+    return True, f"Sponsorisation activée jusqu'au {expiry.strftime('%d/%m/%Y')}."
+
+
+def expire_sponsorships():
+    """
+    Cron quotidien : désactive les sponsorisations expirées.
+    À appeler depuis une management command.
+    """
+    from .models import ReferralReward
+
+    now = timezone.now()
+    expired_rewards = ReferralReward.objects.filter(
+        reward_type='sponsored_1m',
+        is_activated=True,
+        sponsorship_expires_at__lt=now,
+    )
+
+    count = 0
+    for reward in expired_rewards:
+        # Vérifier si l'user a une AUTRE sponsorisation active
+        other_active = ReferralReward.objects.filter(
+            user=reward.user,
+            reward_type='sponsored_1m',
+            is_activated=True,
+            sponsorship_expires_at__gt=now,
+        ).exclude(id=reward.id).exists()
+
+        if not other_active:
+            # Désactiver la sponsorisation du user
+            reward.user.is_sponsored = False
+            reward.user.save(update_fields=['is_sponsored'])
+
+        # Marquer comme "utilisée" (consommée)
+        reward.is_used = True
+        reward.used_at = now
+        reward.save(update_fields=['is_used', 'used_at'])
+
+        count += 1
+
+        # Notifier l'utilisateur
+        try:
+            from notifications.models import Notification
+            notif = Notification.objects.create(
+                title="⏰ Votre sponsorisation a expiré",
+                message=(
+                    f"Bonjour {reward.user.first_name},\n\n"
+                    f"Votre mois de sponsorisation est terminé. "
+                    f"Vous pouvez désormais utiliser un code promo ou en gagner un nouveau "
+                    f"en parrainant d'autres étudiants !"
+                ),
+                notification_type='info',
+                priority='normal',
+                target_type='USERS',
+                status='SENT',
+                action_url='student_referral',
+            )
+            notif.recipients.set([reward.user])
+        except Exception as e:
+            print(f"[referrals] Erreur notif expiration sponsorisation : {e}")
+
+    return count

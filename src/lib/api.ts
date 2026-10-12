@@ -21,6 +21,13 @@ import {
   MyReferralData,
   Referral,
   ReferralStats,
+  UEReview,
+  UEReviewsResponse,
+  SecureVideoResponse,
+  CloudinarySignature,
+  CloudinaryUploadResult,
+  TrashResponse,
+  ReferralReward,
 } from "../types";
 
 const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
@@ -327,6 +334,52 @@ export const api = {
 
   async deleteChapter(chapterId: string): Promise<{ success: boolean }> {
     return request(`/api/admin/chapters/${chapterId}`, { method: "DELETE" });
+  },
+
+  // ============ AVIS SUR UE (Étudiant) ============
+  async getUeReviews(ueId: string): Promise<UEReviewsResponse> {
+    return request<UEReviewsResponse>(`/api/courses/${ueId}/reviews`);
+  },
+
+  async submitUeReview(
+    ueId: string,
+    rating: number,
+    comment: string,
+  ): Promise<{ success: boolean; review: UEReview; isNew: boolean }> {
+    return request(`/api/courses/${ueId}/reviews/submit`, {
+      method: "POST",
+      body: JSON.stringify({ rating, comment }),
+    });
+  },
+
+  async deleteMyUeReview(reviewId: string): Promise<{ success: boolean }> {
+    return request(`/api/reviews/${reviewId}`, { method: "DELETE" });
+  },
+
+  // ============ MODÉRATION AVIS (Admin) ============
+  async getAdminReviews(
+    params: { ueId?: string; visibility?: string; q?: string } = {},
+  ): Promise<{ reviews: UEReview[]; total: number }> {
+    const query = new URLSearchParams();
+    if (params.ueId) query.set("ueId", params.ueId);
+    if (params.visibility) query.set("visibility", params.visibility);
+    if (params.q) query.set("q", params.q);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    return request(`/api/admin/reviews${qs}`);
+  },
+
+  async toggleAdminReviewVisibility(
+    reviewId: string,
+    reason?: string,
+  ): Promise<{ success: boolean; isVisible: boolean }> {
+    return request(`/api/admin/reviews/${reviewId}/toggle`, {
+      method: "PUT",
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  async deleteAdminReview(reviewId: string): Promise<{ success: boolean }> {
+    return request(`/api/admin/reviews/${reviewId}`, { method: "DELETE" });
   },
 
   // ============ ACADEMIC STRUCTURE ============
@@ -914,6 +967,14 @@ export const api = {
     return request<MyReferralData>("/api/referrals/me");
   },
 
+  async activateSponsorship(
+    rewardId: string,
+  ): Promise<{ success: boolean; message: string; reward: ReferralReward }> {
+    return request(`/api/referrals/rewards/${rewardId}/activate`, {
+      method: "POST",
+    });
+  },
+
   // ============ PARRAINAGE (Admin) ============
   async getAdminReferrals(
     params: { status?: string; q?: string } = {},
@@ -948,5 +1009,123 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ reason }),
     });
+  },
+
+  // ============ CORBEILLE (SUPERUSER uniquement) ============
+  async getTrash(
+    params: { type?: string; q?: string } = {},
+  ): Promise<TrashResponse> {
+    const query = new URLSearchParams();
+    if (params.type && params.type !== "ALL") query.set("type", params.type);
+    if (params.q) query.set("q", params.q);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    return request<TrashResponse>(`/api/admin/trash${qs}`);
+  },
+
+  async restoreTrashItem(
+    trashId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return request(`/api/admin/trash/${trashId}/restore`, { method: "POST" });
+  },
+
+  async deleteTrashItem(trashId: string): Promise<{ success: boolean }> {
+    return request(`/api/admin/trash/${trashId}`, { method: "DELETE" });
+  },
+
+  async bulkTrashAction(
+    action: "restore" | "purge",
+    ids: string[],
+  ): Promise<{ success: boolean; processed: number; errors: string[] }> {
+    return request("/api/admin/trash-bulk-action", {
+      method: "POST",
+      body: JSON.stringify({ action, ids }),
+    });
+  },
+
+  async purgeAllTrash(): Promise<{ success: boolean; deletedCount: number }> {
+    return request("/api/admin/trash/purge-all", { method: "DELETE" });
+  },
+
+  // ============ CLOUDINARY UPLOAD ============
+  async getCloudinarySignature(
+    resourceType: "video" | "image" | "raw" = "video",
+    folder = "ulstudyflow/chapters",
+  ): Promise<CloudinarySignature> {
+    return request<CloudinarySignature>("/api/cloudinary/signature", {
+      method: "POST",
+      body: JSON.stringify({ resourceType, folder }),
+    });
+  },
+
+  async uploadToCloudinary(
+    file: File,
+    onProgress?: (percent: number) => void,
+    folder = "ulstudyflow/chapters",
+  ): Promise<CloudinaryUploadResult> {
+    // 1. Obtenir la signature
+    const signature = await this.getCloudinarySignature("video", folder);
+
+    // 2. Déterminer le resource_type selon le fichier
+    let resourceType: "video" | "image" | "raw" = "video";
+    if (file.type.startsWith("image/")) resourceType = "image";
+    else if (file.type === "application/pdf") resourceType = "raw";
+
+    // 3. Upload direct vers Cloudinary
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", signature.api_key);
+      formData.append("timestamp", String(signature.timestamp));
+      formData.append("signature", signature.signature);
+      formData.append("folder", signature.folder);
+
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve({
+              success: true,
+              url: data.secure_url,
+              public_id: data.public_id,
+              format: data.format,
+              resource_type: data.resource_type,
+              duration: data.duration,
+              bytes: data.bytes,
+              width: data.width,
+              height: data.height,
+              thumbnail_url: data.secure_url?.replace(/\.[^.]+$/, ".jpg"),
+            });
+          } catch (e) {
+            reject(new Error("Réponse Cloudinary invalide."));
+          }
+        } else {
+          reject(new Error(`Erreur upload Cloudinary (${xhr.status})`));
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        reject(new Error("Erreur réseau lors de l'upload."));
+      });
+
+      xhr.open(
+        "POST",
+        `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${resourceType}/upload`,
+      );
+      xhr.send(formData);
+    });
+  },
+
+  async getSecureVideoUrl(chapterId: string): Promise<SecureVideoResponse> {
+    return request<SecureVideoResponse>(
+      `/api/chapters/${chapterId}/secure-video-url`,
+    );
   },
 };

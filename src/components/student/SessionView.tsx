@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Session, Chapter, QuizAttempt, Flashcard } from '../../types';
-import { api } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { Session, Chapter, QuizAttempt, Flashcard } from "../../types";
+import { api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
+import { PDFDownloadButton } from "./PDFDownloadButton";
+import { ChapterPDFDocument } from "./ChapterPDFDocument";
+import { RenderedContent } from "./RenderedContent";
 import {
   ArrowLeft,
   CheckCircle2,
-  Play,
-  Pause,
   Volume2,
   FileText,
   Video,
@@ -21,10 +22,12 @@ import {
   Bookmark,
   Lock,
   Unlock,
-  Clock
-} from 'lucide-react';
-import { QuizModal } from './QuizModal';
-import { UnlockUeModal } from './UnlockUeModal';
+  Clock,
+} from "lucide-react";
+import { QuizModal } from "./QuizModal";
+import { UnlockUeModal } from "./UnlockUeModal";
+import { SecureVideoPlayer } from "./SecureVideoPlayer";
+import { SecureAudioPlayer } from "./SecureAudioPlayer";
 
 interface SessionViewProps {
   sessionId: string;
@@ -35,15 +38,17 @@ interface SessionViewProps {
 export const SessionView: React.FC<SessionViewProps> = ({
   sessionId,
   onBack,
-  onAskAiWithContext
+  onAskAiWithContext,
 }) => {
   const { user } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
-  const [ueTitle, setUeTitle] = useState('');
-  const [ueCode, setUeCode] = useState('');
+  const [ueTitle, setUeTitle] = useState("");
+  const [ueCode, setUeCode] = useState("");
   const [ueId, setUeId] = useState<string | undefined>(undefined);
-  const [status, setStatus] = useState<string>('in_progress');
-  const [lastAttempt, setLastAttempt] = useState<QuizAttempt | undefined>(undefined);
+  const [status, setStatus] = useState<string>("in_progress");
+  const [lastAttempt, setLastAttempt] = useState<QuizAttempt | undefined>(
+    undefined,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLockedError, setIsLockedError] = useState(false);
@@ -51,17 +56,13 @@ export const SessionView: React.FC<SessionViewProps> = ({
   // Active Chapter Index
   const [activeChapterIndex, setActiveChapterIndex] = useState<number>(0);
 
-  // Audio Player State
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioSpeed, setAudioSpeed] = useState<number>(1);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   // Quiz Modal State
   const [quizOpen, setQuizOpen] = useState(false);
 
   // Unlock Modal State
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
-
+  // Code promo en attente (depuis Mon Parrainage → déblocage UE)
+  const [pendingPromoCode, setPendingPromoCode] = useState<string | null>(null);
   // Flashcards Interactive State
   const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -83,8 +84,13 @@ export const SessionView: React.FC<SessionViewProps> = ({
         setStatus(res.progressStatus);
         setLastAttempt(res.lastQuizAttempt);
       } catch (err: any) {
-        setError(err.message || 'Impossible de charger la séance.');
-        if (err.message && (err.message.includes('bloquée') || err.message.includes('déblocage') || err.message.includes('accès'))) {
+        setError(err.message || "Impossible de charger la séance.");
+        if (
+          err.message &&
+          (err.message.includes("bloquée") ||
+            err.message.includes("déblocage") ||
+            err.message.includes("accès"))
+        ) {
           setIsLockedError(true);
         }
       } finally {
@@ -97,48 +103,36 @@ export const SessionView: React.FC<SessionViewProps> = ({
   // Anti-capture and screen recording protection listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5'))) {
+      if (
+        e.key === "PrintScreen" ||
+        (e.ctrlKey && e.key === "p") ||
+        (e.metaKey &&
+          e.shiftKey &&
+          (e.key === "3" || e.key === "4" || e.key === "5"))
+      ) {
         setRecordingWarning(true);
         setTimeout(() => setRecordingWarning(false), 5000);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
-
-  const handleToggleAudio = () => {
-    if (!audioRef.current) return;
-    if (isPlayingAudio) {
-      audioRef.current.pause();
-      setIsPlayingAudio(false);
-    } else {
-      audioRef.current.play();
-      setIsPlayingAudio(true);
-    }
-  };
-
-  const handleSpeedChange = (speed: number) => {
-    setAudioSpeed(speed);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = speed;
-    }
-  };
 
   const handleCompleteManual = async () => {
     try {
       await api.completeSession(sessionId);
-      setStatus('completed');
+      setStatus("completed");
     } catch (err) {
-      console.error('Error completing session:', err);
+      console.error("Error completing session:", err);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <div className="w-8 h-8 border-3 border-[#25D366] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
@@ -154,10 +148,13 @@ export const SessionView: React.FC<SessionViewProps> = ({
 
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-[#111B21] dark:text-white">
-            {isLockedError ? 'Séance Réservée (Verrouillée)' : 'Accès Restreint'}
+            {isLockedError
+              ? "Séance Réservée (Verrouillée)"
+              : "Accès Restreint"}
           </h2>
           <p className="text-xs text-[#667781] dark:text-[#8696A0] leading-relaxed">
-            {error || 'Cette séance nécessite une autorisation ou un déblocage.'}
+            {error ||
+              "Cette séance nécessite une autorisation ou un déblocage."}
           </p>
 
           <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl text-xs text-[#075E54] dark:text-[#25D366] font-medium border border-emerald-200 dark:border-emerald-800 text-left space-y-1">
@@ -166,10 +163,14 @@ export const SessionView: React.FC<SessionViewProps> = ({
               Règle d'accès UL Study Flow :
             </p>
             <p className="text-[11px] text-[#128C7E] dark:text-emerald-300">
-              • La <strong>1ère séance</strong> de chaque UE et <strong>tous ses chapitres</strong> sont <strong>100% gratuits et libres d'accès</strong> à tous les étudiants de Lomé.
+              • La <strong>1ère séance</strong> de chaque UE et{" "}
+              <strong>tous ses chapitres</strong> sont{" "}
+              <strong>100% gratuits et libres d'accès</strong> à tous les
+              étudiants de Lomé.
             </p>
             <p className="text-[11px] text-[#128C7E] dark:text-emerald-300">
-              • À partir de la <strong>2ème séance</strong>, les séances sont bloquées et nécessitent un déblocage auprès de l'administration.
+              • À partir de la <strong>2ème séance</strong>, les séances sont
+              bloquées et nécessitent un déblocage auprès de l'administration.
             </p>
           </div>
         </div>
@@ -194,9 +195,11 @@ export const SessionView: React.FC<SessionViewProps> = ({
           <UnlockUeModal
             isOpen={unlockModalOpen}
             initialSelectedUeId={ueId}
+            initialPromoCode={pendingPromoCode || undefined}
             onClose={() => setUnlockModalOpen(false)}
             onSuccess={() => {
               setUnlockModalOpen(false);
+              setPendingPromoCode(null);
               window.location.reload();
             }}
           />
@@ -206,75 +209,40 @@ export const SessionView: React.FC<SessionViewProps> = ({
   }
 
   // Determine chapters or fallback
-  const chapters: Chapter[] = (session.chapters && session.chapters.length > 0)
-    ? session.chapters
-    : [{
-        id: `chap_${session.id}_fallback`,
-        sessionId: session.id,
-        number: 1,
-        title: session.title,
-        objectives: session.objective || '',
-        summaryText: session.content?.summaryText || '',
-        video: session.content?.video,
-        audio: session.content?.audio,
-        pdf: session.content?.pdf,
-        flashcards: session.flashcards || [],
-        quiz: session.quiz
-      }];
+  const chapters: Chapter[] =
+    session.chapters && session.chapters.length > 0
+      ? session.chapters
+      : [
+          {
+            id: `chap_${session.id}_fallback`,
+            sessionId: session.id,
+            number: 1,
+            title: session.title,
+            objectives: session.objective || "",
+            summaryText: session.content?.summaryText || "",
+            video: session.content?.video,
+            audio: session.content?.audio,
+            pdf: session.content?.pdf,
+            flashcards: session.flashcards || [],
+            quiz: session.quiz,
+          },
+        ];
 
   const currentChapter: Chapter = chapters[activeChapterIndex] || chapters[0];
 
   // Download printable summary as PDF for the current chapter
-  const handleDownloadSummaryPdf = () => {
-    if (!session || !currentChapter) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      window.print();
-      return;
-    }
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${ueCode} - Séance ${session.sessionNumber} - Chapitre ${currentChapter.number} : ${currentChapter.title}</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #111; line-height: 1.6; }
-            h1 { color: #075E54; margin-bottom: 5px; }
-            .header { border-bottom: 2px solid #25D366; padding-bottom: 15px; margin-bottom: 25px; }
-            .meta { font-size: 13px; color: #555; }
-            .objective { background: #e8f5e9; padding: 12px; border-left: 4px solid #25D366; margin-bottom: 20px; font-weight: 500; font-size: 14px; }
-            .content { font-size: 15px; white-space: pre-wrap; }
-            .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 15px; font-size: 11px; color: #888; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>UL STUDY FLOW · FICHE DE RÉVISION & SYNTHÈSE</h1>
-            <div class="meta">${ueCode} - ${ueTitle} | Séance ${session.sessionNumber} : ${session.title} | Chapitre ${currentChapter.number} : ${currentChapter.title}</div>
-          </div>
-          ${currentChapter.objectives ? `<div class="objective">🎯 Objectifs du chapitre : ${currentChapter.objectives}</div>` : ''}
-          <div class="content">${currentChapter.summaryText || 'Contenu pédagogique UL Study Flow'}</div>
-          <div class="footer">Édité par UL Study Flow · Plateforme EdTech par les étudiants pour les étudiants (Lomé, Togo) · Contact: ulstudyflow@gmail.com</div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 400);
-  };
 
-  const flashcards: Flashcard[] = (currentChapter.flashcards && currentChapter.flashcards.length > 0)
-    ? currentChapter.flashcards
-    : [
-        {
-          id: 'fc_def_1',
-          front: `Quel est l'objectif du chapitre ${currentChapter.number} ?`,
-          back: currentChapter.objectives || currentChapter.title,
-          category: 'Objectif Pédagogique'
-        }
-      ];
+  const flashcards: Flashcard[] =
+    currentChapter.flashcards && currentChapter.flashcards.length > 0
+      ? currentChapter.flashcards
+      : [
+          {
+            id: "fc_def_1",
+            front: `Quel est l'objectif du chapitre ${currentChapter.number} ?`,
+            back: currentChapter.objectives || currentChapter.title,
+            category: "Objectif Pédagogique",
+          },
+        ];
 
   const currentFlashcard = flashcards[currentFlashcardIndex] || flashcards[0];
   const activeQuiz = currentChapter.quiz || session.quiz;
@@ -288,7 +256,8 @@ export const SessionView: React.FC<SessionViewProps> = ({
           <div className="leading-tight">
             <strong>Protection des contenus UL Study Flow</strong>
             <p className="text-[11px] text-rose-200 mt-0.5">
-              L'enregistrement et la capture d'écran sont strictement interdits sous peine de suspension immédiate du compte.
+              L'enregistrement et la capture d'écran sont strictement interdits
+              sous peine de suspension immédiate du compte.
             </p>
           </div>
         </div>
@@ -311,7 +280,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
             </span>
           )}
 
-          {status === 'completed' ? (
+          {status === "completed" ? (
             <span className="inline-flex items-center gap-1 text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-100 dark:bg-emerald-950 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
               <CheckCircle2 className="w-3.5 h-3.5 text-[#25D366]" />
               Séance validée
@@ -334,11 +303,18 @@ export const SessionView: React.FC<SessionViewProps> = ({
             {ueCode}
           </span>
           <span>·</span>
-          <span className="font-bold text-[#111B21] dark:text-white">Séance {session.sessionNumber}</span>
+          <span className="font-bold text-[#111B21] dark:text-white">
+            Séance {session.sessionNumber}
+          </span>
           <span>·</span>
-          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{session.estimatedMinutes} min</span>
+          <span className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {session.estimatedMinutes} min
+          </span>
           <span>·</span>
-          <span className="text-blue-600 dark:text-blue-400 font-bold">{chapters.length} chapitre(s)</span>
+          <span className="text-blue-600 dark:text-blue-400 font-bold">
+            {chapters.length} chapitre(s)
+          </span>
         </div>
 
         <h1 className="text-xl sm:text-2xl font-black text-[#111B21] dark:text-white">
@@ -397,15 +373,19 @@ export const SessionView: React.FC<SessionViewProps> = ({
                     setCurrentFlashcardIndex(0);
                     setIsFlipped(false);
                   }}
-                  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
+                  className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
                     isSelected
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-102'
-                      : 'bg-white dark:bg-[#111B21] text-[#111B21] dark:text-white border-[#E9EDEF] dark:border-[#222E35] hover:border-blue-300'
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm scale-102"
+                      : "bg-white dark:bg-[#111B21] text-[#111B21] dark:text-white border-[#E9EDEF] dark:border-[#222E35] hover:border-blue-300"
                   }`}
                 >
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
-                    isSelected ? 'bg-white text-blue-600' : 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300'
-                  }`}>
+                  <span
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                      isSelected
+                        ? "bg-white text-blue-600"
+                        : "bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300"
+                    }`}
+                  >
                     {ch.number}
                   </span>
                   <span>{ch.title}</span>
@@ -417,7 +397,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
       )}
 
       {/* Active Chapter Details Header */}
-      <div className="bg-gradient-to-r from-blue-50/80 via-white to-blue-50/30 dark:from-blue-950/40 dark:via-[#111B21] dark:to-transparent rounded-3xl border border-blue-200 dark:border-blue-900 p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
+      <div className="bg-linear-to-r from-blue-50/80 via-white to-blue-50/30 dark:from-blue-950/40 dark:via-[#111B21] dark:to-transparent rounded-3xl border border-blue-200 dark:border-blue-900 p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -428,126 +408,125 @@ export const SessionView: React.FC<SessionViewProps> = ({
             </h2>
           </div>
 
-          <button
-            onClick={handleDownloadSummaryPdf}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/60 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-colors border border-red-200 dark:border-red-900 shrink-0"
-          >
-            <Download className="w-3.5 h-3.5" />
-            PDF Synthèse
-          </button>
+          <PDFDownloadButton
+            ueTitle={ueTitle}
+            ueCode={ueCode}
+            sessionNumber={session.sessionNumber}
+            sessionTitle={session.title}
+            chapterNumber={currentChapter.number}
+            chapterTitle={currentChapter.title}
+            objectives={currentChapter.objectives}
+            contentJson={currentChapter.summaryJson}
+            contentHtml={
+              currentChapter.summaryHtml || currentChapter.summaryText
+            }
+            studentName={
+              user ? `${user.firstName} ${user.lastName}` : undefined
+            }
+            variant="primary"
+            label="PDF Synthèse"
+          />
         </div>
 
         {currentChapter.objectives && (
           <div className="p-3 bg-blue-100/50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-900 dark:text-blue-200">
-            <strong>🎯 Objectifs pédagogiques du chapitre :</strong> {currentChapter.objectives}
+            <strong>🎯 Objectifs pédagogiques du chapitre :</strong>{" "}
+            {currentChapter.objectives}
           </div>
         )}
       </div>
 
-      {/* 1. Vidéo Explicative (Non téléchargeable & Anti-capture d'écran) */}
+      {/* 1. Vidéo Explicative — Player sécurisé (Cloudinary ou URL externe) */}
       {currentChapter.video && currentChapter.video.url && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-400">
               <Video className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              Vidéo explicative du chapitre ({currentChapter.video.duration || 'Cours'})
+              Vidéo explicative du chapitre (
+              {currentChapter.video.duration || "Cours"})
             </div>
             <span className="text-[10px] text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800 font-medium">
               🔒 Stream sécurisé
             </span>
           </div>
 
-          {/* Secure Video Player Container with dynamic watermark */}
-          <div
-            className="aspect-video w-full rounded-2xl overflow-hidden bg-black relative border border-slate-800"
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            <iframe
-              src={currentChapter.video.url}
-              title={currentChapter.video.title}
-              className="w-full h-full pointer-events-auto"
-              allowFullScreen
-            ></iframe>
+          {/* ⭐ Player sécurisé : gère Cloudinary ET URL externes */}
+          {currentChapter.video.url.includes("youtube.com") ||
+          currentChapter.video.url.includes("youtu.be") ||
+          currentChapter.video.url.includes("youtube-nocookie.com") ? (
+            // Fallback YouTube (iframe)
+            <div
+              className="aspect-video w-full rounded-2xl overflow-hidden bg-black relative border border-slate-800"
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <iframe
+                src={currentChapter.video.url}
+                title={currentChapter.video.title}
+                className="w-full h-full pointer-events-auto"
+                allowFullScreen
+              ></iframe>
 
-            {/* Dynamic Anti-Screen Record Watermark Overlay */}
-            <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 opacity-25 select-none text-[10px] text-white font-mono">
-              <div className="text-left">UL STUDY FLOW · {user?.displayPhone || user?.phone}</div>
-              <div className="text-right">CONFIDENTIEL · REVENTE INTERDITE</div>
+              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 opacity-25 select-none text-[10px] text-white font-mono">
+                <div className="text-left">
+                  UL STUDY FLOW · {user?.displayPhone || user?.phone}
+                </div>
+                <div className="text-right">
+                  CONFIDENTIEL · REVENTE INTERDITE
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] text-[#667781] dark:text-[#8696A0]">
-            <span className="truncate max-w-[60%]">{currentChapter.video.title || currentChapter.title}</span>
-            <span className="text-amber-800 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-              🔒 Vidéo protégée (Anti-capture actif)
-            </span>
-          </div>
+          ) : (
+            // ⭐ Player natif avec anti-capture + watermark dynamique
+            <SecureVideoPlayer
+              src={currentChapter.video.url}
+              poster={currentChapter.video.thumbnail_url}
+              title={currentChapter.video.title || currentChapter.title}
+              watermarkName={
+                user
+                  ? `${user.firstName} ${user.lastName?.[0] || ""}.`
+                  : undefined
+              }
+              watermarkPhone={user?.displayPhone || user?.phone}
+              isProtected={
+                currentChapter.video.provider === "cloudinary" || true
+              }
+              onCaptureDetected={(reason) => {
+                console.warn("[Anti-Capture]", reason);
+              }}
+            />
+          )}
         </div>
       )}
 
-      {/* 2. Audio Podcast Player (Non téléchargeable) */}
+      {/* 2. Audio Podcast — Player sécurisé */}
       {currentChapter.audio && currentChapter.audio.url && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-400">
               <Volume2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              Podcast audio de révision ({currentChapter.audio.duration || 'Podcast'})
+              Podcast audio de révision (
+              {currentChapter.audio.duration || "Podcast"})
             </div>
             <span className="text-[10px] text-blue-800 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 font-medium">
               🔒 Audio protégé
             </span>
           </div>
 
-          <div className="flex items-center gap-3 p-3.5 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-2xl">
-            <button
-              onClick={handleToggleAudio}
-              className="w-11 h-11 rounded-full bg-[#25D366] text-[#075E54] flex items-center justify-center shrink-0 hover:bg-[#1faa54] transition-transform active:scale-95 shadow-sm"
-            >
-              {isPlayingAudio ? (
-                <Pause className="w-5 h-5 fill-[#075E54]" />
-              ) : (
-                <Play className="w-5 h-5 fill-[#075E54] ml-0.5" />
-              )}
-            </button>
-
-            <div className="flex-1 min-w-0" onContextMenu={(e) => e.preventDefault()}>
-              <p className="text-xs font-bold text-[#111B21] dark:text-white truncate">
-                {currentChapter.audio.title || `Podcast Chapitre ${currentChapter.number}`}
-              </p>
-              <audio
-                ref={audioRef}
-                src={currentChapter.audio.url}
-                onEnded={() => setIsPlayingAudio(false)}
-                controlsList="nodownload"
-                onContextMenu={(e) => e.preventDefault()}
-                className="w-full h-8 mt-1"
-                controls
-              />
-            </div>
-
-            <div className="flex items-center gap-1 shrink-0">
-              {[1, 1.25, 1.5].map((speed) => (
-                <button
-                  key={speed}
-                  onClick={() => handleSpeedChange(speed)}
-                  className={`text-[11px] px-2 py-1 rounded-lg font-bold transition-colors ${
-                    audioSpeed === speed
-                      ? 'bg-[#075E54] text-white shadow-2xs'
-                      : 'bg-white dark:bg-[#111B21] text-[#667781] dark:text-[#8696A0] hover:bg-[#E9EDEF]'
-                  }`}
-                >
-                  {speed}x
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] text-[#667781] dark:text-[#8696A0]">
-            <span>Intervenant : {currentChapter.audio.speaker || 'UL Study Flow'}</span>
-            <span className="text-amber-800 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
-              🔒 Audio sécurisé non téléchargeable
-            </span>
-          </div>
+          {/* ⭐ Player audio sécurisé */}
+          <SecureAudioPlayer
+            src={currentChapter.audio.url}
+            title={
+              currentChapter.audio.title ||
+              `Podcast Chapitre ${currentChapter.number}`
+            }
+            speaker={currentChapter.audio.speaker}
+            watermarkName={
+              user
+                ? `${user.firstName} ${user.lastName?.[0] || ""}.`
+                : undefined
+            }
+            isProtected={currentChapter.audio.provider === "cloudinary" || true}
+          />
         </div>
       )}
 
@@ -558,41 +537,72 @@ export const SessionView: React.FC<SessionViewProps> = ({
             <BookOpen className="w-4 h-4 text-[#25D366]" />
             Contenu rédigé & Résumé synthétique du chapitre
           </div>
-          <button
-            onClick={handleDownloadSummaryPdf}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 px-3 py-1 rounded-lg transition-colors border border-emerald-200 dark:border-emerald-800"
-          >
-            <Download className="w-3 h-3" />
-            Télécharger le PDF
-          </button>
+          <PDFDownloadButton
+            ueTitle={ueTitle}
+            ueCode={ueCode}
+            sessionNumber={session.sessionNumber}
+            sessionTitle={session.title}
+            chapterNumber={currentChapter.number}
+            chapterTitle={currentChapter.title}
+            objectives={currentChapter.objectives}
+            contentJson={currentChapter.summaryJson}
+            contentHtml={
+              currentChapter.summaryHtml || currentChapter.summaryText
+            }
+            studentName={
+              user ? `${user.firstName} ${user.lastName}` : undefined
+            }
+            variant="secondary"
+            label="Télécharger le PDF"
+          />
         </div>
 
-        <div className="prose prose-sm max-w-none text-[#111B21] dark:text-[#E9EDEF] leading-relaxed space-y-4 text-xs sm:text-sm">
-          {(currentChapter.summaryText || 'Contenu pédagogique en cours de rédaction.').split('\n\n').map((block, i) => {
-            if (block.startsWith('### ')) {
+        {/* ⭐ Contenu riche HTML (TipTap) ou fallback markdown */}
+        {currentChapter.summaryHtml ? (
+          <RenderedContent
+            html={currentChapter.summaryHtml}
+            blocksStyle={currentChapter.summaryBlocksStyle || {}}
+            className="text-[#111B21] dark:text-[#E9EDEF]"
+          />
+        ) : currentChapter.summaryText ? (
+          // Fallback markdown legacy
+          <div className="prose prose-sm max-w-none text-[#111B21] dark:text-[#E9EDEF] leading-relaxed space-y-4 text-xs sm:text-sm">
+            {currentChapter.summaryText.split("\n\n").map((block, i) => {
+              if (block.startsWith("### ")) {
+                return (
+                  <h3
+                    key={i}
+                    className="text-sm sm:text-base font-bold text-[#075E54] dark:text-[#25D366] pt-2"
+                  >
+                    {block.replace("### ", "")}
+                  </h3>
+                );
+              }
+              if (block.startsWith("- ")) {
+                const items = block.split("\n");
+                return (
+                  <ul
+                    key={i}
+                    className="list-disc pl-5 space-y-1 text-slate-700 dark:text-slate-300"
+                  >
+                    {items.map((it, j) => (
+                      <li key={j}>{it.replace("- ", "")}</li>
+                    ))}
+                  </ul>
+                );
+              }
               return (
-                <h3 key={i} className="text-sm sm:text-base font-bold text-[#075E54] dark:text-[#25D366] pt-2">
-                  {block.replace('### ', '')}
-                </h3>
+                <p key={i} className="text-slate-800 dark:text-slate-200">
+                  {block}
+                </p>
               );
-            }
-            if (block.startsWith('- ')) {
-              const items = block.split('\n');
-              return (
-                <ul key={i} className="list-disc pl-5 space-y-1 text-slate-700 dark:text-slate-300">
-                  {items.map((it, j) => (
-                    <li key={j}>{it.replace('- ', '')}</li>
-                  ))}
-                </ul>
-              );
-            }
-            return (
-              <p key={i} className="text-slate-800 dark:text-slate-200">
-                {block}
-              </p>
-            );
-          })}
-        </div>
+            })}
+          </div>
+        ) : (
+          <p className="text-slate-500 dark:text-slate-400 italic text-xs">
+            Contenu pédagogique en cours de rédaction.
+          </p>
+        )}
       </div>
 
       {/* 4. Support Polycopié PDF Officiel Téléchargeable */}
@@ -607,18 +617,30 @@ export const SessionView: React.FC<SessionViewProps> = ({
                 {currentChapter.pdf.title}
               </p>
               <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
-                {currentChapter.pdf.pages || 6} pages · Résumé synthétique téléchargeable par PDF
+                {currentChapter.pdf.pages || 6} pages · Résumé synthétique
+                téléchargeable par PDF
               </p>
             </div>
           </div>
 
-          <button
-            onClick={handleDownloadSummaryPdf}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-xs shrink-0"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Télécharger le PDF
-          </button>
+          <PDFDownloadButton
+            ueTitle={ueTitle}
+            ueCode={ueCode}
+            sessionNumber={session.sessionNumber}
+            sessionTitle={session.title}
+            chapterNumber={currentChapter.number}
+            chapterTitle={currentChapter.title}
+            objectives={currentChapter.objectives}
+            contentJson={currentChapter.summaryJson}
+            contentHtml={
+              currentChapter.summaryHtml || currentChapter.summaryText
+            }
+            studentName={
+              user ? `${user.firstName} ${user.lastName}` : undefined
+            }
+            variant="primary"
+            label="Télécharger le PDF"
+          />
         </div>
       )}
 
@@ -639,10 +661,10 @@ export const SessionView: React.FC<SessionViewProps> = ({
         {/* Flippable Card Container */}
         <div
           onClick={() => setIsFlipped(!isFlipped)}
-          className={`min-h-[170px] p-6 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between shadow-2xs ${
+          className={`min-h-42.5 p-6 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between shadow-2xs ${
             isFlipped
-              ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-[#25D366]'
-              : 'bg-[#F0F2F5] dark:bg-[#1F2C34] border-slate-200 dark:border-[#222E35] hover:border-[#25D366]'
+              ? "bg-emerald-50/70 dark:bg-emerald-950/40 border-[#25D366]"
+              : "bg-[#F0F2F5] dark:bg-[#1F2C34] border-slate-200 dark:border-[#222E35] hover:border-[#25D366]"
           }`}
         >
           <div className="flex items-center justify-between text-[11px] text-[#667781] dark:text-[#8696A0]">
@@ -651,7 +673,9 @@ export const SessionView: React.FC<SessionViewProps> = ({
             </span>
             <span className="flex items-center gap-1 font-semibold text-slate-500 dark:text-slate-400">
               <RotateCw className="w-3 h-3" />
-              {isFlipped ? 'Verso (Réponse)' : 'Recto (Question - Cliquez pour tourner)'}
+              {isFlipped
+                ? "Verso (Réponse)"
+                : "Recto (Question - Cliquez pour tourner)"}
             </span>
           </div>
 
@@ -662,7 +686,9 @@ export const SessionView: React.FC<SessionViewProps> = ({
           </div>
 
           <div className="text-center text-[10px] text-[#667781] dark:text-[#8696A0]">
-            {isFlipped ? 'Cliquez pour voir la question' : 'Cliquez n\'importe où sur la carte pour révéler la réponse'}
+            {isFlipped
+              ? "Cliquez pour voir la question"
+              : "Cliquez n'importe où sur la carte pour révéler la réponse"}
           </div>
         </div>
 
@@ -672,7 +698,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
             disabled={currentFlashcardIndex === 0}
             onClick={() => {
               setIsFlipped(false);
-              setCurrentFlashcardIndex(prev => Math.max(0, prev - 1));
+              setCurrentFlashcardIndex((prev) => Math.max(0, prev - 1));
             }}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none rounded-lg hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34]"
           >
@@ -691,7 +717,9 @@ export const SessionView: React.FC<SessionViewProps> = ({
             disabled={currentFlashcardIndex === flashcards.length - 1}
             onClick={() => {
               setIsFlipped(false);
-              setCurrentFlashcardIndex(prev => Math.min(flashcards.length - 1, prev + 1));
+              setCurrentFlashcardIndex((prev) =>
+                Math.min(flashcards.length - 1, prev + 1),
+              );
             }}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none rounded-lg hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34]"
           >
@@ -715,24 +743,26 @@ export const SessionView: React.FC<SessionViewProps> = ({
               <span
                 className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                   lastAttempt.passed
-                    ? 'bg-emerald-100 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366]'
-                    : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400'
+                    ? "bg-emerald-100 dark:bg-emerald-950 text-[#075E54] dark:text-[#25D366]"
+                    : "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400"
                 }`}
               >
-                Dernier score : {lastAttempt.score}/{lastAttempt.maxScore} ({lastAttempt.percentage}%)
+                Dernier score : {lastAttempt.score}/{lastAttempt.maxScore} (
+                {lastAttempt.percentage}%)
               </span>
             )}
           </div>
 
           <p className="text-xs text-[#667781] dark:text-[#8696A0] leading-relaxed">
-            {activeQuiz.description || "Répondez aux questions interactives du questionnaire pour tester votre maîtrise du chapitre et obtenir une correction détaillée."}
+            {activeQuiz.description ||
+              "Répondez aux questions interactives du questionnaire pour tester votre maîtrise du chapitre et obtenir une correction détaillée."}
           </p>
 
           <button
             onClick={() => setQuizOpen(true)}
             className="w-full py-3 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-2xl hover:bg-[#1faa54] transition-all shadow-xs"
           >
-            {lastAttempt ? 'Repasser le QCM' : 'Commencer le QCM'}
+            {lastAttempt ? "Repasser le QCM" : "Commencer le QCM"}
           </button>
         </div>
       )}
@@ -745,7 +775,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
           onClose={() => setQuizOpen(false)}
           onSuccess={(attempt) => {
             setLastAttempt(attempt);
-            if (attempt.passed) setStatus('completed');
+            if (attempt.passed) setStatus("completed");
           }}
         />
       )}

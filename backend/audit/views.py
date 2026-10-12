@@ -13,6 +13,7 @@ from accounts.models import User
 from courses.models import UE, Session, QuizAttempt, SessionProgress
 from forms_builder.models import DynamicForm, FormSubmission
 from monetization.models import PlatformConfig
+from .trash_service import purge_expired_trash
 
 class AuditLogsListView(APIView):
     permission_classes = [IsSuperuserOnly]
@@ -218,3 +219,195 @@ class AdminExportView(APIView):
 
         # ⭐ JSON : retour direct
         return Response(data)
+
+
+# =============================================================================
+# CORBEILLE (SUPERUSER uniquement)
+# =============================================================================
+
+class AdminTrashListView(APIView):
+    """Liste les éléments de la corbeille avec filtres."""
+    permission_classes = [IsSuperuserOnly]
+
+    def get(self, request):
+        # Lazy purge : nettoie les expirés à chaque chargement
+        try:
+            purge_expired_trash()
+        except Exception:
+            pass
+
+        from .models import TrashBin
+        from .serializers import TrashBinSerializer
+
+        qs = TrashBin.objects.filter(is_restored=False).select_related('deleted_by', 'restored_by')
+
+        # Filtres
+        object_type = request.GET.get('type', '').strip()
+        if object_type and object_type != 'ALL':
+            qs = qs.filter(object_type=object_type)
+
+        search = request.GET.get('q', '').strip()
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(
+                Q(display_name__icontains=search) |
+                Q(object_id__icontains=search) |
+                Q(deleted_by_phone__icontains=search)
+            )
+
+        # Stats
+        from django.db.models import Count
+        stats_by_type = (
+            TrashBin.objects.filter(is_restored=False)
+            .values('object_type')
+            .annotate(count=Count('id'))
+        )
+
+        total_count = TrashBin.objects.filter(is_restored=False).count()
+
+        return Response({
+            'items': TrashBinSerializer(qs[:500], many=True).data,
+            'total': qs.count(),
+            'totalInTrash': total_count,
+            'stats': list(stats_by_type),
+        })
+
+
+class AdminTrashRestoreView(APIView):
+    """Restaure un élément depuis la corbeille."""
+    permission_classes = [IsSuperuserOnly]
+
+    def post(self, request, trash_id):
+        from .models import TrashBin
+        from .trash_service import restore_from_trash
+
+        try:
+            entry = TrashBin.objects.get(id=trash_id)
+        except TrashBin.DoesNotExist:
+            return Response({'error': 'Élément de corbeille introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if entry.is_restored:
+            return Response({'error': 'Cet élément a déjà été restauré.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            restore_from_trash(entry, request.user)
+
+            try:
+                from audit.utils import log_audit
+                log_audit(
+                    action='TRASH_RESTORE',
+                    resource=entry.object_id,
+                    details=f"Restauration {entry.object_type} : {entry.display_name}",
+                    user=request.user,
+                    ip=request.META.get('REMOTE_ADDR')
+                )
+            except Exception:
+                pass
+
+            return Response({'success': True, 'message': 'Élément restauré avec succès.'})
+        except Exception as e:
+            return Response(
+                {'error': f"Erreur restauration : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AdminTrashDeleteView(APIView):
+    """Supprime définitivement un élément de la corbeille."""
+    permission_classes = [IsSuperuserOnly]
+
+    def delete(self, request, trash_id):
+        from .models import TrashBin
+
+        try:
+            entry = TrashBin.objects.get(id=trash_id)
+        except TrashBin.DoesNotExist:
+            return Response({'error': 'Élément introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        display_name = entry.display_name
+        object_type = entry.object_type
+        entry.delete()
+
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='TRASH_PERMANENT_DELETE',
+                resource=trash_id,
+                details=f"Suppression définitive {object_type} : {display_name}",
+                user=request.user,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True})
+
+
+class AdminTrashBulkActionView(APIView):
+    """
+    Actions en masse : restauration multiple OU purge multiple.
+    Body: { action: 'restore' | 'purge', ids: [...] }
+    """
+    permission_classes = [IsSuperuserOnly]
+
+    def post(self, request):
+        from .models import TrashBin
+        from .trash_service import restore_from_trash
+
+        action = request.data.get('action', '')
+        ids = request.data.get('ids', [])
+
+        if action not in ('restore', 'purge'):
+            return Response({'error': 'Action invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not isinstance(ids, list) or not ids:
+            return Response({'error': 'Aucun ID fourni.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        entries = TrashBin.objects.filter(id__in=ids)
+        success_count = 0
+        errors = []
+
+        for entry in entries:
+            try:
+                if action == 'restore':
+                    if not entry.is_restored and not entry.is_expired:
+                        restore_from_trash(entry, request.user)
+                        success_count += 1
+                    else:
+                        errors.append(f"{entry.display_name} : déjà restauré ou expiré")
+                elif action == 'purge':
+                    entry.delete()
+                    success_count += 1
+            except Exception as e:
+                errors.append(f"{entry.display_name} : {str(e)}")
+
+        return Response({
+            'success': True,
+            'processed': success_count,
+            'errors': errors,
+        })
+
+
+class AdminTrashPurgeAllView(APIView):
+    """Vide complètement la corbeille."""
+    permission_classes = [IsSuperuserOnly]
+
+    def delete(self, request):
+        from .models import TrashBin
+
+        count = TrashBin.objects.filter(is_restored=False).count()
+        TrashBin.objects.filter(is_restored=False).delete()
+
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='TRASH_PURGE_ALL',
+                resource='TRASH',
+                details=f"Purge totale : {count} éléments supprimés définitivement",
+                user=request.user,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        return Response({'success': True, 'deletedCount': count})

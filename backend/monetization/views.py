@@ -64,9 +64,18 @@ class SubmitUnlockRequestView(APIView):
             promo = PromoCode.objects.filter(code=clean_code, is_active=True).first()
             if promo and promo.applicable_to in ('all', 'ue_unlock'):
                 discount_percent = promo.discount_percent
-                discount_amount = round((subtotal * discount_percent) / 100)
-                subtotal = max(0, subtotal - discount_amount)
                 applied_promo = promo.code
+
+                # ⭐ CAS SPÉCIAL : code 100% (1 UE offerte)
+                # Il ne s'applique qu'à UNE SEULE UE, pas au total
+                if discount_percent >= 100:
+                    # Réduire le nombre d'UE payantes à 1
+                    # (prix d'1 UE standard, sans le pack)
+                    subtotal = config.default_ue_price_fcfa
+                else:
+                    # Réduction classique (pourcentage sur le total)
+                    discount_amount = round((subtotal * discount_percent) / 100)
+                    subtotal = max(0, subtotal - discount_amount)
 
         transaction_fee = 100
         total_fcfa = subtotal + transaction_fee
@@ -324,6 +333,12 @@ class AdminConfigView(APIView):
         if 'inPersonAssistancePerHourFcfa' in data: config.in_person_assistance_per_hour_fcfa = int(data['inPersonAssistancePerHourFcfa'])
         if 'firstChapterFreeEnabled' in data: config.first_chapter_free_enabled = bool(data['firstChapterFreeEnabled'])
         if 'allowSelfRegistration' in data: config.allow_self_registration = bool(data['allowSelfRegistration'])
+        if 'activitiesRetentionDays' in data:
+            try:
+                val = int(data['activitiesRetentionDays'])
+                config.activities_retention_days = max(1, min(3650, val))  # entre 1 jour et 10 ans
+            except (ValueError, TypeError):
+                pass
         if 'universityName' in data: config.university_name = data['universityName']
         if 'academicYearCurrent' in data: config.academic_year_current = data['academicYearCurrent']
         if 'contactPhones' in data: config.contact_phones = data['contactPhones']

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { UE, StudentProgressOverview } from "../../types";
 import { api } from "../../lib/api";
+import { Skeleton, SkeletonCourseCard } from "../ui/SkeletonLoader";
+import { usePageLoading } from "../../hooks/usePageLoading";
 import {
   BookOpen,
   Play,
@@ -10,6 +12,7 @@ import {
   TrendingUp,
   Gift,
   Share2,
+  Trophy,
 } from "lucide-react";
 
 interface StudentDashboardProps {
@@ -28,6 +31,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [progressData, setProgressData] =
     useState<StudentProgressOverview | null>(null);
   const [loading, setLoading] = useState(true);
+
+  usePageLoading(loading);
 
   useEffect(() => {
     async function loadData() {
@@ -49,8 +54,37 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-3 border-[#25D366] border-t-transparent rounded-full animate-spin"></div>
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+        {/* Header skeleton */}
+        <div className="bg-[#075E54] dark:bg-[#111B21] p-5 sm:p-6 rounded-3xl">
+          <Skeleton
+            variant="rect"
+            width="40%"
+            height="24px"
+            className="!bg-white/20 mb-2"
+          />
+          <Skeleton
+            variant="rect"
+            width="70%"
+            height="14px"
+            className="!bg-white/20"
+          />
+        </div>
+
+        {/* Carte UE principale */}
+        <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] p-5 space-y-3">
+          <Skeleton variant="rect" width="30%" height="14px" />
+          <Skeleton variant="rect" width="60%" height="22px" />
+          <Skeleton variant="rect" width="90%" height="14px" />
+          <Skeleton variant="rect" width="100%" height="8px" />
+        </div>
+
+        {/* Liste des UE */}
+        <div className="space-y-3">
+          <Skeleton variant="rect" width="40%" height="20px" />
+          <SkeletonCourseCard />
+          <SkeletonCourseCard />
+        </div>
       </div>
     );
   }
@@ -224,6 +258,35 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           <ArrowRight className="w-4 h-4 text-[#667781] dark:text-[#8696A0] group-hover:text-amber-600 transition-transform group-hover:translate-x-0.5" />
         </div>
       </button>
+
+      {/* ⭐ Encart récompenses disponibles */}
+      {progressData && (progressData.availableRewardsCount || 0) > 0 && (
+        <div className="p-4 bg-gradient-to-r from-amber-50 to-amber-50/40 dark:from-amber-950/40 dark:to-amber-950/20 rounded-2xl border-2 border-amber-400 dark:border-amber-600 shadow-sm space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+              <Trophy className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 className="font-bold text-sm text-amber-900 dark:text-amber-300">
+                🎁 {progressData.availableRewardsCount} récompense
+                {(progressData.availableRewardsCount || 0) > 1 ? "s" : ""}{" "}
+                disponible
+                {(progressData.availableRewardsCount || 0) > 1 ? "s" : ""} !
+              </h4>
+              <p className="text-[11px] text-amber-800 dark:text-amber-400 mt-0.5">
+                Utilisez vos codes promo ou activez votre sponsorisation.
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigateTab("student_referral")}
+              className="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition-all shrink-0"
+            >
+              Voir
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Quick shortcuts for Student */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

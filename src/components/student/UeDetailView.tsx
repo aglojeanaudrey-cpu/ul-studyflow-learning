@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { UE, Session } from '../../types';
-import { api } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState, useEffect } from "react";
+import { UE, Session } from "../../types";
+import { api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import {
   ArrowLeft,
   BookOpen,
@@ -14,9 +14,10 @@ import {
   Award,
   Shield,
   AlertCircle,
-  Calendar
-} from 'lucide-react';
-import { UnlockUeModal } from './UnlockUeModal';
+  Calendar,
+} from "lucide-react";
+import { UnlockUeModal } from "./UnlockUeModal";
+import { UeReviewsSection } from "./UeReviewsSection";
 
 interface UeDetailViewProps {
   ueId: string;
@@ -24,17 +25,24 @@ interface UeDetailViewProps {
   onOpenSession: (sessionId: string) => void;
 }
 
-export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpenSession }) => {
+export const UeDetailView: React.FC<UeDetailViewProps> = ({
+  ueId,
+  onBack,
+  onOpenSession,
+}) => {
   const { user } = useAuth();
   const [ue, setUe] = useState<UE | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
-  const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [actionAlert, setActionAlert] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
-  const isSuperOrStaff = user?.role === 'SUPERUSER' || user?.role === 'STAFF';
+  const isSuperOrStaff = user?.role === "SUPERUSER" || user?.role === "STAFF";
 
-  const showAlert = (type: 'success' | 'error', message: string) => {
+  const showAlert = (type: "success" | "error", message: string) => {
     setActionAlert({ type, message });
     setTimeout(() => setActionAlert(null), 4000);
   };
@@ -45,7 +53,7 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
       setUe(res.ue);
       setSessions(res.sessions);
     } catch (err) {
-      console.error('Error fetching UE details:', err);
+      console.error("Error fetching UE details:", err);
     } finally {
       setLoading(false);
     }
@@ -59,15 +67,21 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
   const handleToggleSessionAccess = async (e: React.MouseEvent, s: Session) => {
     e.stopPropagation();
     if (s.sessionNumber === 1) {
-      showAlert('error', 'La 1ère séance d\'une UE est obligatoirement gratuite et accessible à tous les étudiants (non verrouillable).');
+      showAlert(
+        "error",
+        "La 1ère séance d'une UE est obligatoirement gratuite et accessible à tous les étudiants (non verrouillable).",
+      );
       return;
     }
     try {
       const res = await api.toggleSessionAccess(s.id);
-      showAlert('success', res.message);
+      showAlert("success", res.message);
       await loadData();
     } catch (err: any) {
-      showAlert('error', err.message || 'Impossible de modifier l\'accès à la séance.');
+      showAlert(
+        "error",
+        err.message || "Impossible de modifier l'accès à la séance.",
+      );
     }
   };
 
@@ -82,7 +96,9 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
   if (!ue) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 text-center space-y-4">
-        <p className="text-sm text-[#667781] dark:text-[#8696A0]">Unité d'enseignement introuvable.</p>
+        <p className="text-sm text-[#667781] dark:text-[#8696A0]">
+          Unité d'enseignement introuvable.
+        </p>
         <button
           onClick={onBack}
           className="px-4 py-2 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl"
@@ -93,8 +109,13 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
     );
   }
 
-  const completedCount = sessions.filter(s => s.status === 'completed').length;
-  const progressPercent = sessions.length > 0 ? Math.round((completedCount / sessions.length) * 100) : 0;
+  const completedCount = sessions.filter(
+    (s) => s.status === "completed",
+  ).length;
+  const progressPercent =
+    sessions.length > 0
+      ? Math.round((completedCount / sessions.length) * 100)
+      : 0;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -102,9 +123,9 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
       {actionAlert && (
         <div
           className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-md transition-all ${
-            actionAlert.type === 'success'
-              ? 'bg-emerald-500 text-white'
-              : 'bg-rose-500 text-white'
+            actionAlert.type === "success"
+              ? "bg-emerald-500 text-white"
+              : "bg-rose-500 text-white"
           }`}
         >
           <span>{actionAlert.message}</span>
@@ -150,22 +171,38 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
                   <Unlock className="w-3.5 h-3.5 text-[#25D366]" /> UE Débloquée
                 </span>
                 {ue.expiresAt && !isSuperOrStaff && (
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 border ${
-                    ue.daysRemaining !== null && ue.daysRemaining !== undefined && ue.daysRemaining <= 15
-                      ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 font-bold'
-                      : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                  }`}>
+                  <span
+                    className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1 border ${
+                      ue.daysRemaining !== null &&
+                      ue.daysRemaining !== undefined &&
+                      ue.daysRemaining <= 15
+                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 font-bold"
+                        : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                    }`}
+                  >
                     <Calendar className="w-3.5 h-3.5 text-[#667781] dark:text-[#8696A0]" />
-                    Expire le {new Date(ue.expiresAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                    {ue.daysRemaining !== null && ue.daysRemaining !== undefined && (
-                      <span className="opacity-80">({ue.daysRemaining}j restants)</span>
-                    )}
+                    Expire le{" "}
+                    {new Date(ue.expiresAt).toLocaleDateString("fr-FR", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                    {ue.daysRemaining !== null &&
+                      ue.daysRemaining !== undefined && (
+                        <span className="opacity-80">
+                          ({ue.daysRemaining}j restants)
+                        </span>
+                      )}
                   </span>
                 )}
               </>
             ) : ue.isExpired ? (
               <span className="text-xs font-bold text-rose-800 dark:text-rose-300 bg-rose-100 dark:bg-rose-950 px-3 py-1 rounded-full flex items-center gap-1 border border-rose-300 dark:border-rose-800">
-                <Lock className="w-3.5 h-3.5 text-rose-600" /> Accès Expiré ({ue.expiresAt ? new Date(ue.expiresAt).toLocaleDateString('fr-FR') : ''})
+                <Lock className="w-3.5 h-3.5 text-rose-600" /> Accès Expiré (
+                {ue.expiresAt
+                  ? new Date(ue.expiresAt).toLocaleDateString("fr-FR")
+                  : ""}
+                )
               </span>
             ) : (
               <button
@@ -198,7 +235,9 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
         {/* Progress gauge */}
         <div className="pt-2 border-t border-[#E9EDEF] dark:border-[#222E35] space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-[#111B21] dark:text-white">Progression dans cette UE</span>
+            <span className="font-semibold text-[#111B21] dark:text-white">
+              Progression dans cette UE
+            </span>
             <span className="font-bold text-[#075E54] dark:text-[#25D366] tabular-nums">
               {completedCount} / {sessions.length} séances ({progressPercent}%)
             </span>
@@ -219,10 +258,18 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
             <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             <div className="text-xs text-rose-900 dark:text-rose-200 space-y-0.5">
               <p className="font-bold text-sm">
-                Accès expiré pour cette UE (validité de 6 mois et 10 jours terminée)
+                Accès expiré pour cette UE (validité de 6 mois et 10 jours
+                terminée)
               </p>
               <p>
-                Votre accès complet à cette unité d'enseignement a expiré le <strong>{ue.expiresAt ? new Date(ue.expiresAt).toLocaleDateString('fr-FR') : ''}</strong>. Renouvelez votre déblocage pour réactiver les séances verrouillées.
+                Votre accès complet à cette unité d'enseignement a expiré le{" "}
+                <strong>
+                  {ue.expiresAt
+                    ? new Date(ue.expiresAt).toLocaleDateString("fr-FR")
+                    : ""}
+                </strong>
+                . Renouvelez votre déblocage pour réactiver les séances
+                verrouillées.
               </p>
             </div>
           </div>
@@ -247,10 +294,18 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
                 Séance 01 offerte gratuitement à tous les étudiants !
               </p>
               <p>
-                La première séance de chaque UE est en libre accès pour découvrir la pédagogie. Débloquez l'ensemble des séances pour <strong>500 FCFA</strong> (ou <strong>300 FCFA l'unité</strong> dès 3 UE) — <span className="font-semibold text-amber-950 dark:text-amber-100">validité complète de 6 mois et 10 jours</span>.
+                La première séance de chaque UE est en libre accès pour
+                découvrir la pédagogie. Débloquez l'ensemble des séances pour{" "}
+                <strong>500 FCFA</strong> (ou <strong>300 FCFA l'unité</strong>{" "}
+                dès 3 UE) —{" "}
+                <span className="font-semibold text-amber-950 dark:text-amber-100">
+                  validité complète de 6 mois et 10 jours
+                </span>
+                .
               </p>
               <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                Paiement direct T-Money (+228 71 67 69 45) · Activation garantie sous 12h.
+                Paiement direct T-Money (+228 71 67 69 45) · Activation garantie
+                sous 12h.
               </p>
             </div>
           </div>
@@ -271,7 +326,10 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-[#25D366] shrink-0" />
             <span>
-              <strong>Contrôle d'accès des séances :</strong> En tant que gestionnaire, vous pouvez autoriser ou bloquer l'accès des comptes étudiants simples pour chaque séance (sauf la 1ère séance qui reste toujours gratuite).
+              <strong>Contrôle d'accès des séances :</strong> En tant que
+              gestionnaire, vous pouvez autoriser ou bloquer l'accès des comptes
+              étudiants simples pour chaque séance (sauf la 1ère séance qui
+              reste toujours gratuite).
             </span>
           </div>
         </div>
@@ -295,10 +353,13 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
               // For other sessions:
               // If superuser/staff: not locked for them to preview.
               // For students: locked if session.isLocked is true (or if not unlocked and session.isLockedForUsers !== false).
-              const isLockedForStudent = !isFirstSession && (session.isLocked ?? (!ue.isUnlocked && session.isLockedForUsers !== false));
+              const isLockedForStudent =
+                !isFirstSession &&
+                (session.isLocked ??
+                  (!ue.isUnlocked && session.isLockedForUsers !== false));
               const isLocked = isSuperOrStaff ? false : isLockedForStudent;
-              const isDone = session.status === 'completed';
-              const isInProgress = session.status === 'in_progress';
+              const isDone = session.status === "completed";
+              const isInProgress = session.status === "in_progress";
 
               return (
                 <div
@@ -312,20 +373,20 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
                   }}
                   className={`p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors cursor-pointer ${
                     isLocked
-                      ? 'bg-[#F0F2F5]/40 dark:bg-[#1F2C34]/40 hover:bg-[#F0F2F5]/70 dark:hover:bg-[#1F2C34]/70'
-                      : 'hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34] group'
+                      ? "bg-[#F0F2F5]/40 dark:bg-[#1F2C34]/40 hover:bg-[#F0F2F5]/70 dark:hover:bg-[#1F2C34]/70"
+                      : "hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34] group"
                   }`}
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                         isDone
-                          ? 'bg-[#25D366] text-[#075E54]'
+                          ? "bg-[#25D366] text-[#075E54]"
                           : isInProgress
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                          : isLocked
-                          ? 'bg-slate-200 dark:bg-slate-800 text-[#667781] dark:text-[#8696A0]'
-                          : 'bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#667781] dark:text-[#8696A0]'
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            : isLocked
+                              ? "bg-slate-200 dark:bg-slate-800 text-[#667781] dark:text-[#8696A0]"
+                              : "bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#667781] dark:text-[#8696A0]"
                       }`}
                     >
                       {isDone ? (
@@ -333,14 +394,21 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
                       ) : isLocked ? (
                         <Lock className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                       ) : (
-                        <span>{String(session.sessionNumber).padStart(2, '0')}</span>
+                        <span>
+                          {String(session.sessionNumber).padStart(2, "0")}
+                        </span>
                       )}
                     </div>
 
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[11px] text-[#667781] dark:text-[#8696A0]">
-                          Séance {session.sessionNumber} · {session.estimatedMinutes} min · {session.chaptersCount ?? session.chapters?.length ?? 0} chapitre(s)
+                          Séance {session.sessionNumber} ·{" "}
+                          {session.estimatedMinutes} min ·{" "}
+                          {session.chaptersCount ??
+                            session.chapters?.length ??
+                            0}{" "}
+                          chapitre(s)
                         </span>
                         {isFirstSession && (
                           <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800">
@@ -380,11 +448,13 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
                         ) : (
                           <button
                             type="button"
-                            onClick={(e) => handleToggleSessionAccess(e, session)}
+                            onClick={(e) =>
+                              handleToggleSessionAccess(e, session)
+                            }
                             className={`text-[11px] px-2.5 py-1 rounded-xl font-bold border flex items-center gap-1.5 transition-all shadow-2xs ${
                               session.isLockedForUsers === false
-                                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900'
-                                : 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900'
+                                ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900"
+                                : "bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900"
                             }`}
                             title="Cliquez pour autoriser ou bloquer l'accès pour les comptes étudiants simples"
                           >
@@ -431,6 +501,9 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({ ueId, onBack, onOpen
           )}
         </div>
       </div>
+
+      {/* ⭐ Section Avis des étudiants */}
+      <UeReviewsSection ueId={ue.id} ueCode={ue.code} ueTitle={ue.title} />
 
       {/* Unlock UE Modal */}
       {unlockModalOpen && (

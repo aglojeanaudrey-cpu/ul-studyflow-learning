@@ -81,7 +81,17 @@ class Chapter(models.Model):
     order = models.IntegerField(default=1, verbose_name="Ordre dans la séance")
 
     # Contenu pédagogique
-    summary_text = models.TextField(blank=True, verbose_name="Résumé / Cours écrit")
+    summary_text = models.TextField(blank=True, verbose_name="Résumé / Cours écrit (legacy markdown)")
+    summary_html = models.TextField(blank=True, verbose_name="Contenu riche HTML (TipTap)")
+    summary_json = models.JSONField(default=dict, blank=True, verbose_name="Contenu riche JSON (TipTap)")
+    # Styles appliqués par l'admin sur les blocs (images, tableaux, citations)
+    # Format : { "blk_xxx": { "width": 80, "height": 60, "radius": 12, ... }, ... }
+    summary_blocks_style = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Styles personnalisés des blocs (admin)"
+    )
+
     video = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées vidéo")
     audio = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées podcast audio")
     pdf = models.JSONField(default=dict, blank=True, verbose_name="Métadonnées support PDF")
@@ -92,14 +102,17 @@ class Chapter(models.Model):
         verbose_name_plural = "Chapitres"
         ordering = ['order', 'number']
 
-    def __str__(self):
-        return f"{self.session.ue.code} - S{self.session.session_number} - Chapitre {self.number}: {self.title}"
+    @property
+    def has_rich_content(self):
+        """Vrai si le chapitre a du contenu riche TipTap."""
+        return bool(self.summary_json and self.summary_json.get('content'))
 
-    def save(self, *args, **kwargs):
-        if not self.id:
-            self.id = f"chap_{secrets.token_hex(4)}"
-        super().save(*args, **kwargs)
-
+    @property
+    def effective_content(self):
+        """Retourne le contenu à afficher (HTML prioritaire, fallback markdown)."""
+        if self.summary_html:
+            return self.summary_html
+        return self.summary_text or ''
 
 class Quiz(models.Model):
     id = models.CharField(max_length=64, primary_key=True)
@@ -277,4 +290,68 @@ class QuizAttempt(models.Model):
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = f"att_{int(timezone.now().timestamp())}_{secrets.token_hex(2)}"
+        super().save(*args, **kwargs)
+
+class UEReview(models.Model):
+    """Avis d'un étudiant sur une UE qu'il a terminée à 100%."""
+
+    id = models.CharField(max_length=64, primary_key=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='ue_reviews',
+        verbose_name="Étudiant"
+    )
+    ue = models.ForeignKey(
+        UE,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name="UE évaluée"
+    )
+    rating = models.IntegerField(
+        default=5,
+        verbose_name="Note (1-5)",
+        help_text="Note sur 5 étoiles"
+    )
+    comment = models.TextField(
+        blank=True,
+        verbose_name="Commentaire",
+        help_text="Avis détaillé de l'étudiant"
+    )
+    is_visible = models.BooleanField(
+        default=True,
+        verbose_name="Visible publiquement"
+    )
+    # Marque si l'avis a été modéré (masqué par admin)
+    moderation_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Motif de modération"
+    )
+
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Date de publication")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Dernière modification")
+
+    class Meta:
+        verbose_name = "Avis sur UE"
+        verbose_name_plural = "Avis sur UE"
+        ordering = ['-created_at']
+        # 1 seul avis par user par UE
+        unique_together = ('user', 'ue')
+        indexes = [
+            models.Index(fields=['ue', '-created_at']),
+            models.Index(fields=['ue', 'is_visible']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.phone} → {self.ue.code} ({self.rating}/5)"
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = f"rev_{int(timezone.now().timestamp())}_{secrets.token_hex(2)}"
+        # Clamp rating entre 1 et 5
+        if self.rating < 1:
+            self.rating = 1
+        elif self.rating > 5:
+            self.rating = 5
         super().save(*args, **kwargs)

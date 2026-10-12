@@ -30,6 +30,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  // Polling adaptatif
+  const [isTabVisible, setIsTabVisible] = useState<boolean>(
+    typeof document !== "undefined" ? !document.hidden : true,
+  );
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: "single" | "all";
     id?: string;
@@ -48,11 +52,35 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     }
   };
 
+  // ⭐ Détecter la visibilité de l'onglet (Visibility API)
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    const handleVisibility = () => {
+      setIsTabVisible(!document.hidden);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
+
+  // ⭐ Polling adaptatif :
+  //   - Onglet visible  → toutes les 30s (messages quasi-temps réel)
+  //   - Onglet caché    → toutes les 5 min (économie serveur)
+  //   - Dropdown ouvert → immédiat + refresh toutes les 15s
+  useEffect(() => {
+    // Premier fetch immédiat
+    fetchNotifications();
+
+    let intervalMs = 30000; // 30s par défaut
+    if (!isTabVisible) {
+      intervalMs = 300000; // 5 min si onglet caché
+    } else if (isOpen) {
+      intervalMs = 15000; // 15s si le dropdown est ouvert
+    }
+
+    const interval = setInterval(fetchNotifications, intervalMs);
+    return () => clearInterval(interval);
+  }, [isTabVisible, isOpen]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

@@ -1,0 +1,707 @@
+/* =============================================================================
+   Rich Text Editor (TipTap) - UL Study Flow
+   Version CSS pur (sans @apply)
+   ============================================================================= */
+
+.rte-container {
+  border-radius: 1rem;
+  border: 1px solid #e9edef;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.dark .rte-container {
+  border-color: #222e35;
+  background: #111b21;
+}
+
+.rte-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 8px;
+  background: #f0f2f5;
+  border-bottom: 1px solid #e9edef;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dark .rte-toolbar {
+  background: #1f2c34;
+  border-color: #222e35;
+}
+
+.rte-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+  margin-right: 4px;
+  border-right: 1px solid #e9edef;
+}
+
+.rte-toolbar-group:last-child {
+  border-right: none;
+  padding-right: 0;
+  margin-right: 0;
+}
+
+.dark .rte-toolbar-group {
+  border-color: #222e35;
+}
+
+.rte-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #3b4a54;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dark .rte-btn {
+  color: #8696a0;
+}
+
+.rte-btn:hover {
+  background: #ffffff;
+  color: #075e54;
+}
+
+.dark .rte-btn:hover {
+  background: #111b21;
+  color: #25d366;
+}
+
+.rte-btn-active {
+  background: #25d366 !important;
+  color: #075e54 !important;
+}
+
+.rte-btn-active:hover {
+  background: #1faa54 !important;
+  color: #075e54 !important;
+}
+
+.rte-btn-danger:hover {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.dark .rte-btn-danger:hover {
+  background: #4c0519;
+  color: #fb7185;
+}
+
+.rte-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: transparent !important;
+}
+
+/* =============================================================================
+   Éditeur
+   ============================================================================= */
+
+.rte-editor {
+  padding: 20px 24px;
+  min-height: 320px;
+  font-size: 14px;
+  color: #111b21;
+  outline: none;
+  line-height: 1.6;
+}
+
+.dark .rte-editor {
+  color: #ffffff;
+}
+
+.rte-editor:focus {
+  outline: none;
+}
+
+/* Placeholder */
+.rte-empty-editor::before,
+.rte-empty-node::before {
+  content: attr(data-placeholder);
+  color: #667781;
+  font-style: italic;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.dark .rte-empty-editor::before,
+.dark .rte-empty-node::before {
+  color: #8696a0;
+}
+
+/* Typographie */
+.rte-editor h1 {
+  font-size: 24px;
+  font-weight: 900;
+  color: #075e54;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9edef;
+}
+
+.dark .rte-editor h1 {
+  color: #25d366;
+  border-color: #222e35;
+}
+
+.rte-editor h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #075e54;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.dark .rte-editor h2 {
+  color: #25d366;
+}
+
+.rte-editor h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111b21;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.dark .rte-editor h3 {
+  color: #ffffff;
+}
+
+.rte-editor h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111b21;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.dark .rte-editor h4 {
+  color: #ffffff;
+}
+
+.rte-editor h5 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #3b4a54;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.dark .rte-editor h5 {
+  color: #8696a0;
+}
+
+.rte-editor h6 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #667781;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.dark .rte-editor h6 {
+  color: #8696a0;
+}
+
+.rte-editor p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.rte-editor strong {
+  font-weight: 700;
+}
+
+.rte-editor em {
+  font-style: italic;
+}
+
+.rte-editor u {
+  text-decoration: underline;
+  text-decoration-color: #25d366;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.rte-editor s {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.rte-editor mark {
+  background: #fde68a;
+  color: #111b21;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.dark .rte-editor mark {
+  background: rgba(120, 53, 15, 0.6);
+  color: #fde68a;
+}
+
+/* Liens */
+.rte-editor .rte-link {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.dark .rte-editor .rte-link {
+  color: #60a5fa;
+}
+
+.rte-editor .rte-link:hover {
+  color: #1d4ed8;
+}
+
+.dark .rte-editor .rte-link:hover {
+  color: #93c5fd;
+}
+
+/* Listes */
+.rte-editor ul,
+.rte-editor ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.rte-editor ul {
+  list-style-type: disc;
+}
+
+.rte-editor ol {
+  list-style-type: decimal;
+}
+
+.rte-editor li {
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.rte-editor li > p {
+  margin: 0;
+}
+
+/* Citation */
+.rte-editor blockquote.rte-blockquote {
+  border-left: 4px solid #25d366;
+  background: rgba(236, 253, 245, 0.5);
+  padding: 8px 16px;
+  margin: 12px 0;
+  font-style: italic;
+  color: #3b4a54;
+}
+
+.dark .rte-editor blockquote.rte-blockquote {
+  background: rgba(6, 78, 59, 0.2);
+  color: #8696a0;
+}
+
+/* Code inline */
+.rte-editor code {
+  background: #f0f2f5;
+  color: #075e54;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+}
+
+.dark .rte-editor code {
+  background: #1f2c34;
+  color: #25d366;
+}
+
+/* Bloc code */
+.rte-editor pre.rte-code-block {
+  background: #0b141a;
+  color: #e9edef;
+  padding: 16px;
+  border-radius: 12px;
+  margin: 12px 0;
+  overflow-x: auto;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  line-height: 1.6;
+}
+
+.rte-editor pre.rte-code-block code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Séparateur */
+.rte-editor hr {
+  margin: 24px 0;
+  border: 0;
+  border-top: 2px dashed #e9edef;
+}
+
+.dark .rte-editor hr {
+  border-color: #222e35;
+}
+
+/* Images */
+.rte-editor img.rte-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 12px 0;
+  border: 1px solid #e9edef;
+}
+
+.dark .rte-editor img.rte-image {
+  border-color: #222e35;
+}
+
+.rte-editor img.ProseMirror-selectednode {
+  outline: 2px solid #25d366;
+  outline-offset: 2px;
+}
+
+/* =============================================================================
+   TABLEAUX — Rendu visible dans l'éditeur admin
+   ============================================================================= */
+
+.rte-editor table.rte-table,
+.rte-editor .rte-block table,
+.rte-editor-content table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 16px 0;
+  font-size: 13px;
+  border: 2px solid #9ca3af !important;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  table-layout: auto;
+}
+
+.dark .rte-editor table.rte-table,
+.dark .rte-editor .rte-block table,
+.dark .rte-editor-content table {
+  border-color: #4b5563 !important;
+}
+
+.rte-editor table.rte-table th,
+.rte-editor table.rte-table td,
+.rte-editor .rte-block table th,
+.rte-editor .rte-block table td,
+.rte-editor-content table th,
+.rte-editor-content table td {
+  border: 1px solid #9ca3af !important;
+  padding: 8px 12px !important;
+  text-align: left;
+  vertical-align: top;
+  position: relative;
+  min-width: 60px;
+}
+
+.dark .rte-editor table.rte-table th,
+.dark .rte-editor table.rte-table td,
+.dark .rte-editor .rte-block table th,
+.dark .rte-editor .rte-block table td,
+.dark .rte-editor-content table th,
+.dark .rte-editor-content table td {
+  border-color: #4b5563 !important;
+}
+
+.rte-editor table.rte-table th,
+.rte-editor .rte-block table th,
+.rte-editor-content table th {
+  background: #e5e7eb !important;
+  font-weight: 700;
+  color: #111827 !important;
+}
+
+.dark .rte-editor table.rte-table th,
+.dark .rte-editor .rte-block table th,
+.dark .rte-editor-content table th {
+  background: #374151 !important;
+  color: #ffffff !important;
+}
+
+.rte-editor table.rte-table td,
+.rte-editor .rte-block table td,
+.rte-editor-content table td {
+  background: #ffffff !important;
+}
+
+.dark .rte-editor table.rte-table td,
+.dark .rte-editor .rte-block table td,
+.dark .rte-editor-content table td {
+  background: #111b21 !important;
+}
+
+/* =============================================================================
+   ⭐ BLOCS STYLISABLES (admin)
+   ============================================================================= */
+
+.rte-block {
+  display: block;
+  margin: 1rem 0;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.rte-block[data-block-type="image"] {
+  max-width: 100%;
+}
+
+.rte-block img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: inherit;
+}
+
+.rte-block table {
+  display: table;
+  width: 100%;
+  margin: 0;
+}
+
+/* Contour de sélection d'un bloc */
+.rte-block:hover {
+  outline: 2px dashed rgba(37, 211, 102, 0.4);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* =============================================================================
+   CALLOUTS (ENCADRÉS)
+   ============================================================================= */
+
+.rte-callout {
+  margin: 14px 0;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border-left: 4px solid;
+  position: relative;
+}
+
+.rte-callout-header {
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.rte-callout-type-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.15s;
+}
+
+.rte-callout-type-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.dark .rte-callout-type-btn {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark .rte-callout-type-btn:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.rte-callout-emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.rte-callout-menu {
+  position: absolute;
+  top: 100%;
+  left: 12px;
+  margin-top: 4px;
+  background: #ffffff;
+  border: 1px solid #e9edef;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 20;
+  min-width: 160px;
+}
+
+.dark .rte-callout-menu {
+  background: #1f2c34;
+  border-color: #222e35;
+}
+
+.rte-callout-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #111b21;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.rte-callout-menu-item:hover {
+  background: #f0f2f5;
+}
+
+.dark .rte-callout-menu-item {
+  color: #ffffff;
+}
+
+.dark .rte-callout-menu-item:hover {
+  background: #2a3942;
+}
+
+.rte-callout-menu-item.active {
+  background: rgba(37, 211, 102, 0.15);
+  color: #075e54;
+  font-weight: 700;
+}
+
+.dark .rte-callout-menu-item.active {
+  color: #25d366;
+}
+
+.rte-callout-content {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rte-callout-content p {
+  margin: 4px 0;
+}
+
+/* Info */
+.rte-callout-info {
+  background: #eff6ff;
+  border-left-color: #3b82f6;
+}
+.rte-callout-info .rte-callout-type-btn {
+  color: #1d4ed8;
+}
+.dark .rte-callout-info {
+  background: rgba(30, 58, 138, 0.2);
+}
+.dark .rte-callout-info .rte-callout-type-btn {
+  color: #93c5fd;
+}
+
+/* Success */
+.rte-callout-success {
+  background: #ecfdf5;
+  border-left-color: #10b981;
+}
+.rte-callout-success .rte-callout-type-btn {
+  color: #047857;
+}
+.dark .rte-callout-success {
+  background: rgba(6, 78, 59, 0.2);
+}
+.dark .rte-callout-success .rte-callout-type-btn {
+  color: #6ee7b7;
+}
+
+/* Warning */
+.rte-callout-warning {
+  background: #fffbeb;
+  border-left-color: #f59e0b;
+}
+.rte-callout-warning .rte-callout-type-btn {
+  color: #b45309;
+}
+.dark .rte-callout-warning {
+  background: rgba(120, 53, 15, 0.2);
+}
+.dark .rte-callout-warning .rte-callout-type-btn {
+  color: #fbbf24;
+}
+
+/* Danger */
+.rte-callout-danger {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+.rte-callout-danger .rte-callout-type-btn {
+  color: #b91c1c;
+}
+.dark .rte-callout-danger {
+  background: rgba(127, 29, 29, 0.2);
+}
+.dark .rte-callout-danger .rte-callout-type-btn {
+  color: #fca5a5;
+}
+
+/* Rendu côté étudiant (dans .rte-editor-content) */
+.rte-editor-content .rte-callout {
+  margin: 14px 0;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border-left: 4px solid;
+}
+.rte-editor-content .rte-callout-header {
+  display: none; /* Pas de menu en lecture */
+}
+.rte-editor-content .rte-callout[data-type="info"] {
+  background: #eff6ff;
+  border-left-color: #3b82f6;
+}
+.dark .rte-editor-content .rte-callout[data-type="info"] {
+  background: rgba(30, 58, 138, 0.2);
+}
+.rte-editor-content .rte-callout[data-type="success"] {
+  background: #ecfdf5;
+  border-left-color: #10b981;
+}
+.dark .rte-editor-content .rte-callout[data-type="success"] {
+  background: rgba(6, 78, 59, 0.2);
+}
+.rte-editor-content .rte-callout[data-type="warning"] {
+  background: #fffbeb;
+  border-left-color: #f59e0b;
+}
+.dark .rte-editor-content .rte-callout[data-type="warning"] {
+  background: rgba(120, 53, 15, 0.2);
+}
+.rte-editor-content .rte-callout[data-type="danger"] {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+.dark .rte-editor-content .rte-callout[data-type="danger"] {
+  background: rgba(127, 29, 29, 0.2);
+}

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt
+from .models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt, UEReview
 
 class QuizQuestionSerializer(serializers.ModelSerializer):
     type = serializers.CharField(source='question_type')
@@ -24,19 +24,34 @@ class QuizSerializer(serializers.ModelSerializer):
 class ChapterSerializer(serializers.ModelSerializer):
     sessionId = serializers.CharField(source='session_id')
     summaryText = serializers.CharField(source='summary_text', allow_blank=True, default='')
+    summaryHtml = serializers.CharField(source='summary_html', allow_blank=True, default='')
+    summaryJson = serializers.JSONField(source='summary_json', required=False)
+    summaryBlocksStyle = serializers.JSONField(source='summary_blocks_style', required=False)
     quiz = QuizSerializer(read_only=True)
     hasQuiz = serializers.SerializerMethodField()
+    hasRichContent = serializers.SerializerMethodField()
+    effectiveContent = serializers.SerializerMethodField()
 
     class Meta:
         model = Chapter
         fields = [
             'id', 'sessionId', 'number', 'title', 'objectives', 'order',
-            'summaryText', 'video', 'audio', 'pdf', 'flashcards', 'quiz', 'hasQuiz'
+            'summaryText', 'summaryHtml', 'summaryJson', 'summaryBlocksStyle',
+            'effectiveContent', 'hasRichContent',
+            'video', 'audio', 'pdf', 'flashcards', 'quiz', 'hasQuiz'
         ]
 
     def get_hasQuiz(self, obj):
         return hasattr(obj, 'quiz') and obj.quiz is not None
 
+    def get_hasRichContent(self, obj):
+        return bool(obj.summary_json and obj.summary_json.get('content'))
+
+    def get_effectiveContent(self, obj):
+        """Contenu à afficher : HTML prioritaire, sinon markdown legacy."""
+        if obj.summary_html:
+            return obj.summary_html
+        return obj.summary_text or ''
 
 class SessionContentSerializer(serializers.Serializer):
     summaryText = serializers.CharField(source='summary_text', allow_blank=True, default='')
@@ -125,6 +140,8 @@ class UESerializer(serializers.ModelSerializer):
     isExpired = serializers.SerializerMethodField()
     daysRemaining = serializers.SerializerMethodField()
     accessGrantedAt = serializers.SerializerMethodField()
+    reviewsCount = serializers.SerializerMethodField()
+    averageRating = serializers.SerializerMethodField()
 
     class Meta:
         model = UE
@@ -134,7 +151,8 @@ class UESerializer(serializers.ModelSerializer):
             'isSuspended', 'priceFcfa', 'order', 'imageUrl', 'coefficient',
             'creditEcts', 'departmentName', 'programName', 'sessionsCount',
             'completedSessionsCount', 'progressPercent', 'isUnlocked',
-            'expiresAt', 'isExpired', 'daysRemaining', 'accessGrantedAt'
+            'expiresAt', 'isExpired', 'daysRemaining', 'accessGrantedAt',
+            'reviewsCount', 'averageRating'
         ]
 
     def _get_user_access(self, obj):
@@ -207,6 +225,15 @@ class UESerializer(serializers.ModelSerializer):
             return access.granted_at.isoformat()
         return None
 
+    def get_reviewsCount(self, obj):
+        return obj.reviews.filter(is_visible=True).count()
+
+    def get_averageRating(self, obj):
+        from django.db.models import Avg
+        result = obj.reviews.filter(is_visible=True).aggregate(avg=Avg('rating'))
+        avg = result.get('avg')
+        return round(avg, 2) if avg else None
+
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
     userId = serializers.CharField(source='user_id')
@@ -220,3 +247,38 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuizAttempt
         fields = ['id', 'userId', 'quizId', 'sessionId', 'ueId', 'score', 'maxScore', 'percentage', 'passed', 'userAnswers', 'submittedAt']
+
+
+class UEReviewSerializer(serializers.ModelSerializer):
+    userName = serializers.SerializerMethodField()
+    userPhone = serializers.SerializerMethodField()
+    userLevel = serializers.SerializerMethodField()
+    userDepartment = serializers.SerializerMethodField()
+    ueCode = serializers.CharField(source='ue.code', read_only=True)
+    ueTitle = serializers.CharField(source='ue.title', read_only=True)
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+
+    class Meta:
+        model = UEReview
+        fields = [
+            'id', 'ue', 'user', 'rating', 'comment', 'is_visible',
+            'created_at', 'updated_at', 'createdAt',
+            'userName', 'userPhone', 'userLevel', 'userDepartment',
+            'ueCode', 'ueTitle',
+        ]
+        read_only_fields = ('id', 'user', 'created_at', 'updated_at')
+
+    def get_userName(self, obj):
+        # Format "Kodjo M." pour la confidentialité
+        if obj.user.last_name:
+            return f"{obj.user.first_name} {obj.user.last_name[0]}."
+        return obj.user.first_name
+
+    def get_userPhone(self, obj):
+        return obj.user.display_phone or obj.user.phone
+
+    def get_userLevel(self, obj):
+        return obj.user.level
+
+    def get_userDepartment(self, obj):
+        return obj.user.department

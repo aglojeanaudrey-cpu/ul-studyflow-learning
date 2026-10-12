@@ -201,3 +201,39 @@ class AdminReferralRejectView(APIView):
         referral.save()
 
         return Response({'success': True, 'referral': ReferralSerializer(referral).data})
+
+class ActivateSponsorshipView(APIView):
+    """
+    Active manuellement une récompense 'sponsored_1m'.
+    Une fois activée, la sponsorisation dure 30 jours et ne peut plus être annulée.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, reward_id):
+        from .models import ReferralReward
+        from .utils import activate_sponsorship
+
+        try:
+            reward = ReferralReward.objects.get(id=reward_id, user=request.user)
+        except ReferralReward.DoesNotExist:
+            return Response(
+                {'error': 'Récompense introuvable.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if reward.reward_type != 'sponsored_1m':
+            return Response(
+                {'error': "Cette récompense n'est pas une sponsorisation."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        success, message = activate_sponsorship(reward)
+
+        if not success:
+            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'success': True,
+            'message': message,
+            'reward': ReferralRewardSerializer(reward).data,
+        })

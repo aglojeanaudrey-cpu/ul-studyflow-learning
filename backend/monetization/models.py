@@ -84,6 +84,11 @@ class PlatformConfig(models.Model):
     academic_year_current = models.CharField(max_length=50, default="2025-2026", verbose_name="Année académique courante")
     contact_phones = models.JSONField(default=list, verbose_name="Numéros de contact / T-Money / Flooz")
     contact_email = models.EmailField(default="ulstudyflow@gmail.com", verbose_name="Email de contact")
+    # Délai d'affichage des activités étudiantes (dashboard + progression)
+    activities_retention_days = models.IntegerField(
+        default=30,
+        verbose_name="Durée d'affichage des activités (jours)"
+    )
 
     class Meta:
         verbose_name = "Configuration de la plateforme"
@@ -106,7 +111,8 @@ class PlatformConfig(models.Model):
                 'university_name': "UL Study Flow (EdTech par les étudiants)",
                 'academic_year_current': "2025-2026",
                 'contact_phones': ['+228 99 70 59 20', '+228 71 67 69 45'],
-                'contact_email': "ulstudyflow@gmail.com"
+                'contact_email': "ulstudyflow@gmail.com",
+                'activities_retention_days': 30,
             }
         )
         return obj

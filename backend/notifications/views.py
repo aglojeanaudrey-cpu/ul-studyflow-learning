@@ -34,7 +34,8 @@ class UserNotificationsListView(APIView):
         now = timezone.now()
 
         # Filter notifications matching this user
-        eligible_notifications = Notification.objects.filter(
+        # ⭐ Limiter à 50 dernières pour alléger le payload
+        qs = Notification.objects.filter(
             status='SENT'
         ).filter(
             Q(scheduled_for__isnull=True) | Q(scheduled_for__lte=now)
@@ -45,6 +46,11 @@ class UserNotificationsListView(APIView):
             Q(target_type='DEPARTMENT', target_department=user.department) |
             Q(target_type='LEVEL', target_level=user.level)
         ).distinct().order_by('-created_at')
+        # Total avant pagination
+        total_count = qs.count()
+
+        # Limiter à 50
+        eligible_notifications = qs[:50]
 
         serializer = NotificationSerializer(eligible_notifications, many=True, context={'request': request})
         notifications_data = serializer.data
@@ -62,7 +68,7 @@ class UserNotificationsListView(APIView):
         return Response({
             'notifications': notifications_data,
             'unreadCount': unread_count,
-            'totalCount': len(notifications_data)
+            'totalCount': total_count,
         })
 
 
@@ -290,15 +296,33 @@ class AdminNotificationSendNowView(APIView):
         serializer = NotificationSerializer(notification, context={'request': request})
         return Response({'success': True, 'notification': serializer.data})
 
+
 class NotificationDeleteView(APIView):
-    """Supprime une notification individuelle (uniquement pour les superusers)."""
-    permission_classes = [IsAuthenticated, IsStaffOrSuperuser]
+    """
+    Supprime une notification.
+    - Un SUPERUSER/STAFF peut supprimer n'importe quelle notification.
+    - Un USER peut supprimer UNIQUEMENT les notifications qui lui sont destinées.
+    """
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request, notif_id):
+        user = request.user
+
         try:
             notif = Notification.objects.get(id=notif_id)
         except Notification.DoesNotExist:
             return Response({'error': 'Notification introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # ⭐ Vérification des permissions
+        is_admin = user.role in ('STAFF', 'SUPERUSER') or user.is_staff or user.is_superuser
+
+        if not is_admin:
+            # Un USER simple ne peut supprimer QUE ses propres notifications
+            if not self._user_can_delete(user, notif):
+                return Response(
+                    {'error': "Vous ne pouvez supprimer que les notifications qui vous sont destinées."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
         title = notif.title
         notif.delete()
@@ -308,31 +332,85 @@ class NotificationDeleteView(APIView):
                 request=request,
                 action="DELETE_NOTIFICATION",
                 resource=f"Notification: {title}",
-                details=f"Suppression notification ID {notif_id}"
+                details=f"Suppression notification ID {notif_id} par {user.phone}"
             )
         except Exception:
             pass
 
         return Response({'success': True, 'message': 'Notification supprimée.'})
 
+    def _user_can_delete(self, user, notif):
+        """
+        Vérifie si un USER simple peut supprimer cette notification.
+        Il faut que la notification soit ciblée vers lui :
+        - target_type='USERS' ET user dans recipients
+        - target_type='ALL'
+        - target_type='ROLE' ET target_role == user.role
+        - target_type='DEPARTMENT' ET target_department == user.department
+        - target_type='LEVEL' ET target_level == user.level
+        """
+        if notif.target_type == 'ALL':
+            return True
+        if notif.target_type == 'USERS':
+            return notif.recipients.filter(id=user.id).exists()
+        if notif.target_type == 'ROLE':
+            return notif.target_role == user.role
+        if notif.target_type == 'DEPARTMENT':
+            return notif.target_department == user.department
+        if notif.target_type == 'LEVEL':
+            return notif.target_level == user.level
+        return False
+
 
 class NotificationBulkDeleteView(APIView):
     """
-    Supprime plusieurs notifications en masse (superusers uniquement).
+    Supprime plusieurs notifications en masse.
     Body: { ids: ['notif_xxx', 'notif_yyy'] }  OU  { all: true }
+
+    - Un SUPERUSER/STAFF peut tout supprimer.
+    - Un USER simple ne peut supprimer QUE les notifications qui lui sont destinées.
     """
-    permission_classes = [IsAuthenticated, IsStaffOrSuperuser]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request):
+        user = request.user
+        is_admin = user.role in ('STAFF', 'SUPERUSER') or user.is_staff or user.is_superuser
+
         ids = request.data.get('ids')
         delete_all = bool(request.data.get('all', False))
 
+        if is_admin:
+            # Admin : suppression sans restriction
+            if delete_all:
+                count, _ = Notification.objects.all().delete()
+                return Response({'success': True, 'deletedCount': count})
+
+            if not isinstance(ids, list) or not ids:
+                return Response({'error': 'Aucun ID fourni.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            count, _ = Notification.objects.filter(id__in=ids).delete()
+            return Response({'success': True, 'deletedCount': count})
+
+        # ⭐ USER simple : filtre sur ses propres notifications
+        # Construire le queryset des notifications destinées à cet user
+        now = timezone.now()
+        eligible = Notification.objects.filter(status='SENT').filter(
+            Q(scheduled_for__isnull=True) | Q(scheduled_for__lte=now)
+        ).filter(
+            Q(target_type='ALL') |
+            Q(target_type='USERS', recipients=user) |
+            Q(target_type='ROLE', target_role=user.role) |
+            Q(target_type='DEPARTMENT', target_department=user.department) |
+            Q(target_type='LEVEL', target_level=user.level)
+        ).distinct()
+
         if delete_all:
-            count, _ = Notification.objects.all().delete()
+            count, _ = eligible.delete()
             return Response({'success': True, 'deletedCount': count})
 
         if not isinstance(ids, list) or not ids:
             return Response({'error': 'Aucun ID fourni.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        count, _ = Notification.objects.filter(id__in=ids).delete()
+        # Ne supprimer que les notifs éligibles parmi les IDs fournis
+        count, _ = eligible.filter(id__in=ids).delete()
         return Response({'success': True, 'deletedCount': count})

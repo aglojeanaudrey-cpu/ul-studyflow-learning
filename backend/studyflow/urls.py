@@ -34,6 +34,14 @@ urlpatterns = [
     path('api/courses', crs_views.CourseCatalogView.as_view(), name='api-courses-catalog'),
     path('api/courses/my-courses', crs_views.MyCoursesView.as_view(), name='api-my-courses'),
     path('api/courses/<str:ue_id>', crs_views.CourseDetailView.as_view(), name='api-course-detail'),
+    # ⭐ Avis sur UE
+    path('api/courses/<str:ue_id>/reviews', crs_views.UEReviewsListView.as_view(), name='api-ue-reviews'),
+    path('api/courses/<str:ue_id>/reviews/submit', crs_views.UEReviewSubmitView.as_view(), name='api-ue-review-submit'),
+    # ⭐ Cloudinary Upload
+    path('api/cloudinary/signature', crs_views.CloudinarySignatureView.as_view(), name='api-cloudinary-signature'),
+    path('api/cloudinary/upload', crs_views.CloudinaryUploadView.as_view(), name='api-cloudinary-upload'),
+    path('api/chapters/<str:chapter_id>/secure-video-url', crs_views.SecureVideoURLView.as_view(), name='api-secure-video-url'),
+    path('api/reviews/<str:review_id>', crs_views.UEReviewDeleteView.as_view(), name='api-review-delete'),
 
     path('api/sessions/<str:session_id>', crs_views.SessionDetailView.as_view(), name='api-session-detail'),
     path('api/sessions/<str:session_id>/complete', crs_views.SessionCompleteView.as_view(), name='api-session-complete'),
@@ -78,6 +86,10 @@ urlpatterns = [
     path('api/admin/ues', crs_views.AdminUESaveView.as_view(), name='api-admin-ue-save'),
     path('api/admin/ues/<str:ue_id>/suspend', crs_views.AdminUESuspendView.as_view(), name='api-admin-ue-suspend'),
     path('api/admin/ues/<str:ue_id>', crs_views.AdminUEDeleteView.as_view(), name='api-admin-ue-delete'),
+    # ⭐ Modération des avis
+    path('api/admin/reviews', crs_views.AdminUEReviewsListView.as_view(), name='api-admin-reviews-list'),
+    path('api/admin/reviews/<str:review_id>/toggle', crs_views.AdminUEReviewToggleVisibilityView.as_view(), name='api-admin-review-toggle'),
+    path('api/admin/reviews/<str:review_id>', crs_views.AdminUEReviewDeleteView.as_view(), name='api-admin-review-delete'),
 
     path('api/admin/sessions', crs_views.AdminSessionSaveView.as_view(), name='api-admin-session-save'),
     path('api/admin/sessions/<str:session_id>/suspend', crs_views.AdminSessionSuspendView.as_view(), name='api-admin-session-suspend'),
@@ -154,4 +166,9 @@ urlpatterns = [
     # API: PARRAINAGE & AFFILIATION
     # -------------------------------------------------------------
     path('api/', include('referrals.urls')),
+
+    # -------------------------------------------------------------
+    # API: CORBEILLE (TRASH)
+    # -------------------------------------------------------------
+    path('api/', include('audit.urls')),
 ]

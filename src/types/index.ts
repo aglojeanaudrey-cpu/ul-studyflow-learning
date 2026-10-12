@@ -71,6 +71,8 @@ export interface UE {
   progressPercent?: number;
   departmentName?: string;
   programName?: string;
+  reviewsCount?: number;
+  averageRating?: number | null;
 }
 
 export interface SessionContent {
@@ -132,13 +134,19 @@ export interface Chapter {
   title: string;
   objectives?: string;
   order?: number;
-  summaryText?: string;
+  summaryText?: string; // legacy markdown
+  summaryHtml?: string; // HTML TipTap
+  summaryJson?: any; // JSON TipTap (structure complète)
+  effectiveContent?: string; // HTML prioritaire (calculé backend)
+  hasRichContent?: boolean; // Vrai si JSON TipTap présen
+  summaryBlocksStyle?: Record<string, BlockStyle>; // Styles de blocs appliqués par l'admin
   video?: {
     title: string;
     url: string;
     duration?: string;
-    provider?: "embed" | "mp4" | "youtube";
+    provider?: "embed" | "mp4" | "youtube" | "cloudinary" | "external";
     driveFileUrl?: string;
+    thumbnail_url?: string;
   };
   audio?: {
     title: string;
@@ -146,6 +154,7 @@ export interface Chapter {
     duration?: string;
     speaker?: string;
     driveFileUrl?: string;
+    provider?: "cloudinary" | "external";
   };
   pdf?: {
     title: string;
@@ -228,8 +237,8 @@ export interface StudentProgressOverview {
     subtitle: string;
     status: string;
   }[];
+  availableRewardsCount?: number;
 }
-
 export interface FormField {
   id: string;
   label: string;
@@ -328,6 +337,7 @@ export interface PlatformConfig {
   academicYearCurrent: string;
   contactPhones?: string[];
   contactEmail?: string;
+  activitiesRetentionDays?: number;
 }
 
 export interface AppNotification {
@@ -643,8 +653,13 @@ export interface ReferralReward {
   expires_at?: string | null;
   is_used: boolean;
   used_at?: string | null;
+  // Sponsorisation
+  is_activated?: boolean;
+  activated_at?: string | null;
+  sponsorship_expires_at?: string | null;
+  isSponsorshipActive?: boolean;
+  daysRemainingSponsorship?: number;
 }
-
 export interface MyReferralData {
   code: ReferralCode;
   referrals: Referral[];
@@ -673,4 +688,124 @@ export interface ReferralStats {
     rewardType: ReferralRewardType;
     count: number;
   }[];
+}
+// =============================================================================
+// AVIS SUR UE
+// =============================================================================
+
+export interface UEReview {
+  id: string;
+  ue: string;
+  user: string;
+  rating: number;
+  comment: string;
+  is_visible: boolean;
+  created_at: string;
+  updated_at: string;
+  createdAt: string;
+  userName: string;
+  userPhone: string;
+  userLevel: string;
+  userDepartment: string;
+  ueCode: string;
+  ueTitle: string;
+}
+
+export interface UEReviewsResponse {
+  reviews: UEReview[];
+  stats: {
+    averageRating: number | null;
+    totalReviews: number;
+    distribution: Record<string, number>;
+  };
+  canReview: boolean;
+  hasReviewed: boolean;
+  myReviewId: string | null;
+}
+
+// =============================================================================
+// CLOUDINARY UPLOAD
+// =============================================================================
+
+export interface CloudinarySignature {
+  signature: string;
+  timestamp: number;
+  api_key: string;
+  cloud_name: string;
+  folder: string;
+}
+
+export interface CloudinaryUploadResult {
+  success: boolean;
+  url: string;
+  public_id: string;
+  format: string;
+  resource_type: string;
+  duration?: number;
+  bytes?: number;
+  width?: number;
+  height?: number;
+  thumbnail_url?: string;
+  error?: string;
+}
+
+export interface SecureVideoResponse {
+  url: string;
+  watermarked: boolean;
+  isCloudinary: boolean;
+  expiresIn?: number;
+}
+
+// =============================================================================
+// CORBEILLE (TRASH)
+// =============================================================================
+
+export type TrashObjectType =
+  | "ue"
+  | "session"
+  | "chapter"
+  | "user"
+  | "popup"
+  | "form";
+
+export interface TrashItem {
+  id: string;
+  objectType: TrashObjectType;
+  objectId: string;
+  displayName: string;
+  deletedByPhone: string;
+  deletedAt: string;
+  expiresAt: string;
+  daysRemaining: number;
+  isRestored: boolean;
+  restoredAt: string | null;
+  deletionReason: string;
+  deletedByName: string;
+  restoredByName: string | null;
+}
+
+export interface TrashResponse {
+  items: TrashItem[];
+  total: number;
+  totalInTrash: number;
+  stats: {
+    object_type: TrashObjectType;
+    count: number;
+  }[];
+}
+
+// =============================================================================
+// STYLES DE BLOCS (Éditeur riche admin)
+// =============================================================================
+
+export interface BlockStyle {
+  width?: number; // en %
+  height?: number; // en vh (image uniquement)
+  objectFit?: "cover" | "contain" | "fill";
+  align?: "left" | "center" | "right";
+  radius?: number; // px
+  shadow?: "none" | "sm" | "md" | "lg" | "xl";
+  padding?: number; // px
+  bg?: string; // couleur hex
+  border?: boolean;
 }

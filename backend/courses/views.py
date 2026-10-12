@@ -1,12 +1,18 @@
 from django.utils import timezone
+from datetime import timedelta
 from django.db.models import Avg
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt
-from .serializers import UESerializer, SessionSerializer, ChapterSerializer, QuizAttemptSerializer
+from .models import UE, Session, Chapter, Quiz, QuizQuestion, UserUEAccess, SessionProgress, QuizAttempt, UEReview
+from .serializers import UESerializer, SessionSerializer, ChapterSerializer, QuizAttemptSerializer, UEReviewSerializer
 from accounts.permissions import IsStaffOrSuperuser
 from notifications.utils import notify_quiz_passed
+from audit.trash_service import (
+    move_to_trash_ue,
+    move_to_trash_session,
+    move_to_trash_chapter,
+)
 
 class CourseCatalogView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -288,7 +294,15 @@ class StudentProgressOverviewView(APIView):
 
     def get(self, request):
         user = request.user
+        # Récupérer le délai de rétention configuré par l'admin
+        try:
+            from monetization.models import PlatformConfig
+            config = PlatformConfig.get_solo()
+            retention_days = config.activities_retention_days or 30
+        except Exception:
+            retention_days = 30
 
+        cutoff_date = timezone.now() - timedelta(days=retention_days)
         # UEs accessibles
         if user.role in ('SUPERUSER', 'STAFF') or user.is_superuser or user.is_staff or user.is_sponsored:
             user_ues = UE.objects.filter(is_published=True, is_suspended=False)
@@ -326,10 +340,28 @@ class StudentProgressOverviewView(APIView):
             })
 
         global_progress = min(100, round((total_completed_all / total_sessions_all) * 100)) if total_sessions_all > 0 else 0
+        # Compter les récompenses de parrainage disponibles
+        try:
+            from referrals.models import ReferralReward
+            available_rewards_count = ReferralReward.objects.filter(
+                user=user,
+                is_used=False,
+            ).exclude(
+                # Exclure les sponsorisations déjà activées
+                reward_type='sponsored_1m',
+                is_activated=True,
+            ).count()
+        except Exception:
+            available_rewards_count = 0
 
-        # Flux des activités récentes
+        # Flux des activités récentes (⭐ filtré par le délai configuré)
         recent_activities = []
-        for p in SessionProgress.objects.filter(user=user).select_related('session', 'ue').order_by('-last_accessed_at')[:5]:
+
+        # 1. Activités de type séance
+        for p in SessionProgress.objects.filter(
+            user=user,
+            last_accessed_at__gte=cutoff_date
+        ).select_related('session', 'ue').order_by('-last_accessed_at')[:5]:
             recent_activities.append({
                 'type': 'session',
                 'date': (p.completed_at or p.last_accessed_at).isoformat(),
@@ -338,7 +370,8 @@ class StudentProgressOverviewView(APIView):
                 'status': p.status
             })
 
-        for a in user_attempts.order_by('-submitted_at')[:5]:
+        # 2. Activités de type quiz
+        for a in user_attempts.filter(submitted_at__gte=cutoff_date).order_by('-submitted_at')[:5]:
             recent_activities.append({
                 'type': 'quiz',
                 'date': a.submitted_at.isoformat(),
@@ -347,6 +380,7 @@ class StudentProgressOverviewView(APIView):
                 'status': 'completed' if a.passed else 'in_progress'
             })
 
+        # Trier par date décroissante et limiter à 8
         recent_activities.sort(key=lambda x: x['date'], reverse=True)
         recent_activities = recent_activities[:8]
 
@@ -356,7 +390,8 @@ class StudentProgressOverviewView(APIView):
             'totalCompletedAll': total_completed_all,
             'totalQuizzesTaken': user_attempts.count(),
             'ueBreakdown': ue_breakdown,
-            'recentActivities': recent_activities
+            'recentActivities': recent_activities,
+            'availableRewardsCount': available_rewards_count,   # ⭐ NOUVEAU
         })
 
 
@@ -437,9 +472,32 @@ class AdminUEDeleteView(APIView):
         except UE.DoesNotExist:
             return Response({'error': 'UE introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-        ue.delete()
-        return Response({'success': True})
+        # ⭐ Déplacement vers la corbeille au lieu de suppression directe
+        try:
+            entry = move_to_trash_ue(ue, deleted_by=request.user)
 
+            try:
+                from audit.utils import log_audit
+                log_audit(
+                    action='UE_DELETE',
+                    resource=ue_id,
+                    details=f"UE « {entry.display_name} » déplacée vers la corbeille",
+                    user=request.user,
+                    ip=request.META.get('REMOTE_ADDR')
+                )
+            except Exception:
+                pass
+
+            return Response({
+                'success': True,
+                'message': "UE déplacée vers la corbeille. Elle sera récupérable pendant 30 jours.",
+                'trashId': entry.id,
+            })
+        except Exception as e:
+            return Response(
+                {'error': f"Erreur lors de la suppression : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class AdminSessionSaveView(APIView):
     permission_classes = [IsStaffOrSuperuser]
@@ -518,6 +576,11 @@ class AdminChapterSaveView(APIView):
             pdf_data = data.get('pdf') if isinstance(data.get('pdf'), dict) else {}
             flashcards_data = data.get('flashcards') if isinstance(data.get('flashcards'), list) else []
 
+                        # ⭐ Récupérer les styles de blocs (peut être un dict JSON)
+            blocks_style_data = data.get('summaryBlocksStyle')
+            if not isinstance(blocks_style_data, dict):
+                blocks_style_data = {}
+
             if chapter_id:
                 try:
                     chapter = Chapter.objects.get(id=chapter_id)
@@ -529,6 +592,10 @@ class AdminChapterSaveView(APIView):
                 chapter.order = chap_order
                 chapter.objectives = objectives
                 chapter.summary_text = summary_text
+                chapter.summary_html = str(data.get('summaryHtml') or '').strip()
+                if isinstance(data.get('summaryJson'), dict):
+                    chapter.summary_json = data.get('summaryJson')
+                chapter.summary_blocks_style = blocks_style_data  # ⭐ NOUVEAU
                 chapter.video = video_data
                 chapter.audio = audio_data
                 chapter.pdf = pdf_data
@@ -569,12 +636,14 @@ class AdminChapterSaveView(APIView):
                     objectives=objectives,
                     order=chap_order,
                     summary_text=summary_text,
+                    summary_html=str(data.get('summaryHtml') or '').strip(),
+                    summary_json=data.get('summaryJson') if isinstance(data.get('summaryJson'), dict) else {},
+                    summary_blocks_style=blocks_style_data,
                     video=video_data,
                     audio=audio_data,
                     pdf=pdf_data,
                     flashcards=flashcards_data
                 )
-
             # Gérer le quiz associé au chapitre
             quiz_data = data.get('quiz')
             if quiz_data is False or quiz_data is None:
@@ -630,9 +699,32 @@ class AdminChapterDeleteView(APIView):
         except Chapter.DoesNotExist:
             return Response({'error': 'Chapitre introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-        chapter.delete()
-        return Response({'success': True})
+        # ⭐ Déplacement vers la corbeille
+        try:
+            entry = move_to_trash_chapter(chapter, deleted_by=request.user)
 
+            try:
+                from audit.utils import log_audit
+                log_audit(
+                    action='CHAPTER_DELETE',
+                    resource=chapter_id,
+                    details=f"Chapitre « {entry.display_name} » déplacé vers la corbeille",
+                    user=request.user,
+                    ip=request.META.get('REMOTE_ADDR')
+                )
+            except Exception:
+                pass
+
+            return Response({
+                'success': True,
+                'message': "Chapitre déplacé vers la corbeille. Il sera récupérable pendant 30 jours.",
+                'trashId': entry.id,
+            })
+        except Exception as e:
+            return Response(
+                {'error': f"Erreur lors de la suppression : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class AdminUsersProgressView(APIView):
     """Permet au superuser et au staff autorisé de consulter la progression de tous les étudiants."""
@@ -876,5 +968,427 @@ class AdminSessionDeleteView(APIView):
         except Session.DoesNotExist:
             return Response({'error': 'Séance introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-        session.delete()
+        # ⭐ Déplacement vers la corbeille
+        try:
+            entry = move_to_trash_session(session, deleted_by=request.user)
+
+            try:
+                from audit.utils import log_audit
+                log_audit(
+                    action='SESSION_DELETE',
+                    resource=session_id,
+                    details=f"Séance « {entry.display_name} » déplacée vers la corbeille",
+                    user=request.user,
+                    ip=request.META.get('REMOTE_ADDR')
+                )
+            except Exception:
+                pass
+
+            return Response({
+                'success': True,
+                'message': "Séance déplacée vers la corbeille. Elle sera récupérable pendant 30 jours.",
+                'trashId': entry.id,
+            })
+        except Exception as e:
+            return Response(
+                {'error': f"Erreur lors de la suppression : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+# =============================================================================
+# AVIS SUR UE (UEReview)
+# =============================================================================
+
+class UEReviewsListView(APIView):
+    """Liste publique des avis visibles pour une UE."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, ue_id):
+        try:
+            ue = UE.objects.get(id=ue_id)
+        except UE.DoesNotExist:
+            return Response({'error': 'UE introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        reviews = UEReview.objects.filter(ue=ue, is_visible=True).select_related('user').order_by('-created_at')
+
+        # Stats agrégées
+        from django.db.models import Avg, Count
+        stats = reviews.aggregate(avg=Avg('rating'), count=Count('id'))
+
+        # Distribution des notes (1-5)
+        distribution = {str(i): 0 for i in range(1, 6)}
+        for r in reviews:
+            distribution[str(r.rating)] = distribution.get(str(r.rating), 0) + 1
+
+        serializer = UEReviewSerializer(reviews, many=True)
+
+        # Vérifier si l'user connecté peut laisser un avis
+        can_review = False
+        has_reviewed = False
+        my_review_id = None
+
+        if request.user and request.user.is_authenticated:
+            from .models import SessionProgress
+            # Vérifier que l'user a complété 100% de l'UE
+            total_sessions = ue.sessions.filter(is_published=True, is_suspended=False).count()
+            if total_sessions > 0:
+                completed = SessionProgress.objects.filter(
+                    user=request.user,
+                    ue=ue,
+                    status='completed'
+                ).count()
+                can_review = completed >= total_sessions
+
+            # Vérifier s'il a déjà laissé un avis
+            existing = UEReview.objects.filter(user=request.user, ue=ue).first()
+            if existing:
+                has_reviewed = True
+                my_review_id = existing.id
+                # S'il a déjà un avis mais caché, on le laisse modifier
+                if not existing.is_visible:
+                    can_review = True
+
+        return Response({
+            'reviews': serializer.data,
+            'stats': {
+                'averageRating': round(stats['avg'], 2) if stats['avg'] else None,
+                'totalReviews': stats['count'] or 0,
+                'distribution': distribution,
+            },
+            'canReview': can_review,
+            'hasReviewed': has_reviewed,
+            'myReviewId': my_review_id,
+        })
+
+
+class UEReviewSubmitView(APIView):
+    """Soumet ou met à jour un avis sur une UE. Restriction : 100% de l'UE terminée."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, ue_id):
+        user = request.user
+
+        try:
+            ue = UE.objects.get(id=ue_id)
+        except UE.DoesNotExist:
+            return Response({'error': 'UE introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # ⭐ Vérification CRITIQUE : l'étudiant doit avoir terminé 100% de l'UE
+        from .models import SessionProgress
+        total_sessions = ue.sessions.filter(is_published=True, is_suspended=False).count()
+        if total_sessions == 0:
+            return Response({
+                'error': "Cette UE n'a pas encore de séances publiées."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        completed = SessionProgress.objects.filter(
+            user=user,
+            ue=ue,
+            status='completed'
+        ).count()
+
+        if completed < total_sessions:
+            return Response({
+                'error': f"Vous devez terminer toutes les séances de l'UE avant de laisser un avis. Progression : {completed}/{total_sessions}."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        rating = request.data.get('rating')
+        comment = str(request.data.get('comment', '')).strip()
+
+        # Validation
+        try:
+            rating = int(rating)
+        except (ValueError, TypeError):
+            return Response({'error': 'Note invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if rating < 1 or rating > 5:
+            return Response({'error': 'La note doit être entre 1 et 5.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(comment) > 2000:
+            return Response({'error': 'Le commentaire est trop long (max 2000 caractères).'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Créer ou mettre à jour l'avis
+        review, created = UEReview.objects.update_or_create(
+            user=user,
+            ue=ue,
+            defaults={
+                'rating': rating,
+                'comment': comment,
+                'is_visible': True,  # Réafficher si modifié
+                'moderation_reason': '',  # Reset motif
+            }
+        )
+
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='UE_REVIEW_SUBMIT',
+                resource=ue.id,
+                details=f"{'Nouvel avis' if created else 'Modification avis'} sur {ue.code} : {rating}/5",
+                user=user,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        return Response({
+            'success': True,
+            'review': UEReviewSerializer(review).data,
+            'isNew': created,
+        })
+
+
+class UEReviewDeleteView(APIView):
+    """Supprime son propre avis sur une UE."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, review_id):
+        try:
+            review = UEReview.objects.get(id=review_id)
+        except UEReview.DoesNotExist:
+            return Response({'error': 'Avis introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if review.user_id != request.user.id:
+            return Response({'error': 'Vous ne pouvez supprimer que votre propre avis.'}, status=status.HTTP_403_FORBIDDEN)
+
+        review.delete()
         return Response({'success': True})
+
+
+# =============================================================================
+# MODÉRATION DES AVIS (Admin)
+# =============================================================================
+
+class AdminUEReviewsListView(APIView):
+    """Liste tous les avis pour modération."""
+    permission_classes = [IsStaffOrSuperuser]
+
+    def get(self, request):
+        qs = UEReview.objects.all().select_related('user', 'ue').order_by('-created_at')
+
+        # Filtres
+        ue_filter = request.GET.get('ueId')
+        if ue_filter:
+            qs = qs.filter(ue_id=ue_filter)
+
+        visibility = request.GET.get('visibility')
+        if visibility == 'visible':
+            qs = qs.filter(is_visible=True)
+        elif visibility == 'hidden':
+            qs = qs.filter(is_visible=False)
+
+        search = request.GET.get('q', '').strip()
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(
+                Q(user__phone__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(comment__icontains=search) |
+                Q(ue__code__icontains=search)
+            )
+
+        serializer = UEReviewSerializer(qs[:500], many=True)
+        return Response({
+            'reviews': serializer.data,
+            'total': qs.count(),
+        })
+
+
+class AdminUEReviewToggleVisibilityView(APIView):
+    """Masque ou réaffiche un avis."""
+    permission_classes = [IsStaffOrSuperuser]
+
+    def put(self, request, review_id):
+        try:
+            review = UEReview.objects.get(id=review_id)
+        except UEReview.DoesNotExist:
+            return Response({'error': 'Avis introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        review.is_visible = not review.is_visible
+        review.moderation_reason = str(request.data.get('reason', '')).strip() if not review.is_visible else ''
+        review.save()
+
+        return Response({
+            'success': True,
+            'isVisible': review.is_visible,
+        })
+
+
+class AdminUEReviewDeleteView(APIView):
+    """Supprime un avis (admin)."""
+    permission_classes = [IsStaffOrSuperuser]
+
+    def delete(self, request, review_id):
+        try:
+            review = UEReview.objects.get(id=review_id)
+        except UEReview.DoesNotExist:
+            return Response({'error': 'Avis introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        review.delete()
+        return Response({'success': True})
+
+# =============================================================================
+# UPLOAD CLOUDINARY
+# =============================================================================
+
+class CloudinarySignatureView(APIView):
+    """
+    Génère une signature pour upload direct depuis le frontend.
+    Sécurisé : seul le STAFF/SUPERUSER avec permission 'courses' peut uploader.
+    """
+    permission_classes = [IsStaffOrSuperuser]
+
+    def post(self, request):
+        from .cloudinary_service import generate_upload_signature, is_cloudinary_configured
+
+        if not is_cloudinary_configured():
+            return Response({
+                'error': "Cloudinary n'est pas configuré sur le serveur. Vérifiez les variables d'environnement."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        resource_type = request.data.get('resourceType', 'video')
+        if resource_type not in ('video', 'image', 'raw'):
+            resource_type = 'video'
+
+        folder = request.data.get('folder', 'ulstudyflow/chapters')
+
+        try:
+            signature_data = generate_upload_signature(
+                resource_type=resource_type,
+                folder=folder,
+            )
+            return Response(signature_data)
+        except Exception as e:
+            return Response(
+                {'error': f"Erreur signature : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CloudinaryUploadView(APIView):
+    """
+    Upload direct côté serveur (fallback si le front ne peut pas uploader directement).
+    Reçoit un fichier en multipart/form-data.
+    """
+    permission_classes = [IsStaffOrSuperuser]
+
+    def post(self, request):
+        from .cloudinary_service import upload_media, is_cloudinary_configured
+
+        if not is_cloudinary_configured():
+            return Response({
+                'error': "Cloudinary n'est pas configuré sur le serveur."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response(
+                {'error': 'Aucun fichier fourni.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        resource_type = request.data.get('resourceType', 'video')
+        folder = request.data.get('folder', 'ulstudyflow/chapters')
+        tags = request.data.getlist('tags') if hasattr(request.data, 'getlist') else None
+
+        result = upload_media(
+            file_obj=file_obj,
+            resource_type=resource_type,
+            folder=folder,
+            tags=tags,
+        )
+
+        if not result.get('success'):
+            return Response(
+                {'error': result.get('error', 'Erreur upload')},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='CLOUDINARY_UPLOAD',
+                resource=result.get('public_id', ''),
+                details=f"Upload {resource_type} ({result.get('bytes', 0)} bytes)",
+                user=request.user,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        return Response(result)
+
+
+class SecureVideoURLView(APIView):
+    """
+    Génère une URL vidéo signée + watermark dynamique pour l'étudiant connecté.
+    Utilisée au moment de la lecture de la vidéo par un étudiant.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, chapter_id):
+        from .cloudinary_service import build_secure_video_url
+
+        try:
+            chapter = Chapter.objects.get(id=chapter_id)
+        except Chapter.DoesNotExist:
+            return Response({'error': 'Chapitre introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Récupérer l'URL vidéo du chapitre
+        video_data = chapter.video or {}
+        video_url = video_data.get('url', '')
+
+        if not video_url:
+            return Response({'error': 'Aucune vidéo pour ce chapitre.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Extraire le public_id Cloudinary de l'URL
+        public_id = _extract_cloudinary_public_id(video_url)
+
+        if not public_id:
+            # Si ce n'est pas une URL Cloudinary (ex: YouTube), on retourne l'URL telle quelle
+            return Response({
+                'url': video_url,
+                'watermarked': False,
+                'isCloudinary': False,
+            })
+
+        # Générer l'URL signée avec watermark
+        try:
+            secure_url = build_secure_video_url(public_id, request.user)
+            if not secure_url:
+                return Response({'url': video_url, 'watermarked': False, 'isCloudinary': True})
+
+            return Response({
+                'url': secure_url,
+                'watermarked': True,
+                'isCloudinary': True,
+                'expiresIn': 3600,
+            })
+        except Exception as e:
+            return Response(
+                {'error': f"Erreur génération URL sécurisée : {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+def _extract_cloudinary_public_id(url):
+    """Extrait le public_id d'une URL Cloudinary."""
+    if not url or 'cloudinary.com' not in url:
+        return None
+
+    try:
+        # Format : https://res.cloudinary.com/cloud_name/video/upload/v1234/folder/file.mp4
+        parts = url.split('/upload/')
+        if len(parts) < 2:
+            return None
+
+        path = parts[1]
+        # Retirer le préfixe de version (v1234/)
+        if path.startswith('v'):
+            path = path.split('/', 1)[1] if '/' in path else path
+
+        # Retirer l'extension
+        public_id = path.rsplit('.', 1)[0]
+        return public_id
+    except Exception:
+        return None

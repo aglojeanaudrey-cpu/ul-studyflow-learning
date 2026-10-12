@@ -52,6 +52,8 @@ class ReferralSerializer(serializers.ModelSerializer):
 
 class ReferralRewardSerializer(serializers.ModelSerializer):
     rewardLabel = serializers.CharField(source='get_reward_type_display', read_only=True)
+    isSponsorshipActive = serializers.SerializerMethodField()
+    daysRemainingSponsorship = serializers.SerializerMethodField()
 
     class Meta:
         model = ReferralReward
@@ -59,4 +61,13 @@ class ReferralRewardSerializer(serializers.ModelSerializer):
             'id', 'reward_type', 'rewardLabel', 'milestone',
             'promo_code', 'granted_at', 'expires_at',
             'is_used', 'used_at',
+            # ⭐ Sponsorisation
+            'is_activated', 'activated_at', 'sponsorship_expires_at',
+            'isSponsorshipActive', 'daysRemainingSponsorship',
         ]
+
+    def get_isSponsorshipActive(self, obj):
+        return obj.is_sponsorship_active
+
+    def get_daysRemainingSponsorship(self, obj):
+        return obj.days_remaining_sponsorship
