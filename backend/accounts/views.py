@@ -64,7 +64,7 @@ class RegisterView(APIView):
         except Exception as e:
             print(f"[accounts] Erreur notif welcome : {e}")
 
-                # ⭐ Créer le code de parrainage de ce nouvel utilisateur
+        # ⭐ Créer le code de parrainage de ce nouvel utilisateur
         try:
             from referrals.models import ReferralCode
             ReferralCode.objects.create(user=user)
@@ -129,11 +129,12 @@ class RegisterView(APIView):
         response.set_cookie(
             'ulsf_session',
             token_key,
-            httponly=True,               # 🔒 JS ne peut pas lire
-            secure=not settings.DEBUG,   # 🔒 HTTPS en prod, HTTP en local
-            samesite='Lax',              # 🛡️ anti-CSRF
-            max_age=7 * 24 * 60 * 60,    # 7 jours
-            path='/'
+            httponly=True,
+            secure=True,             # ⭐ toujours True en prod
+            samesite='None',         # ⭐ CRITIQUE : permet le cross-origin
+            max_age=7 * 24 * 60 * 60,
+            path='/',
+            domain=None,             # ⭐ laisse Django gérer le domaine
         )
 
 class LoginView(APIView):
@@ -207,10 +208,10 @@ class LoginView(APIView):
             'ulsf_session',
             token.key,
             httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax',
+            secure=True,
+            samesite='None',
             max_age=7 * 24 * 60 * 60,
-            path='/'
+            path='/',
         )
         return response
 

@@ -149,7 +149,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Headers configuration
-APP_URL = os.getenv('APP_URL', 'http://localhost:5173').rstrip('/')
+APP_URL = os.getenv('APP_URL', 'https://ul-studyflow-learning.pages.dev').rstrip('/')
 CORS_ALLOWED_ORIGINS = [
     APP_URL,
 ]
@@ -203,11 +203,15 @@ X_FRAME_OPTIONS = 'DENY'
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = 'None'   # CRITIQUE : permet le cross-origin
 CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = 'None' 
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'https://ul-studyflow-learning.pages.dev',       # domaine Cloudflare
+    'https://ul-studyflow-learning.onrender.com', # domaine render
     APP_URL,
 ]
 
