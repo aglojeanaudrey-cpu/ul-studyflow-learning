@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { api } from "../../lib/api";
 import { AppNotification } from "../../types";
+import { useRealtimeNotifications } from "../../hooks/useRealtimeNotifications";
+import { useAuth } from "../../context/AuthContext";
 
 interface NotificationBellProps {
   onNavigate?: (tab: string) => void;
@@ -25,15 +27,12 @@ interface NotificationBellProps {
 export const NotificationBell: React.FC<NotificationBellProps> = ({
   onNavigate,
 }) => {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  // Polling adaptatif
-  const [isTabVisible, setIsTabVisible] = useState<boolean>(
-    typeof document !== "undefined" ? !document.hidden : true,
-  );
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: "single" | "all";
     id?: string;
@@ -52,35 +51,24 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     }
   };
 
-  // ⭐ Détecter la visibilité de l'onglet (Visibility API)
+  // ⭐ Chargement initial au montage
   useEffect(() => {
-    const handleVisibility = () => {
-      setIsTabVisible(!document.hidden);
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
+    fetchNotifications();
   }, []);
 
-  // ⭐ Polling adaptatif :
-  //   - Onglet visible  → toutes les 30s (messages quasi-temps réel)
-  //   - Onglet caché    → toutes les 5 min (économie serveur)
-  //   - Dropdown ouvert → immédiat + refresh toutes les 15s
-  useEffect(() => {
-    // Premier fetch immédiat
-    fetchNotifications();
-
-    let intervalMs = 30000; // 30s par défaut
-    if (!isTabVisible) {
-      intervalMs = 300000; // 5 min si onglet caché
-    } else if (isOpen) {
-      intervalMs = 15000; // 15s si le dropdown est ouvert
-    }
-
-    const interval = setInterval(fetchNotifications, intervalMs);
-    return () => clearInterval(interval);
-  }, [isTabVisible, isOpen]);
+  // ⭐ Realtime : reçoit les notifications en push
+  const { isConnected } = useRealtimeNotifications({
+    user,
+    onNewNotification: (notif) => {
+      setNotifications((prev) => {
+        // Anti-doublon (plusieurs onglets ou fallback)
+        if (prev.some((n) => n.id === notif.id)) return prev;
+        return [{ ...notif, isRead: false }, ...prev];
+      });
+      setUnreadCount((prev) => prev + 1);
+    },
+    onRefreshNeeded: fetchNotifications,
+  });
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -165,9 +153,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     }
     if (notif.actionUrl && onNavigate) {
       // Retire le slash initial s'il existe
-      const cleanTab = notif.actionUrl.startsWith("/")
-        ? notif.actionUrl.slice(1)
-        : notif.actionUrl;
+      const cleanTab = notif.actionUrl.replace(/^\/+/, "");
       onNavigate(cleanTab);
       setIsOpen(false);
     }
@@ -251,7 +237,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       >
         <Bell className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center shadow-xs animate-pulse">
+          <span className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 px-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center shadow-xs animate-pulse">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -259,7 +245,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
       {/* Notifications Popover Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[340px] sm:w-[420px] bg-white dark:bg-[#111B21] rounded-3xl shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] z-50 overflow-hidden flex flex-col max-h-[520px] animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="absolute right-0 mt-2 w-85 sm:w-105 bg-white dark:bg-[#111B21] rounded-3xl shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] z-50 overflow-hidden flex flex-col max-h-130 animate-in fade-in slide-in-from-top-2 duration-150">
           {/* Header */}
           <div className="p-4 bg-[#075E54] dark:bg-[#1F2C34] text-white flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -270,7 +256,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                 <h3 className="text-sm font-bold leading-tight">
                   Notifications Internes
                 </h3>
-                <p className="text-[10px] text-emerald-200">
+                <p className="text-[10px] text-emerald-200 flex items-center gap-1">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      isConnected
+                        ? "bg-[#25D366] animate-pulse"
+                        : "bg-amber-400"
+                    }`}
+                    title={
+                      isConnected ? "Temps réel actif" : "Reconnexion en cours"
+                    }
+                  />
                   {unreadCount > 0
                     ? `${unreadCount} non lue(s)`
                     : "Toutes les alertes sont lues"}
@@ -446,7 +442,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
       {/* ⭐ Modal de confirmation de suppression */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
             <div className="flex items-start gap-3">
               <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950 text-rose-600 flex items-center justify-center shrink-0">

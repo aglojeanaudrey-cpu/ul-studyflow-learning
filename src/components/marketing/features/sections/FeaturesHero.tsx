@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   ArrowDown,
   GitCompare,
@@ -8,9 +8,9 @@ import {
   Headphones,
   Verified,
   FileDown,
-} from 'lucide-react';
-import { Container } from '../../ui/Container';
-import heroImage from '@/src/assets/images/hero_ul_student_1790533845064.jpg';
+} from "lucide-react";
+import { Container } from "../../ui/Container";
+import heroImage from "@/src/assets/images/hero_ul_student_fonctionnalite.jpg";
 
 interface FeaturesHeroProps {
   onGetStarted: () => void;
@@ -18,13 +18,13 @@ interface FeaturesHeroProps {
 
 export const FeaturesHero: React.FC<FeaturesHeroProps> = ({ onGetStarted }) => {
   const scrollToPillars = () => {
-    const el = document.getElementById('piliers');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const el = document.getElementById("piliers");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const scrollToReality = () => {
-    const el = document.getElementById('campus-reality');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const el = document.getElementById("campus-reality");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -37,13 +37,14 @@ export const FeaturesHero: React.FC<FeaturesHeroProps> = ({ onGetStarted }) => {
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#075E54] dark:text-[#25D366]">
               <span className="w-2 h-2 rounded-full bg-[#25D366]" />
               <span className="text-xs font-bold uppercase tracking-wider">
-                Conçu pour les etudiants de l'Université de Lomé • 100% adapté au système LMD
+                Conçu pour les etudiants de l'Université de Lomé • 100% adapté
+                au système LMD
               </span>
             </div>
 
             {/* Titre principal */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-[#111B21] dark:text-white tracking-tight leading-tight">
-              Toutes les fonctionnalités pour réussir ton semestre{' '}
+              Toutes les fonctionnalités pour réussir ton semestre{" "}
               <span className="text-[#075E54] dark:text-[#25D366] underline decoration-[#25D366] decoration-wavy decoration-2 underline-offset-4">
                 sans stress
               </span>
@@ -52,9 +53,9 @@ export const FeaturesHero: React.FC<FeaturesHeroProps> = ({ onGetStarted }) => {
 
             {/* Sous-titre */}
             <p className="text-base sm:text-lg text-[#667781] dark:text-[#8696A0] max-w-2xl leading-relaxed">
-              Des outils pédagogiques pensés pour les réalités du campus de
-              Lomé : révision hors-connexion, fiches ultra-condensées, cours
-              audio podcast, QCM corrigés et micro-paiement T-Money / Flooz.
+              Des outils pédagogiques pensés pour les réalités du campus de Lomé
+              : révision hors-connexion, fiches ultra-condensées, cours audio
+              podcast, QCM corrigés et micro-paiement T-Money / Flooz.
             </p>
 
             {/* Badges réassurance */}

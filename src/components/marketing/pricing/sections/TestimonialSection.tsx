@@ -1,7 +1,7 @@
-import React from 'react';
-import { Star, TrendingDown, TrendingUp, Quote, PiggyBank } from 'lucide-react';
-import { Container } from '../../ui/Container';
-import campusImage from '@/src/assets/images/campus_university_lome_1790533866163.jpg';
+import React from "react";
+import { Star, TrendingDown, TrendingUp, Quote, PiggyBank } from "lucide-react";
+import { Container } from "../../ui/Container";
+import Afiwa from "@/src/assets/images/afiwa.jpg";
 
 export const TestimonialSection: React.FC = () => {
   return (
@@ -15,7 +15,7 @@ export const TestimonialSection: React.FC = () => {
           <div className="lg:col-span-5 relative">
             <div className="relative rounded-2xl overflow-hidden shadow-lg border border-[#25D366]/30">
               <img
-                src={campusImage}
+                src={Afiwa}
                 alt="Étudiante de l'Université de Lomé sur le campus"
                 className="w-full h-[420px] object-cover object-center"
                 referrerPolicy="no-referrer"

@@ -32,6 +32,7 @@ import { ReferralView } from "./components/student/ReferralView";
 import { PageProgressBar } from "./components/ui/PageProgressBar";
 import { AppSplashScreen } from "./components/ui/AppSplashScreen";
 import { useLoading } from "./context/LoadingContext";
+import { PartnershipModal } from "./components/marketing/PartnershipModal";
 
 // Mobile Bottom Nav Icons
 import {
@@ -58,9 +59,9 @@ function AppContent() {
   const [aiContextSessionId, setAiContextSessionId] = useState<
     string | undefined
   >(undefined);
-  // ⭐ Mémorise l'onglet précédent quand on ouvre l'IA (pour y retourner à la fermeture)
+  // Mémorise l'onglet précédent quand on ouvre l'IA (pour y retourner à la fermeture)
   const [previousTab, setPreviousTab] = useState<string | null>(null);
-  // ⭐ Code promo en attente (depuis Mon Parrainage → déblocage UE)
+  // Code promo en attente (depuis Mon Parrainage → déblocage UE)
   const [pendingPromoCode, setPendingPromoCode] = useState<string | null>(null);
   // Modals State
   const [loginOpen, setLoginOpen] = useState(false);
@@ -69,6 +70,7 @@ function AppContent() {
   const [legalModalType, setLegalModalType] = useState<
     "privacy" | "terms" | null
   >(null);
+  const [partnershipOpen, setPartnershipOpen] = useState(false);
 
   // Public Form State
   const [publicFormId] = useState<string | null>(() => {
@@ -234,19 +236,34 @@ function AppContent() {
       );
     }
 
-    // 1. Administration Mode
-    if (currentTab === "admin") {
-      // ⭐ GARDE : SUPERUSER ou STAFF uniquement
+    // 1. Administration Mode (inclut les sous-routes admin/xxx)
+    if (currentTab === "admin" || currentTab.startsWith("admin/")) {
       if (!user || (user.role !== "SUPERUSER" && user.role !== "STAFF")) {
         return (
           <HeroSection
-            onGetStarted={() => setRegisterOpen(true)}
-            onExploreCourses={() => setCurrentTab("features")}
+            onGetStarted={() =>
+              user ? setCurrentTab("student_home") : setRegisterOpen(true)
+            }
+            onExploreCourses={() => {
+              if (user) {
+                setCurrentTab("student_courses");
+              } else {
+                setCurrentTab("features");
+              }
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
           />
         );
       }
+
+      // Extraire la sous-section (ex: "admin/partnerships" → "partnerships")
+      const adminSubSection = currentTab.includes("/")
+        ? currentTab.split("/").slice(1).join("/")
+        : "dashboard";
+
       return (
         <AdminView
+          initialSection={adminSubSection}
           onBackToStudent={() => {
             setCurrentTab("student_home");
             window.scrollTo({ top: 0, behavior: "smooth" });
@@ -372,12 +389,14 @@ function AppContent() {
             }
           />
         );
+      // Dans App.tsx, cas "about"
       case "about":
         return (
           <AboutPage
             onGetStarted={() =>
               user ? setCurrentTab("student_home") : setRegisterOpen(true)
             }
+            onContactClick={() => setPartnershipOpen(true)}
           />
         );
       case "home":
@@ -541,6 +560,11 @@ function AppContent() {
       <ContactModal
         isOpen={contactOpen}
         onClose={() => setContactOpen(false)}
+      />
+      {/* Partnership Modal */}
+      <PartnershipModal
+        isOpen={partnershipOpen}
+        onClose={() => setPartnershipOpen(false)}
       />
 
       {/* Legal Modal */}

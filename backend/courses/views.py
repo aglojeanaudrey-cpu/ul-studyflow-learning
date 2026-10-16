@@ -1321,71 +1321,120 @@ class CloudinaryUploadView(APIView):
 
 class SecureVideoURLView(APIView):
     """
-    Génère une URL vidéo signée + watermark dynamique pour l'étudiant connecté.
-    Utilisée au moment de la lecture de la vidéo par un étudiant.
+    Génère une URL signée + watermark pour le média d'un chapitre.
+    Vérifie que l'étudiant a bien accès à l'UE avant de générer.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, chapter_id):
-        from .cloudinary_service import build_secure_video_url
+        from .cloudinary_service import (
+            build_secure_video_url,
+            build_watermarked_audio_url,
+            build_watermarked_pdf_url,
+            is_cloudinary_configured,
+        )
+        from .models import SessionProgress  # ⭐ pour vérifier accès
 
         try:
-            chapter = Chapter.objects.get(id=chapter_id)
+            chapter = Chapter.objects.select_related('session', 'session__ue').get(id=chapter_id)
         except Chapter.DoesNotExist:
             return Response({'error': 'Chapitre introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Récupérer l'URL vidéo du chapitre
-        video_data = chapter.video or {}
-        video_url = video_data.get('url', '')
+        user = request.user
+        ue = chapter.session.ue
 
-        if not video_url:
-            return Response({'error': 'Aucune vidéo pour ce chapitre.'}, status=status.HTTP_404_NOT_FOUND)
+        # ⭐ VÉRIFICATION D'ACCÈS : staff, sponsorisé, 1ère séance, ou UE débloquée
+        from .models import UserUEAccess
+        is_staff = user.role in ('SUPERUSER', 'STAFF') or user.is_staff or user.is_superuser
+        is_sponsored = bool(getattr(user, 'is_sponsored', False))
+        is_first_session = chapter.session.session_number == 1
 
-        # Extraire le public_id Cloudinary de l'URL
-        public_id = _extract_cloudinary_public_id(video_url)
+        has_access = False
+        if is_staff or is_sponsored or is_first_session:
+            has_access = True
+        else:
+            access = UserUEAccess.objects.filter(
+                user=user, ue=ue, status='active'
+            ).first()
+            if access and not access.is_expired:
+                has_access = True
 
-        if not public_id:
-            # Si ce n'est pas une URL Cloudinary (ex: YouTube), on retourne l'URL telle quelle
-            return Response({
-                'url': video_url,
-                'watermarked': False,
-                'isCloudinary': False,
-            })
-
-        # Générer l'URL signée avec watermark
-        try:
-            secure_url = build_secure_video_url(public_id, request.user)
-            if not secure_url:
-                return Response({'url': video_url, 'watermarked': False, 'isCloudinary': True})
-
-            return Response({
-                'url': secure_url,
-                'watermarked': True,
-                'isCloudinary': True,
-                'expiresIn': 3600,
-            })
-        except Exception as e:
+        if not has_access:
             return Response(
-                {'error': f"Erreur génération URL sécurisée : {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {'error': "Vous n'avez pas accès à ce contenu. Faites une demande de déblocage."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
+        if not is_cloudinary_configured():
+            return Response(
+                {'error': "Cloudinary non configuré."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # ⭐ Récupérer les infos média du chapitre
+        video_data = chapter.video or {}
+        audio_data = chapter.audio or {}
+        pdf_data = chapter.pdf or {}
+
+        result = {}
+
+        # Vidéo (prioritaire)
+        if video_data.get('public_id'):
+            secure_url = build_secure_video_url(video_data['public_id'], user)
+            if secure_url:
+                result['videoUrl'] = secure_url
+                result['videoWatermarked'] = True
+
+        # Audio
+        if audio_data.get('public_id'):
+            audio_url = build_watermarked_audio_url(audio_data['public_id'], user)
+            if audio_url:
+                result['audioUrl'] = audio_url
+
+        # PDF
+        if pdf_data.get('public_id'):
+            pdf_url = build_watermarked_pdf_url(pdf_data['public_id'], user)
+            if pdf_url:
+                result['pdfUrl'] = pdf_url
+
+        if not result:
+            return Response(
+                {'error': "Aucun média Cloudinary disponible pour ce chapitre."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Métadonnées
+        result['expiresIn'] = 7200  # 2h
+        result['watermarkText'] = f"{user.first_name} {user.last_name} · {getattr(user, 'display_phone', user.phone)}"
+
+        return Response(result)
 
 def _extract_cloudinary_public_id(url):
-    """Extrait le public_id d'une URL Cloudinary."""
+    """
+    Extrait le public_id d'une URL Cloudinary.
+    Gère les formats : /upload/, /authenticated/, /private/
+    """
     if not url or 'cloudinary.com' not in url:
         return None
 
     try:
-        # Format : https://res.cloudinary.com/cloud_name/video/upload/v1234/folder/file.mp4
-        parts = url.split('/upload/')
-        if len(parts) < 2:
+        # Retirer les query params (?v=xxx)
+        url_clean = url.split('?')[0]
+
+        # Chercher le marqueur de type de delivery
+        for marker in ['/authenticated/', '/upload/', '/private/']:
+            if marker in url_clean:
+                path = url_clean.split(marker, 1)[1]
+                break
+        else:
             return None
 
-        path = parts[1]
         # Retirer le préfixe de version (v1234/)
-        if path.startswith('v'):
-            path = path.split('/', 1)[1] if '/' in path else path
+        if path.startswith('v') and '/' in path:
+            # Vérifier que c'est bien une version (v + chiffres)
+            first_segment = path.split('/', 1)[0]
+            if first_segment[1:].isdigit():
+                path = path.split('/', 1)[1]
 
         # Retirer l'extension
         public_id = path.rsplit('.', 1)[0]

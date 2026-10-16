@@ -75,29 +75,38 @@ export interface UE {
   averageRating?: number | null;
 }
 
+// ⭐ Type commun pour tous les médias d'un chapitre (vidéo, audio, PDF)
+// Placé EN PREMIER pour être utilisé partout
+export interface MediaInfo {
+  title?: string;
+  /** Peut être null si le média est protégé par Cloudinary (URL signée requise) */
+  url?: string | null;
+  duration?: string;
+  speaker?: string;
+  driveFileUrl?: string;
+  /** Providers supportés (rétrocompat incluse) */
+  provider?: "cloudinary" | "external" | "embed" | "mp4" | "youtube";
+  public_id?: string | null;
+  thumbnail_url?: string;
+  isProtected?: boolean;
+  // PDF spécifique
+  pages?: number;
+  sizeMb?: number;
+  summaryMarkdown?: string;
+  // Métadonnées génériques
+  format?: string;
+  bytes?: number;
+  width?: number;
+  height?: number;
+}
+
+// ⭐ Rétrocompat : SessionContent est un alias de MediaInfo
+// (ancien nom utilisé dans certains composants)
 export interface SessionContent {
-  summaryText: string;
-  video?: {
-    title: string;
-    url: string;
-    duration: string;
-    provider: "embed" | "mp4" | "youtube";
-    driveFileUrl?: string;
-  };
-  audio?: {
-    title: string;
-    url: string;
-    duration: string;
-    speaker: string;
-    driveFileUrl?: string;
-  };
-  pdf?: {
-    title: string;
-    url: string;
-    pages: number;
-    sizeMb: number;
-    summaryMarkdown: string;
-  };
+  summaryText?: string;
+  video?: MediaInfo;
+  audio?: MediaInfo;
+  pdf?: MediaInfo;
 }
 
 export interface QuizQuestion {
@@ -134,38 +143,23 @@ export interface Chapter {
   title: string;
   objectives?: string;
   order?: number;
-  summaryText?: string; // legacy markdown
-  summaryHtml?: string; // HTML TipTap
-  summaryJson?: any; // JSON TipTap (structure complète)
-  effectiveContent?: string; // HTML prioritaire (calculé backend)
-  hasRichContent?: boolean; // Vrai si JSON TipTap présen
-  summaryBlocksStyle?: Record<string, BlockStyle>; // Styles de blocs appliqués par l'admin
-  video?: {
-    title: string;
-    url: string;
-    duration?: string;
-    provider?: "embed" | "mp4" | "youtube" | "cloudinary" | "external";
-    driveFileUrl?: string;
-    thumbnail_url?: string;
-  };
-  audio?: {
-    title: string;
-    url: string;
-    duration?: string;
-    speaker?: string;
-    driveFileUrl?: string;
-    provider?: "cloudinary" | "external";
-  };
-  pdf?: {
-    title: string;
-    url?: string;
-    pages?: number;
-    sizeMb?: number;
-    summaryMarkdown?: string;
-  };
+  summaryText?: string;
+  summaryHtml?: string;
+  summaryJson?: any;
+  summaryBlocksStyle?: Record<string, any>;
+  // ⭐ Utilise MediaInfo (types unifiés)
+  video?: MediaInfo;
+  audio?: MediaInfo;
+  pdf?: MediaInfo;
   flashcards?: Flashcard[];
-  quiz?: Quiz;
-  hasQuiz?: boolean;
+  quiz?: any;
+  // Legacy (rétrocompat)
+  content?: {
+    summaryText?: string;
+    video?: MediaInfo;
+    audio?: MediaInfo;
+    pdf?: MediaInfo;
+  };
 }
 
 export interface Session {

@@ -105,8 +105,8 @@ export const SecureAudioPlayer: React.FC<SecureAudioPlayerProps> = ({
           audioRef.current && setDuration(audioRef.current.duration)
         }
         onEnded={() => setPlaying(false)}
-        controlsList="nodownload"
         preload="metadata"
+        style={{ display: "none" }}
       />
 
       {/* Header */}
@@ -187,12 +187,11 @@ export const SecureAudioPlayer: React.FC<SecureAudioPlayerProps> = ({
         </div>
       </div>
 
-      {/* Watermark visible */}
+      {/* Watermark dans le player (info-bulle flottante) */}
       {isProtected && watermarkName && (
-        <p className="text-[10px] text-blue-700/50 dark:text-blue-300/40 font-mono text-center">
-          🔒 Contenu protégé · {watermarkName} ·{" "}
-          {new Date().toLocaleDateString("fr-FR")}
-        </p>
+        <div className="absolute top-2 right-2 px-2 py-1 bg-black/40 backdrop-blur-sm rounded-lg pointer-events-none">
+          <p className="text-[9px] text-white/70 font-mono">{watermarkName}</p>
+        </div>
       )}
     </div>
   );

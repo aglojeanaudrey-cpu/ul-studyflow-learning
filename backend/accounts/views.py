@@ -5,7 +5,6 @@ from django.middleware.csrf import get_token
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-
 from .throttles import LoginRateThrottle, RegisterRateThrottle
 from .models import User, AuthToken
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
@@ -143,7 +142,7 @@ class RegisterView(APIView):
     def _set_auth_cookie(response, token_key):
         """Helper centralisé pour poser le cookie de session."""
         response.set_cookie(
-            'ulsf_session',
+            'ulsf_session_v2',
             token_key,               # ⭐ Utiliser token_key (paramètre)
             httponly=True,
             secure=True,
@@ -226,7 +225,7 @@ class LoginView(APIView):
         })
 
         response.set_cookie(
-            'ulsf_session',
+            'ulsf_session_v2',
             token.key,
             httponly=True,
             secure=True,
@@ -259,7 +258,7 @@ class LogoutView(APIView):
 
         # 2. Supprimer le cookie côté navigateur
         response = Response({'success': True})
-        response.delete_cookie('ulsf_session', path='/')
+        response.delete_cookie('ulsf_session_v2', path='/')
         return response
 
 
@@ -617,4 +616,83 @@ class AdminUserAccessView(APIView):
             'ueId': ue_id,
             'status': access.status,
             'grantedUeIds': granted_ids,
+        })
+
+
+# =============================================================================
+# MODIFICATION DE PROFIL (Self-service)
+# =============================================================================
+
+class UpdateProfileView(APIView):
+    """
+    Permet à l'utilisateur connecté de modifier ses propres informations.
+    Champs modifiables : firstName, lastName, email, department, program, level, password.
+    Ne permet PAS de modifier : role, isActive, isSponsored, admin_permissions.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        data = request.data
+
+        # Prénom / Nom
+        first_name = data.get('firstName')
+        if first_name is not None and str(first_name).strip():
+            user.first_name = str(first_name).strip()
+
+        last_name = data.get('lastName')
+        if last_name is not None and str(last_name).strip():
+            user.last_name = str(last_name).strip()
+
+        # Email
+        if 'email' in data:
+            new_email = (data.get('email') or '').strip()
+            user.email = new_email if new_email else None
+
+        # Département / Filière / Niveau
+        if 'department' in data and data.get('department'):
+            user.department = str(data.get('department')).strip()
+
+        if 'program' in data and data.get('program'):
+            user.program = str(data.get('program')).strip()
+
+        if 'level' in data and data.get('level') in ('L1', 'L2', 'L3'):
+            user.level = data.get('level')
+
+        # Mot de passe (optionnel)
+        new_password = data.get('newPassword')
+        current_password = data.get('currentPassword')
+
+        if new_password:
+            if len(str(new_password).strip()) < 6:
+                return Response(
+                    {'error': 'Le nouveau mot de passe doit faire au moins 6 caractères.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Vérifier l'ancien mot de passe
+            if not current_password or not user.check_password(current_password):
+                return Response(
+                    {'error': 'Mot de passe actuel incorrect.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.set_password(str(new_password).strip())
+
+        user.save()
+
+        # Audit log
+        try:
+            from audit.utils import log_audit
+            log_audit(
+                action='USER_PROFILE_UPDATE',
+                resource=user.id,
+                details=f"Mise à jour profil par {user.phone}",
+                user=user,
+                ip=request.META.get('REMOTE_ADDR')
+            )
+        except Exception:
+            pass
+
+        return Response({
+            'success': True,
+            'user': UserSerializer(user).data,
         })

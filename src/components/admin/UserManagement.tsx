@@ -71,6 +71,17 @@ const ALL_ADMIN_PERMISSIONS = [
     label: "Publicités & Annonces",
     desc: "Création et gestion des popups ciblés (annonces, promos, pubs)",
   },
+  // ⭐ NOUVELLES PERMISSIONS
+  {
+    id: "partnerships",
+    label: "Partenariats",
+    desc: "Demandes de délégués souhaitant rejoindre le projet",
+  },
+  {
+    id: "contacts",
+    label: "Messages de Contact",
+    desc: "Messages envoyés depuis le formulaire de contact public",
+  },
   {
     id: "export",
     label: "Export de Données",

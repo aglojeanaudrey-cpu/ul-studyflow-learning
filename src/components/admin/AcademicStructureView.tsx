@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Department, Program, AcademicYear } from '../../types';
-import { api } from '../../lib/api';
+import React, { useState, useEffect } from "react";
+import { Department, Program, AcademicYear } from "../../types";
+import { api } from "../../lib/api";
 import {
   School,
   Calendar,
@@ -14,8 +14,8 @@ import {
   Unlock,
   AlertCircle,
   X,
-  BookOpen
-} from 'lucide-react';
+  BookOpen,
+} from "lucide-react";
 
 export const AcademicStructureView: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -30,34 +30,34 @@ export const AcademicStructureView: React.FC = () => {
   const [deptModalOpen, setDeptModalOpen] = useState(false);
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [deptForm, setDeptForm] = useState({
-    code: '',
-    name: '',
-    faculty: 'Campus de Lomé (Togo)',
-    description: '',
-    isSuspended: false
+    code: "",
+    name: "",
+    faculty: "Campus de Lomé (Togo)",
+    description: "",
+    isSuspended: false,
   });
 
   // Program Modal State
   const [progModalOpen, setProgModalOpen] = useState(false);
   const [editingProgId, setEditingProgId] = useState<string | null>(null);
   const [progForm, setProgForm] = useState({
-    departmentId: '',
-    code: '',
-    name: '',
-    description: '',
-    isSuspended: false
+    departmentId: "",
+    code: "",
+    name: "",
+    description: "",
+    isSuspended: false,
   });
 
   // Academic Year Modal State
   const [ayModalOpen, setAyModalOpen] = useState(false);
   const [ayForm, setAyForm] = useState({
-    label: '',
-    isCurrent: false
+    label: "",
+    isCurrent: false,
   });
 
   // Delete Confirm State
   const [deleteConfirm, setDeleteConfirm] = useState<{
-    type: 'dept' | 'prog' | 'ay';
+    type: "dept" | "prog" | "ay";
     id: string;
     name: string;
   } | null>(null);
@@ -79,7 +79,7 @@ export const AcademicStructureView: React.FC = () => {
       setPrograms(res.programs);
       setAcademicYears(res.academicYears);
     } catch (err) {
-      console.error('Error loading academic structure:', err);
+      console.error("Error loading academic structure:", err);
     } finally {
       setLoading(false);
     }
@@ -93,11 +93,11 @@ export const AcademicStructureView: React.FC = () => {
   const openCreateDeptModal = () => {
     setEditingDeptId(null);
     setDeptForm({
-      code: '',
-      name: '',
-      faculty: 'Campus de Lomé (Togo)',
-      description: '',
-      isSuspended: false
+      code: "",
+      name: "",
+      faculty: "Campus de Lomé (Togo)",
+      description: "",
+      isSuspended: false,
     });
     setDeptModalOpen(true);
   };
@@ -107,9 +107,9 @@ export const AcademicStructureView: React.FC = () => {
     setDeptForm({
       code: d.code,
       name: d.name,
-      faculty: d.faculty || 'Campus de Lomé (Togo)',
-      description: d.description || '',
-      isSuspended: Boolean(d.isSuspended)
+      faculty: d.faculty || "Campus de Lomé (Togo)",
+      description: d.description || "",
+      isSuspended: Boolean(d.isSuspended),
     });
     setDeptModalOpen(true);
   };
@@ -119,31 +119,39 @@ export const AcademicStructureView: React.FC = () => {
     try {
       await api.saveDepartment({ ...deptForm, id: editingDeptId || undefined });
       setDeptModalOpen(false);
-      showSuccess(editingDeptId ? `Département ${deptForm.code} mis à jour.` : `Département ${deptForm.code} ajouté.`);
+      showSuccess(
+        editingDeptId
+          ? `Département ${deptForm.code} mis à jour.`
+          : `Département ${deptForm.code} ajouté.`,
+      );
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur lors de l\'enregistrement du département.');
+      showError(
+        err.message || "Erreur lors de l'enregistrement du département.",
+      );
     }
   };
 
   const handleToggleSuspendDept = async (d: Department) => {
     try {
       const res = await api.toggleSuspendDepartment(d.id);
-      showSuccess(`Département ${d.code} ${res.isSuspended ? 'suspendu' : 'réactivé'}.`);
+      showSuccess(
+        `Département ${d.code} ${res.isSuspended ? "suspendu" : "réactivé"}.`,
+      );
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur lors du changement de statut.');
+      showError(err.message || "Erreur lors du changement de statut.");
     }
   };
 
   const handleDeleteDept = async (id: string) => {
     try {
       await api.deleteDepartment(id);
-      showSuccess('Département et filières associées supprimés.');
+      showSuccess("Département et filières associées supprimés.");
       setDeleteConfirm(null);
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur de suppression.');
+      showError(err.message || "Erreur de suppression.");
     }
   };
 
@@ -151,11 +159,11 @@ export const AcademicStructureView: React.FC = () => {
   const openCreateProgModal = (deptId?: string) => {
     setEditingProgId(null);
     setProgForm({
-      departmentId: deptId || departments[0]?.id || '',
-      code: '',
-      name: '',
-      description: '',
-      isSuspended: false
+      departmentId: deptId || departments[0]?.id || "",
+      code: "",
+      name: "",
+      description: "",
+      isSuspended: false,
     });
     setProgModalOpen(true);
   };
@@ -166,8 +174,8 @@ export const AcademicStructureView: React.FC = () => {
       departmentId: p.departmentId,
       code: p.code,
       name: p.name,
-      description: p.description || '',
-      isSuspended: Boolean(p.isSuspended)
+      description: p.description || "",
+      isSuspended: Boolean(p.isSuspended),
     });
     setProgModalOpen(true);
   };
@@ -177,31 +185,39 @@ export const AcademicStructureView: React.FC = () => {
     try {
       await api.saveProgram({ ...progForm, id: editingProgId || undefined });
       setProgModalOpen(false);
-      showSuccess(editingProgId ? `Filière ${progForm.name} mise à jour.` : `Filière ${progForm.name} ajoutée.`);
+      showSuccess(
+        editingProgId
+          ? `Filière ${progForm.name} mise à jour.`
+          : `Filière ${progForm.name} ajoutée.`,
+      );
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur lors de l\'enregistrement de la filière.');
+      showError(
+        err.message || "Erreur lors de l'enregistrement de la filière.",
+      );
     }
   };
 
   const handleToggleSuspendProg = async (p: Program) => {
     try {
       const res = await api.toggleSuspendProgram(p.id);
-      showSuccess(`Filière ${p.code} ${res.isSuspended ? 'suspendue' : 'réactivée'}.`);
+      showSuccess(
+        `Filière ${p.code} ${res.isSuspended ? "suspendue" : "réactivée"}.`,
+      );
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur de changement de statut.');
+      showError(err.message || "Erreur de changement de statut.");
     }
   };
 
   const handleDeleteProg = async (id: string) => {
     try {
       await api.deleteProgram(id);
-      showSuccess('Filière supprimée avec succès.');
+      showSuccess("Filière supprimée avec succès.");
       setDeleteConfirm(null);
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur de suppression.');
+      showError(err.message || "Erreur de suppression.");
     }
   };
 
@@ -211,11 +227,11 @@ export const AcademicStructureView: React.FC = () => {
     try {
       await api.saveAcademicYear(ayForm);
       setAyModalOpen(false);
-      setAyForm({ label: '', isCurrent: false });
+      setAyForm({ label: "", isCurrent: false });
       showSuccess(`Année académique ${ayForm.label} ajoutée.`);
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur d\'ajout d\'année académique.');
+      showError(err.message || "Erreur d'ajout d'année académique.");
     }
   };
 
@@ -225,28 +241,30 @@ export const AcademicStructureView: React.FC = () => {
       showSuccess(`Année ${ay.label} définie comme année académique active.`);
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur.');
+      showError(err.message || "Erreur.");
     }
   };
 
   const handleToggleArchiveAy = async (ay: AcademicYear) => {
     try {
       await api.updateAcademicYear(ay.id, { isArchived: !ay.isArchived });
-      showSuccess(`Année ${ay.label} ${!ay.isArchived ? 'archivée' : 'désarchivée'}.`);
+      showSuccess(
+        `Année ${ay.label} ${!ay.isArchived ? "archivée" : "désarchivée"}.`,
+      );
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Erreur.');
+      showError(err.message || "Erreur.");
     }
   };
 
   const handleDeleteAy = async (id: string) => {
     try {
       await api.deleteAcademicYear(id);
-      showSuccess('Année académique supprimée.');
+      showSuccess("Année académique supprimée.");
       setDeleteConfirm(null);
       await loadData();
     } catch (err: any) {
-      showError(err.message || 'Impossible de supprimer cette année.');
+      showError(err.message || "Impossible de supprimer cette année.");
     }
   };
 
@@ -263,19 +281,21 @@ export const AcademicStructureView: React.FC = () => {
       {/* Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#111B21]">Structure LMD & Années Académiques</h2>
-          <p className="text-xs text-[#667781]">
-            Ajout, modification, suspension et suppression des départements, filières et gestion des années universitaires.
+          <h2 className="text-xl font-bold text-[#111B21] dark:text-white">
+            Structure LMD & Années Académiques
+          </h2>
+          <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+            Ajout, modification, suspension et suppression des départements,
+            filières et gestion des années universitaires.
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             onClick={() => setAyModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#075E54] bg-[#F0F2F5] hover:bg-[#E9EDEF] rounded-xl transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#075E54] bg-[#F0F2F5] dark:bg-[#1F2C34] hover:bg-[#E9EDEF] rounded-xl transition-colors"
           >
-            <Calendar className="w-3.5 h-3.5" />
-            + Année Académique
+            <Calendar className="w-3.5 h-3.5" />+ Année Académique
           </button>
           <button
             onClick={openCreateDeptModal}
@@ -301,13 +321,15 @@ export const AcademicStructureView: React.FC = () => {
       )}
 
       {/* SECTION 1 : ANNÉES ACADÉMIQUES */}
-      <div className="bg-white rounded-2xl border border-[#E9EDEF] p-5 shadow-xs space-y-3">
+      <div className="bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] p-5 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-[#667781] flex items-center gap-1.5">
+          <h3 className="font-bold text-xs uppercase tracking-wider text-[#667781] dark:text-[#8696A0] flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-[#075E54]" />
             Années Académiques LMD ({academicYears.length})
           </h3>
-          <span className="text-[11px] text-[#667781]">Sélectionnez l'année en cours active</span>
+          <span className="text-[11px] text-[#667781] dark:text-[#8696A0]">
+            Sélectionnez l'année en cours active
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -316,17 +338,23 @@ export const AcademicStructureView: React.FC = () => {
               key={ay.id}
               className={`p-4 rounded-xl border flex flex-col justify-between gap-3 transition-all ${
                 ay.isCurrent
-                  ? 'bg-emerald-50/70 border-[#25D366] shadow-2xs'
+                  ? "bg-emerald-50/70 border-[#25D366] shadow-2xs"
                   : ay.isArchived
-                  ? 'bg-[#F0F2F5] border-[#E9EDEF] opacity-75'
-                  : 'bg-white border-[#E9EDEF]'
+                    ? "bg-[#F0F2F5] dark:bg-[#1F2C34] border-[#E9EDEF] dark:border-[#222E35] opacity-75"
+                    : "bg-white dark:bg-[#111B21] border-[#E9EDEF] dark:border-[#222E35]"
               }`}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="font-extrabold text-sm text-[#111B21]">{ay.label}</span>
-                  <p className="text-[10px] text-[#667781] mt-0.5">
-                    {ay.isCurrent ? 'Année active en cours' : ay.isArchived ? 'Année archivée' : 'Année future'}
+                  <span className="font-extrabold text-sm text-[#111B21] dark:text-white">
+                    {ay.label}
+                  </span>
+                  <p className="text-[10px] text-[#667781] dark:text-[#8696A0] mt-0.5">
+                    {ay.isCurrent
+                      ? "Année active en cours"
+                      : ay.isArchived
+                        ? "Année archivée"
+                        : "Année future"}
                   </p>
                 </div>
                 {ay.isCurrent ? (
@@ -334,13 +362,13 @@ export const AcademicStructureView: React.FC = () => {
                     Active
                   </span>
                 ) : ay.isArchived ? (
-                  <span className="text-[10px] font-bold text-[#667781] bg-[#E9EDEF] px-2 py-0.5 rounded flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-[#667781] dark:text-[#8696A0] bg-[#E9EDEF] dark:bg-[#222E35] px-2 py-0.5 rounded flex items-center gap-1">
                     <Archive className="w-2.5 h-2.5" /> Archivée
                   </span>
                 ) : null}
               </div>
 
-              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-[#E9EDEF]/60 text-xs">
+              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-[#E9EDEF] dark:border-[#222E35]/60 text-xs">
                 {!ay.isCurrent && (
                   <button
                     onClick={() => handleSetCurrentAy(ay)}
@@ -352,15 +380,21 @@ export const AcademicStructureView: React.FC = () => {
                 {!ay.isCurrent && (
                   <button
                     onClick={() => handleToggleArchiveAy(ay)}
-                    title={ay.isArchived ? 'Désarchiver' : 'Archiver'}
-                    className="p-1 text-[#667781] hover:text-[#111B21] rounded"
+                    title={ay.isArchived ? "Désarchiver" : "Archiver"}
+                    className="p-1 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white rounded"
                   >
                     <Archive className="w-3.5 h-3.5" />
                   </button>
                 )}
                 {!ay.isCurrent && (
                   <button
-                    onClick={() => setDeleteConfirm({ type: 'ay', id: ay.id, name: `Année ${ay.label}` })}
+                    onClick={() =>
+                      setDeleteConfirm({
+                        type: "ay",
+                        id: ay.id,
+                        name: `Année ${ay.label}`,
+                      })
+                    }
                     title="Supprimer"
                     className="p-1 text-rose-600 hover:text-rose-800 rounded"
                   >
@@ -376,7 +410,7 @@ export const AcademicStructureView: React.FC = () => {
       {/* SECTION 2 : DÉPARTEMENTS ET LEURS FILIÈRES */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-[#667781] flex items-center gap-1.5">
+          <h3 className="font-bold text-xs uppercase tracking-wider text-[#667781] dark:text-[#8696A0] flex items-center gap-1.5">
             <School className="w-3.5 h-3.5 text-[#075E54]" />
             Départements & Filières ({departments.length})
           </h3>
@@ -384,20 +418,24 @@ export const AcademicStructureView: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {departments.map((dept) => {
-            const deptPrograms = programs.filter(p => p.departmentId === dept.id);
+            const deptPrograms = programs.filter(
+              (p) => p.departmentId === dept.id,
+            );
 
             return (
               <div
                 key={dept.id}
-                className={`p-5 bg-white rounded-2xl border shadow-xs space-y-4 transition-all ${
-                  dept.isSuspended ? 'border-rose-200 bg-rose-50/20' : 'border-[#E9EDEF] hover:border-[#25D366]'
+                className={`p-5 bg-white dark:bg-[#111B21] rounded-2xl border shadow-xs space-y-4 transition-all ${
+                  dept.isSuspended
+                    ? "border-rose-200 bg-rose-50/20"
+                    : "border-[#E9EDEF] dark:border-[#222E35] hover:border-[#25D366]"
                 }`}
               >
                 {/* Dept Header */}
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#075E54] bg-emerald-50 px-2 py-0.5 rounded border border-[#E9EDEF]">
+                      <span className="text-xs font-bold text-[#075E54] bg-emerald-50 px-2 py-0.5 rounded border border-[#E9EDEF] dark:border-[#222E35]">
                         {dept.code}
                       </span>
                       {dept.isSuspended && (
@@ -406,8 +444,12 @@ export const AcademicStructureView: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <h4 className="font-bold text-sm text-[#111B21] mt-1">{dept.name}</h4>
-                    <p className="text-[11px] text-[#667781]">{dept.faculty}</p>
+                    <h4 className="font-bold text-sm text-[#111B21] dark:text-white mt-1">
+                      {dept.name}
+                    </h4>
+                    <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
+                      {dept.faculty}
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -420,13 +462,27 @@ export const AcademicStructureView: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleToggleSuspendDept(dept)}
-                      title={dept.isSuspended ? 'Réactiver le département' : 'Suspendre le département'}
+                      title={
+                        dept.isSuspended
+                          ? "Réactiver le département"
+                          : "Suspendre le département"
+                      }
                       className="p-1 rounded text-amber-700 hover:bg-amber-50"
                     >
-                      {dept.isSuspended ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                      {dept.isSuspended ? (
+                        <Unlock className="w-3.5 h-3.5" />
+                      ) : (
+                        <Lock className="w-3.5 h-3.5" />
+                      )}
                     </button>
                     <button
-                      onClick={() => setDeleteConfirm({ type: 'dept', id: dept.id, name: `${dept.code} - ${dept.name}` })}
+                      onClick={() =>
+                        setDeleteConfirm({
+                          type: "dept",
+                          id: dept.id,
+                          name: `${dept.code} - ${dept.name}`,
+                        })
+                      }
                       title="Supprimer le département"
                       className="p-1 rounded text-rose-600 hover:bg-rose-50"
                     >
@@ -436,13 +492,15 @@ export const AcademicStructureView: React.FC = () => {
                 </div>
 
                 {dept.description && (
-                  <p className="text-xs text-[#667781] line-clamp-2">{dept.description}</p>
+                  <p className="text-xs text-[#667781] dark:text-[#8696A0] line-clamp-2">
+                    {dept.description}
+                  </p>
                 )}
 
                 {/* Programs under this Department */}
-                <div className="pt-3 border-t border-[#E9EDEF] space-y-2">
+                <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#111B21] flex items-center gap-1">
+                    <span className="font-bold text-[#111B21] dark:text-white flex items-center gap-1">
                       <Layers className="w-3.5 h-3.5 text-[#075E54]" />
                       Filières ({deptPrograms.length})
                     </span>
@@ -456,16 +514,22 @@ export const AcademicStructureView: React.FC = () => {
 
                   <div className="space-y-1.5">
                     {deptPrograms.length === 0 ? (
-                      <p className="text-[11px] text-[#667781] italic">Aucune filière configurée pour ce département.</p>
+                      <p className="text-[11px] text-[#667781] dark:text-[#8696A0] italic">
+                        Aucune filière configurée pour ce département.
+                      </p>
                     ) : (
                       deptPrograms.map((p) => (
                         <div
                           key={p.id}
-                          className="p-2.5 rounded-xl bg-[#F0F2F5]/70 flex items-center justify-between gap-2 text-xs"
+                          className="p-2.5 rounded-xl bg-[#F0F2F5]/70 dark:bg-[#1F2C34]/70 flex items-center justify-between gap-2 text-xs"
                         >
                           <div className="min-w-0">
-                            <span className="font-bold text-[#111B21]">{p.name}</span>
-                            <span className="text-[#667781] ml-1.5 font-mono text-[10px]">({p.code})</span>
+                            <span className="font-bold text-[#111B21] dark:text-white">
+                              {p.name}
+                            </span>
+                            <span className="text-[#667781] dark:text-[#8696A0] ml-1.5 font-mono text-[10px]">
+                              ({p.code})
+                            </span>
                             {p.isSuspended && (
                               <span className="text-[9px] font-bold text-rose-700 bg-rose-100 px-1 py-0.5 rounded ml-1.5">
                                 Suspendue
@@ -477,21 +541,31 @@ export const AcademicStructureView: React.FC = () => {
                             <button
                               onClick={() => openEditProgModal(p)}
                               title="Modifier la filière"
-                              className="p-1 rounded text-[#075E54] hover:bg-white"
+                              className="p-1 rounded text-[#075E54] hover:bg-white dark:hover:bg-[#111B21]"
                             >
                               <Edit2 className="w-3 h-3" />
                             </button>
                             <button
                               onClick={() => handleToggleSuspendProg(p)}
-                              title={p.isSuspended ? 'Réactiver' : 'Suspendre'}
-                              className="p-1 rounded text-amber-700 hover:bg-white"
+                              title={p.isSuspended ? "Réactiver" : "Suspendre"}
+                              className="p-1 rounded text-amber-700 hover:bg-white dark:hover:bg-[#111B21]"
                             >
-                              {p.isSuspended ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                              {p.isSuspended ? (
+                                <Unlock className="w-3 h-3" />
+                              ) : (
+                                <Lock className="w-3 h-3" />
+                              )}
                             </button>
                             <button
-                              onClick={() => setDeleteConfirm({ type: 'prog', id: p.id, name: `${p.code} - ${p.name}` })}
+                              onClick={() =>
+                                setDeleteConfirm({
+                                  type: "prog",
+                                  id: p.id,
+                                  name: `${p.code} - ${p.name}`,
+                                })
+                              }
                               title="Supprimer la filière"
-                              className="p-1 rounded text-rose-600 hover:bg-white"
+                              className="p-1 rounded text-rose-600 hover:bg-white dark:hover:bg-[#111B21]"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -510,50 +584,67 @@ export const AcademicStructureView: React.FC = () => {
       {/* MODAL AJOUT / ÉDITION DÉPARTEMENT */}
       {deptModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
             <button
               onClick={() => setDeptModalOpen(false)}
-              className="absolute top-4 right-4 text-[#667781] hover:text-[#111B21] p-1 rounded-lg"
+              className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="font-bold text-lg text-[#111B21]">
-              {editingDeptId ? 'Modifier le Département' : 'Ajouter un Département'}
+            <h3 className="font-bold text-lg text-[#111B21] dark:text-white">
+              {editingDeptId
+                ? "Modifier le Département"
+                : "Ajouter un Département"}
             </h3>
 
             <form onSubmit={handleSaveDept} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Code Département *</label>
+                <label className="block font-semibold mb-1">
+                  Code Département *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: FASEG, FLLA, FDS..."
                   value={deptForm.code}
-                  onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white font-bold"
+                  onChange={(e) =>
+                    setDeptForm({
+                      ...deptForm,
+                      code: e.target.value.toUpperCase(),
+                    })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21] font-bold"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Nom complet *</label>
+                <label className="block font-semibold mb-1">
+                  Nom complet *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: Faculté des Lettres, Langues et Arts"
                   value={deptForm.name}
-                  onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  onChange={(e) =>
+                    setDeptForm({ ...deptForm, name: e.target.value })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21]"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Faculté / Campus</label>
+                <label className="block font-semibold mb-1">
+                  Faculté / Campus
+                </label>
                 <input
                   type="text"
                   value={deptForm.faculty}
-                  onChange={(e) => setDeptForm({ ...deptForm, faculty: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  onChange={(e) =>
+                    setDeptForm({ ...deptForm, faculty: e.target.value })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21]"
                 />
               </div>
 
@@ -562,8 +653,10 @@ export const AcademicStructureView: React.FC = () => {
                 <textarea
                   rows={2}
                   value={deptForm.description}
-                  onChange={(e) => setDeptForm({ ...deptForm, description: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  onChange={(e) =>
+                    setDeptForm({ ...deptForm, description: e.target.value })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21]"
                 />
               </div>
 
@@ -571,7 +664,7 @@ export const AcademicStructureView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setDeptModalOpen(false)}
-                  className="px-4 py-2 font-semibold text-[#667781]"
+                  className="px-4 py-2 font-semibold text-[#667781] dark:text-[#8696A0]"
                 >
                   Annuler
                 </button>
@@ -590,53 +683,70 @@ export const AcademicStructureView: React.FC = () => {
       {/* MODAL AJOUT / ÉDITION FILIÈRE */}
       {progModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
             <button
               onClick={() => setProgModalOpen(false)}
-              className="absolute top-4 right-4 text-[#667781] hover:text-[#111B21] p-1 rounded-lg"
+              className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="font-bold text-lg text-[#111B21]">
-              {editingProgId ? 'Modifier la Filière' : 'Ajouter une Filière'}
+            <h3 className="font-bold text-lg text-[#111B21] dark:text-white">
+              {editingProgId ? "Modifier la Filière" : "Ajouter une Filière"}
             </h3>
 
             <form onSubmit={handleSaveProg} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Département de rattachement *</label>
+                <label className="block font-semibold mb-1">
+                  Département de rattachement *
+                </label>
                 <select
                   value={progForm.departmentId}
-                  onChange={(e) => setProgForm({ ...progForm, departmentId: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white font-bold"
+                  onChange={(e) =>
+                    setProgForm({ ...progForm, departmentId: e.target.value })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21] font-bold"
                 >
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.code} - {d.name}</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.code} - {d.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Code Filière *</label>
+                <label className="block font-semibold mb-1">
+                  Code Filière *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: ANG, ECO, GEO..."
                   value={progForm.code}
-                  onChange={(e) => setProgForm({ ...progForm, code: e.target.value.toUpperCase() })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white font-bold"
+                  onChange={(e) =>
+                    setProgForm({
+                      ...progForm,
+                      code: e.target.value.toUpperCase(),
+                    })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21] font-bold"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Nom de la filière *</label>
+                <label className="block font-semibold mb-1">
+                  Nom de la filière *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: Études Anglophones (Anglais)"
                   value={progForm.name}
-                  onChange={(e) => setProgForm({ ...progForm, name: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  onChange={(e) =>
+                    setProgForm({ ...progForm, name: e.target.value })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21]"
                 />
               </div>
 
@@ -645,8 +755,10 @@ export const AcademicStructureView: React.FC = () => {
                 <textarea
                   rows={2}
                   value={progForm.description}
-                  onChange={(e) => setProgForm({ ...progForm, description: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  onChange={(e) =>
+                    setProgForm({ ...progForm, description: e.target.value })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21]"
                 />
               </div>
 
@@ -654,7 +766,7 @@ export const AcademicStructureView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setProgModalOpen(false)}
-                  className="px-4 py-2 font-semibold text-[#667781]"
+                  className="px-4 py-2 font-semibold text-[#667781] dark:text-[#8696A0]"
                 >
                   Annuler
                 </button>
@@ -673,26 +785,32 @@ export const AcademicStructureView: React.FC = () => {
       {/* MODAL AJOUT ANNÉE ACADÉMIQUE */}
       {ayModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-sm w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
             <button
               onClick={() => setAyModalOpen(false)}
-              className="absolute top-4 right-4 text-[#667781] hover:text-[#111B21] p-1 rounded-lg"
+              className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="font-bold text-lg text-[#111B21]">Nouvelle Année Académique</h3>
+            <h3 className="font-bold text-lg text-[#111B21] dark:text-white">
+              Nouvelle Année Académique
+            </h3>
 
             <form onSubmit={handleSaveAy} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Libellé de l'année *</label>
+                <label className="block font-semibold mb-1">
+                  Libellé de l'année *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: 2026-2027"
                   value={ayForm.label}
-                  onChange={(e) => setAyForm({ ...ayForm, label: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white font-bold"
+                  onChange={(e) =>
+                    setAyForm({ ...ayForm, label: e.target.value })
+                  }
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21] font-bold"
                 />
               </div>
 
@@ -700,17 +818,21 @@ export const AcademicStructureView: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={ayForm.isCurrent}
-                  onChange={(e) => setAyForm({ ...ayForm, isCurrent: e.target.checked })}
+                  onChange={(e) =>
+                    setAyForm({ ...ayForm, isCurrent: e.target.checked })
+                  }
                   className="w-4 h-4 text-[#25D366] rounded"
                 />
-                <span className="font-semibold text-[#111B21]">Définir immédiatement comme année active</span>
+                <span className="font-semibold text-[#111B21] dark:text-white">
+                  Définir immédiatement comme année active
+                </span>
               </label>
 
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setAyModalOpen(false)}
-                  className="px-4 py-2 font-semibold text-[#667781]"
+                  className="px-4 py-2 font-semibold text-[#667781] dark:text-[#8696A0]"
                 >
                   Annuler
                 </button>
@@ -729,15 +851,18 @@ export const AcademicStructureView: React.FC = () => {
       {/* CONFIRMATION SUPPRESSION */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
             <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
               <Trash2 className="w-6 h-6" />
             </div>
 
             <div>
-              <h3 className="font-bold text-base text-[#111B21]">Confirmer la suppression</h3>
-              <p className="text-xs text-[#667781] mt-1 leading-relaxed">
-                Êtes-vous certain de vouloir supprimer : <strong>{deleteConfirm.name}</strong> ?
+              <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+                Confirmer la suppression
+              </h3>
+              <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-1 leading-relaxed">
+                Êtes-vous certain de vouloir supprimer :{" "}
+                <strong>{deleteConfirm.name}</strong> ?
               </p>
             </div>
 
@@ -745,15 +870,17 @@ export const AcademicStructureView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-xs font-semibold text-[#667781]"
+                className="px-4 py-2 text-xs font-semibold text-[#667781] dark:text-[#8696A0]"
               >
                 Annuler
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  if (deleteConfirm.type === 'dept') handleDeleteDept(deleteConfirm.id);
-                  else if (deleteConfirm.type === 'prog') handleDeleteProg(deleteConfirm.id);
+                  if (deleteConfirm.type === "dept")
+                    handleDeleteDept(deleteConfirm.id);
+                  else if (deleteConfirm.type === "prog")
+                    handleDeleteProg(deleteConfirm.id);
                   else handleDeleteAy(deleteConfirm.id);
                 }}
                 className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-xs"

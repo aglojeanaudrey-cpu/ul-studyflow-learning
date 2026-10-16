@@ -5,7 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-
+from django.conf import settings
+from .realtime_auth import generate_realtime_jwt
 from accounts.permissions import IsStaffOrSuperuser
 from accounts.models import User
 from audit.utils import log_audit
@@ -414,3 +415,29 @@ class NotificationBulkDeleteView(APIView):
         # Ne supprimer que les notifs éligibles parmi les IDs fournis
         count, _ = eligible.filter(id__in=ids).delete()
         return Response({'success': True, 'deletedCount': count})
+
+class RealtimeTokenView(APIView):
+    """
+    Émet un JWT court (5 min) signé avec le secret Supabase.
+    Le frontend l'utilise pour s'authentifier sur Supabase Realtime.
+
+    Renvoie aussi supabaseUrl + supabaseAnonKey pour que le frontend
+    n'ait AUCUNE variable VITE_* à embarquer dans le build Cloudflare.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            token = generate_realtime_jwt(request.user)
+        except RuntimeError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({
+            'token': token,
+            'expiresIn': settings.SUPABASE_JWT_TTL_SECONDS,
+            'supabaseUrl': settings.SUPABASE_URL,
+            'supabaseAnonKey': settings.SUPABASE_ANON_KEY,
+        })

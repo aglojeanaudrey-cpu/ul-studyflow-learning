@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
+import React, { useState, useEffect } from "react";
 import { Session, Chapter, QuizAttempt, Flashcard } from "../../types";
 import { api } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { PDFDownloadButton } from "./PDFDownloadButton";
-import { ChapterPDFDocument } from "./ChapterPDFDocument";
 import { RenderedContent } from "./RenderedContent";
 import {
   ArrowLeft,
@@ -13,7 +12,6 @@ import {
   Video,
   CheckSquare,
   Sparkles,
-  Download,
   BookOpen,
   ShieldAlert,
   RotateCw,
@@ -33,6 +31,14 @@ interface SessionViewProps {
   sessionId: string;
   onBack: () => void;
   onAskAiWithContext: (sessionId: string) => void;
+}
+
+interface SecureMedia {
+  videoUrl?: string;
+  audioUrl?: string;
+  pdfUrl?: string;
+  watermarkText?: string;
+  expiresIn?: number;
 }
 
 export const SessionView: React.FC<SessionViewProps> = ({
@@ -61,8 +67,8 @@ export const SessionView: React.FC<SessionViewProps> = ({
 
   // Unlock Modal State
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
-  // Code promo en attente (depuis Mon Parrainage → déblocage UE)
   const [pendingPromoCode, setPendingPromoCode] = useState<string | null>(null);
+
   // Flashcards Interactive State
   const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -70,6 +76,12 @@ export const SessionView: React.FC<SessionViewProps> = ({
   // Anti-Screen Recording Warning State
   const [recordingWarning, setRecordingWarning] = useState(false);
 
+  // ⭐ URLs média sécurisées (chargées à la demande)
+  const [secureMedia, setSecureMedia] = useState<SecureMedia | null>(null);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+
+  // Chargement de la séance
   useEffect(() => {
     async function load() {
       try {
@@ -130,6 +142,86 @@ export const SessionView: React.FC<SessionViewProps> = ({
     }
   };
 
+  // Extraction du chapitre actif AVANT les hooks qui en dépendent
+  const chapters: Chapter[] =
+    session?.chapters && session.chapters.length > 0
+      ? session.chapters
+      : session
+        ? [
+            {
+              id: `chap_${session.id}_fallback`,
+              sessionId: session.id,
+              number: 1,
+              title: session.title,
+              objectives: session.objective || "",
+              summaryText: session.content?.summaryText || "",
+              summaryHtml: "",
+              summaryJson: {},
+              // Cast explicite pour éviter le conflit de provider
+              video: session.content?.video,
+              audio: session.content?.audio,
+              pdf: session.content?.pdf,
+              flashcards: session.flashcards || [],
+              quiz: session.quiz,
+            },
+          ]
+        : [];
+
+  const currentChapter: Chapter | undefined = chapters[activeChapterIndex];
+
+  // ⭐ Charger les URLs média sécurisées quand on change de chapitre
+  useEffect(() => {
+    if (!currentChapter) return;
+
+    // Détecter si le média est protégé (Cloudinary) et sans URL publique
+    const videoNeedsUrl =
+      currentChapter.video?.isProtected && !currentChapter.video?.url;
+    const audioNeedsUrl =
+      currentChapter.audio?.isProtected && !currentChapter.audio?.url;
+    const pdfNeedsUrl =
+      currentChapter.pdf?.isProtected && !currentChapter.pdf?.url;
+
+    const needsSecureUrl = videoNeedsUrl || audioNeedsUrl || pdfNeedsUrl;
+
+    if (!needsSecureUrl) {
+      setSecureMedia(null);
+      setMediaError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingMedia(true);
+    setMediaError(null);
+
+    api
+      .getSecureVideoUrl(currentChapter.id)
+      .then((res: any) => {
+        if (cancelled) return;
+        setSecureMedia({
+          videoUrl: res.videoUrl,
+          audioUrl: res.audioUrl,
+          pdfUrl: res.pdfUrl,
+          watermarkText: res.watermarkText,
+          expiresIn: res.expiresIn,
+        });
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
+        console.error("Erreur chargement média sécurisé:", err);
+        setMediaError(
+          err.message || "Impossible de charger le contenu protégé.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingMedia(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentChapter?.id]);
+
+  // ─── Écran de chargement ───
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-100">
@@ -138,8 +230,8 @@ export const SessionView: React.FC<SessionViewProps> = ({
     );
   }
 
-  // Locked session or error screen
-  if (error || !session) {
+  // ─── Écran verrouillé / erreur ───
+  if (error || !session || !currentChapter) {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 text-center space-y-5 animate-in fade-in">
         <div className="w-16 h-16 rounded-3xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center mx-auto shadow-xs border border-amber-200 dark:border-amber-800">
@@ -208,30 +300,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
     );
   }
 
-  // Determine chapters or fallback
-  const chapters: Chapter[] =
-    session.chapters && session.chapters.length > 0
-      ? session.chapters
-      : [
-          {
-            id: `chap_${session.id}_fallback`,
-            sessionId: session.id,
-            number: 1,
-            title: session.title,
-            objectives: session.objective || "",
-            summaryText: session.content?.summaryText || "",
-            video: session.content?.video,
-            audio: session.content?.audio,
-            pdf: session.content?.pdf,
-            flashcards: session.flashcards || [],
-            quiz: session.quiz,
-          },
-        ];
-
-  const currentChapter: Chapter = chapters[activeChapterIndex] || chapters[0];
-
-  // Download printable summary as PDF for the current chapter
-
   const flashcards: Flashcard[] =
     currentChapter.flashcards && currentChapter.flashcards.length > 0
       ? currentChapter.flashcards
@@ -246,6 +314,38 @@ export const SessionView: React.FC<SessionViewProps> = ({
 
   const currentFlashcard = flashcards[currentFlashcardIndex] || flashcards[0];
   const activeQuiz = currentChapter.quiz || session.quiz;
+
+  // ⭐ Helper : récupérer l'URL média finale (signée si protégée, sinon directe)
+  const getVideoSrc = (): string | null => {
+    if (currentChapter.video?.isProtected) {
+      return secureMedia?.videoUrl || null;
+    }
+    return currentChapter.video?.url || null;
+  };
+
+  const getAudioSrc = (): string | null => {
+    if (currentChapter.audio?.isProtected) {
+      return secureMedia?.audioUrl || null;
+    }
+    return currentChapter.audio?.url || null;
+  };
+
+  const getPdfSrc = (): string | null => {
+    if (currentChapter.pdf?.isProtected) {
+      return secureMedia?.pdfUrl || null;
+    }
+    return currentChapter.pdf?.url || null;
+  };
+
+  const videoSrc = getVideoSrc();
+  const audioSrc = getAudioSrc();
+  const pdfSrc = getPdfSrc();
+
+  // ⭐ Watermark à transmettre aux players
+  const watermarkName = user
+    ? `${user.firstName} ${user.lastName?.[0] || ""}.`
+    : undefined;
+  const watermarkPhone = user?.displayPhone || user?.phone;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6 select-none">
@@ -321,7 +421,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
           {session.title}
         </h1>
 
-        {/* Objectif de la séance */}
         {session.objective && (
           <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-start gap-2">
             <span className="text-sm">🎯</span>
@@ -337,7 +436,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
           </p>
         )}
 
-        {/* AI Quick Context Prompt */}
         <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#E9EDEF] dark:border-[#222E35]">
           <button
             onClick={() => onAskAiWithContext(session.id)}
@@ -372,6 +470,8 @@ export const SessionView: React.FC<SessionViewProps> = ({
                     setActiveChapterIndex(idx);
                     setCurrentFlashcardIndex(0);
                     setIsFlipped(false);
+                    setSecureMedia(null);
+                    setMediaError(null);
                   }}
                   className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
                     isSelected
@@ -436,70 +536,106 @@ export const SessionView: React.FC<SessionViewProps> = ({
         )}
       </div>
 
-      {/* 1. Vidéo Explicative — Player sécurisé (Cloudinary ou URL externe) */}
-      {currentChapter.video && currentChapter.video.url && (
-        <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-400">
-              <Video className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              Vidéo explicative du chapitre (
-              {currentChapter.video.duration || "Cours"})
-            </div>
-            <span className="text-[10px] text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800 font-medium">
-              🔒 Stream sécurisé
-            </span>
-          </div>
-
-          {/* ⭐ Player sécurisé : gère Cloudinary ET URL externes */}
-          {currentChapter.video.url.includes("youtube.com") ||
-          currentChapter.video.url.includes("youtu.be") ||
-          currentChapter.video.url.includes("youtube-nocookie.com") ? (
-            // Fallback YouTube (iframe)
-            <div
-              className="aspect-video w-full rounded-2xl overflow-hidden bg-black relative border border-slate-800"
-              onContextMenu={(e) => e.preventDefault()}
-            >
-              <iframe
-                src={currentChapter.video.url}
-                title={currentChapter.video.title}
-                className="w-full h-full pointer-events-auto"
-                allowFullScreen
-              ></iframe>
-
-              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 opacity-25 select-none text-[10px] text-white font-mono">
-                <div className="text-left">
-                  UL STUDY FLOW · {user?.displayPhone || user?.phone}
-                </div>
-                <div className="text-right">
-                  CONFIDENTIEL · REVENTE INTERDITE
-                </div>
-              </div>
-            </div>
-          ) : (
-            // ⭐ Player natif avec anti-capture + watermark dynamique
-            <SecureVideoPlayer
-              src={currentChapter.video.url}
-              poster={currentChapter.video.thumbnail_url}
-              title={currentChapter.video.title || currentChapter.title}
-              watermarkName={
-                user
-                  ? `${user.firstName} ${user.lastName?.[0] || ""}.`
-                  : undefined
-              }
-              watermarkPhone={user?.displayPhone || user?.phone}
-              isProtected={
-                currentChapter.video.provider === "cloudinary" || true
-              }
-              onCaptureDetected={(reason) => {
-                console.warn("[Anti-Capture]", reason);
-              }}
-            />
-          )}
+      {/* ⭐ Erreur de chargement média */}
+      {mediaError && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-900 dark:text-amber-300 flex items-start gap-2">
+          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{mediaError}</span>
         </div>
       )}
 
-      {/* 2. Audio Podcast — Player sécurisé */}
-      {currentChapter.audio && currentChapter.audio.url && (
+      {/* 1. Vidéo Explicative */}
+      {currentChapter.video &&
+        (currentChapter.video.url || currentChapter.video.isProtected) && (
+          <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-400">
+                <Video className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                Vidéo explicative du chapitre (
+                {currentChapter.video.duration || "Cours"})
+              </div>
+              <span className="text-[10px] text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800 font-medium">
+                🔒 Stream sécurisé
+              </span>
+            </div>
+
+            {/* Cas 1 : Vidéo YouTube (fallback) */}
+            {currentChapter.video.url &&
+            typeof currentChapter.video.url === "string" &&
+            (currentChapter.video.url.includes("youtube.com") ||
+              currentChapter.video.url.includes("youtu.be") ||
+              currentChapter.video.url.includes("youtube-nocookie.com")) ? (
+              <div
+                className="aspect-video w-full rounded-2xl overflow-hidden bg-black relative border border-slate-800"
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                <iframe
+                  src={currentChapter.video.url}
+                  title={currentChapter.video.title}
+                  className="w-full h-full pointer-events-auto"
+                  allowFullScreen
+                ></iframe>
+
+                <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 opacity-25 select-none text-[10px] text-white font-mono">
+                  <div className="text-left">
+                    UL STUDY FLOW · {user?.displayPhone || user?.phone}
+                  </div>
+                  <div className="text-right">
+                    CONFIDENTIEL · REVENTE INTERDITE
+                  </div>
+                </div>
+              </div>
+            ) : currentChapter.video.isProtected ? (
+              // Cas 2 : Vidéo Cloudinary protégée → URL signée à charger
+              loadingMedia ? (
+                <div className="aspect-video bg-black rounded-2xl flex items-center justify-center">
+                  <div className="text-white text-xs flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Chargement sécurisé...
+                  </div>
+                </div>
+              ) : videoSrc ? (
+                <SecureVideoPlayer
+                  src={videoSrc}
+                  poster={currentChapter.video.thumbnail_url}
+                  title={currentChapter.video.title || currentChapter.title}
+                  watermarkName={watermarkName}
+                  watermarkPhone={watermarkPhone}
+                  isProtected={true}
+                  onCaptureDetected={(reason) => {
+                    console.warn("[Anti-Capture]", reason);
+                  }}
+                />
+              ) : (
+                <div className="aspect-video bg-black rounded-2xl flex items-center justify-center">
+                  <p className="text-white text-xs">
+                    Vidéo indisponible (accès restreint)
+                  </p>
+                </div>
+              )
+            ) : videoSrc ? (
+              // Cas 3 : Vidéo externe non Cloudinary (URL directe)
+              <SecureVideoPlayer
+                src={videoSrc}
+                poster={currentChapter.video.thumbnail_url}
+                title={currentChapter.video.title || currentChapter.title}
+                watermarkName={watermarkName}
+                watermarkPhone={watermarkPhone}
+                isProtected={true}
+                onCaptureDetected={(reason) => {
+                  console.warn("[Anti-Capture]", reason);
+                }}
+              />
+            ) : (
+              <div className="aspect-video bg-black rounded-2xl flex items-center justify-center">
+                <p className="text-white text-xs">Vidéo indisponible</p>
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* 2. Audio Podcast */}
+      {currentChapter.audio && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-400">
@@ -512,25 +648,48 @@ export const SessionView: React.FC<SessionViewProps> = ({
             </span>
           </div>
 
-          {/* ⭐ Player audio sécurisé */}
-          <SecureAudioPlayer
-            src={currentChapter.audio.url}
-            title={
-              currentChapter.audio.title ||
-              `Podcast Chapitre ${currentChapter.number}`
-            }
-            speaker={currentChapter.audio.speaker}
-            watermarkName={
-              user
-                ? `${user.firstName} ${user.lastName?.[0] || ""}.`
-                : undefined
-            }
-            isProtected={currentChapter.audio.provider === "cloudinary" || true}
-          />
+          {currentChapter.audio.isProtected ? (
+            loadingMedia ? (
+              <div className="p-6 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-2xl flex items-center justify-center">
+                <div className="text-xs text-[#667781] flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  Chargement sécurisé...
+                </div>
+              </div>
+            ) : audioSrc ? (
+              <SecureAudioPlayer
+                src={audioSrc}
+                title={
+                  currentChapter.audio.title ||
+                  `Podcast Chapitre ${currentChapter.number}`
+                }
+                speaker={currentChapter.audio.speaker}
+                watermarkName={watermarkName}
+                isProtected={true}
+              />
+            ) : (
+              <p className="text-xs text-[#667781] italic">
+                Audio indisponible (accès restreint)
+              </p>
+            )
+          ) : audioSrc ? (
+            <SecureAudioPlayer
+              src={audioSrc}
+              title={
+                currentChapter.audio.title ||
+                `Podcast Chapitre ${currentChapter.number}`
+              }
+              speaker={currentChapter.audio.speaker}
+              watermarkName={watermarkName}
+              isProtected={true}
+            />
+          ) : (
+            <p className="text-xs text-[#667781] italic">Audio indisponible</p>
+          )}
         </div>
       )}
 
-      {/* 3. Résumé de cours structuré & Contenu Texte (Téléchargeable en PDF) */}
+      {/* 3. Contenu rédigé */}
       <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-6 sm:p-8 shadow-xs space-y-4 transition-colors">
         <div className="flex items-center justify-between border-b border-[#E9EDEF] dark:border-[#222E35] pb-3">
           <div className="flex items-center gap-2 text-xs font-bold text-[#075E54] dark:text-[#25D366]">
@@ -557,7 +716,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
           />
         </div>
 
-        {/* ⭐ Contenu riche HTML (TipTap) ou fallback markdown */}
         {currentChapter.summaryHtml ? (
           <RenderedContent
             html={currentChapter.summaryHtml}
@@ -565,7 +723,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
             className="text-[#111B21] dark:text-[#E9EDEF]"
           />
         ) : currentChapter.summaryText ? (
-          // Fallback markdown legacy
           <div className="prose prose-sm max-w-none text-[#111B21] dark:text-[#E9EDEF] leading-relaxed space-y-4 text-xs sm:text-sm">
             {currentChapter.summaryText.split("\n\n").map((block, i) => {
               if (block.startsWith("### ")) {
@@ -605,7 +762,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
         )}
       </div>
 
-      {/* 4. Support Polycopié PDF Officiel Téléchargeable */}
+      {/* 4. Support PDF officiel */}
       {currentChapter.pdf && currentChapter.pdf.title && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-5 sm:p-6 shadow-xs flex items-center justify-between gap-4 transition-colors">
           <div className="flex items-center gap-3 min-w-0">
@@ -623,28 +780,50 @@ export const SessionView: React.FC<SessionViewProps> = ({
             </div>
           </div>
 
-          <PDFDownloadButton
-            ueTitle={ueTitle}
-            ueCode={ueCode}
-            sessionNumber={session.sessionNumber}
-            sessionTitle={session.title}
-            chapterNumber={currentChapter.number}
-            chapterTitle={currentChapter.title}
-            objectives={currentChapter.objectives}
-            contentJson={currentChapter.summaryJson}
-            contentHtml={
-              currentChapter.summaryHtml || currentChapter.summaryText
-            }
-            studentName={
-              user ? `${user.firstName} ${user.lastName}` : undefined
-            }
-            variant="primary"
-            label="Télécharger le PDF"
-          />
+          {currentChapter.pdf.isProtected ? (
+            loadingMedia ? (
+              <span className="text-[11px] text-[#667781] italic">
+                Chargement...
+              </span>
+            ) : pdfSrc ? (
+              <a
+                href={pdfSrc}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Ouvrir le PDF
+              </a>
+            ) : (
+              <span className="text-[11px] text-[#667781] italic">
+                PDF indisponible
+              </span>
+            )
+          ) : (
+            <PDFDownloadButton
+              ueTitle={ueTitle}
+              ueCode={ueCode}
+              sessionNumber={session.sessionNumber}
+              sessionTitle={session.title}
+              chapterNumber={currentChapter.number}
+              chapterTitle={currentChapter.title}
+              objectives={currentChapter.objectives}
+              contentJson={currentChapter.summaryJson}
+              contentHtml={
+                currentChapter.summaryHtml || currentChapter.summaryText
+              }
+              studentName={
+                user ? `${user.firstName} ${user.lastName}` : undefined
+              }
+              variant="primary"
+              label="Télécharger le PDF"
+            />
+          )}
         </div>
       )}
 
-      {/* 5. Flashcards & Cartes Mémoire Interactives */}
+      {/* 5. Flashcards */}
       <div className="bg-white dark:bg-[#111B21] rounded-3xl border border-[#E9EDEF] dark:border-[#222E35] p-6 sm:p-7 shadow-xs space-y-4 transition-colors">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -658,7 +837,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
           </span>
         </div>
 
-        {/* Flippable Card Container */}
         <div
           onClick={() => setIsFlipped(!isFlipped)}
           className={`min-h-42.5 p-6 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between shadow-2xs ${
@@ -692,7 +870,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
           </div>
         </div>
 
-        {/* Card Navigation Controls */}
         <div className="flex items-center justify-between pt-2">
           <button
             disabled={currentFlashcardIndex === 0}
@@ -729,7 +906,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
         </div>
       </div>
 
-      {/* 6. Questionnaire Dynamique d'Évaluation (QCM) */}
+      {/* 6. QCM */}
       {activeQuiz && (
         <div className="bg-white dark:bg-[#111B21] rounded-3xl border-2 border-[#25D366] p-6 sm:p-7 shadow-xs space-y-4 transition-colors">
           <div className="flex items-center justify-between">
@@ -767,7 +944,6 @@ export const SessionView: React.FC<SessionViewProps> = ({
         </div>
       )}
 
-      {/* Quiz Modal */}
       {activeQuiz && (
         <QuizModal
           isOpen={quizOpen}

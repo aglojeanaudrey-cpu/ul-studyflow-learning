@@ -1,67 +1,88 @@
-import React from 'react';
-
 export interface TeamMember {
+  /** Initiales affichées dans l'avatar (ex: "AKJ") */
+  initials: string;
+  /** Nom complet (ou rôle générique si anonyme) */
   name: string;
+  /** Rôle fonctionnel court */
   role: string;
+  /** Description honnête et incarnée */
   description: string;
-  badge: string;
-  badgeColor: 'default' | 'featured';
-  image?: string;         // si undefined → avatar par défaut
-  isScientific?: boolean; // pour le 3ᵉ membre (Dr. Elom S.)
-  footer: {
-    icon: string;
-    label: string;
-  };
-  footerRight: string;
+  /** Filière / faculté (ex: "FASEG • L3") */
+  affiliation: string;
+  /** Statut du membre : pilote / actif / en réflexion / partenaire */
+  status: "founder" | "active" | "reflecting" | "partner";
+  /** Couleur thématique de la carte */
+  accentColor: "emerald" | "amber" | "sky" | "violet";
 }
 
-// Avatars par défaut (tu remplaceras par les vraies photos)
-const DEFAULT_AVATARS = {
-  koffi: 'https://i.pravatar.cc/400?img=12',
-  afiwa: 'https://i.pravatar.cc/400?img=47',
+export const TEAM_FOUNDER: TeamMember = {
+  initials: "KA",
+  name: "Kokou Jean-Audrey Aglo",
+  role: "Initiateur & Développeur principal",
+  description:
+    "Étudiant à l'Université de Lomé, à l'origine du projet Ul Study Flow Learning. Je construis la plateforme avec l'ambition de rendre les cours universitaires accessibles à tous, partout au Togo.",
+  affiliation: "Université de Lomé · Étudiant",
+  status: "founder",
+  accentColor: "emerald",
 };
 
 export const TEAM_MEMBERS: TeamMember[] = [
   {
-    name: 'Koffi Mensah',
-    role: 'Co-fondateur & Responsable Pédagogique',
+    initials: "É1",
+    name: "Membre actif #1",
+    role: "Contributeur technique",
     description:
-      "Ancien major de la Faculté des Sciences Économiques et de Gestion (FASEG). Passionné par la vulgarisation des statistiques, de la microéconomie et des sciences de gestion.",
-    badge: 'FASEG • Major 2023',
-    badgeColor: 'default',
-    image: DEFAULT_AVATARS.koffi,
-    footer: {
-      icon: '📍',
-      label: 'Amphi 1000 / FASEG',
-    },
-    footerRight: '600+ fiches auditées',
+      "Contribue activement au développement et à la structuration du projet depuis sa phase initiale.",
+    affiliation: "Université de Lomé",
+    status: "active",
+    accentColor: "amber",
   },
   {
-    name: 'Afiwa Dossou',
-    role: 'Responsable Contenus & Qualité LMD',
+    initials: "É2",
+    name: "Membre actif #2",
+    role: "Contributeur pédagogique",
     description:
-      "Excellente oratrice et juriste rigoureuse, Afiwa supervise la standardisation des synthèses de Droit Constitutionnel, Droit Civil et Méthodologie des cas pratiques pour la FDD.",
-    badge: 'FDD • Droit Privé',
-    badgeColor: 'default',
-    image: DEFAULT_AVATARS.afiwa,
-    footer: {
-      icon: '📍',
-      label: 'Faculté de Droit (FDD)',
-    },
-    footerRight: 'Coordination LMD',
+      "Participe à la relecture des contenus, au test de la plateforme et à la structuration des cours.",
+    affiliation: "Université de Lomé",
+    status: "active",
+    accentColor: "amber",
   },
   {
-    name: 'Dr. Elom S.',
-    role: 'Conseiller Scientifique & Coordination Tutorat',
+    initials: "R1",
+    name: "Membre en réflexion #1",
+    role: "Soutien potentiel",
     description:
-      "Garant de la pertinence pédagogique des UEs scientifiques. Il veille à ce que les corrigés détaillés respectent strictement le barème d'évaluation appliqué par les jurys de l'UL.",
-    badge: 'FDS • Enseignant-Chercheur',
-    badgeColor: 'featured',
-    isScientific: true,
-    footer: {
-      icon: '🎓',
-      label: 'Campus Nord Sciences',
-    },
-    footerRight: 'Validation Scientifique',
+      "A manifesté son intérêt pour le projet et réfléchit encore à sa contribution.",
+    affiliation: "Université de Lomé",
+    status: "reflecting",
+    accentColor: "sky",
+  },
+  {
+    initials: "R2",
+    name: "Membre en réflexion #2",
+    role: "Soutien potentiel",
+    description:
+      "A manifesté son intérêt pour le projet et réfléchit encore à sa contribution.",
+    affiliation: "Université de Lomé",
+    status: "reflecting",
+    accentColor: "sky",
+  },
+  {
+    initials: "R3",
+    name: "Membre en réflexion #3",
+    role: "Soutien potentiel",
+    description:
+      "A manifesté son intérêt pour le projet et réfléchit encore à sa contribution.",
+    affiliation: "Université de Lomé",
+    status: "reflecting",
+    accentColor: "sky",
   },
 ];
+
+/** Appel à partenaires : les délégués de département, invités à rejoindre le projet */
+export const PARTNERS_CALL = {
+  title: "Nous cherchons des délégués de département",
+  description:
+    "Le projet est ouvert à tous les étudiants motivés. Si tu es délégué de ta filière et que tu veux rendre les cours plus accessibles à tes camarades, rejoins-nous.",
+  ctaLabel: "Proposer ma filière",
+};

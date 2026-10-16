@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
+import { UE } from "@/src/types";
 import {
   Send,
   Sparkles,
@@ -10,6 +11,10 @@ import {
   Trash2,
   Info,
   Bot,
+  BookOpen,
+  ChevronDown,
+  GraduationCap,
+  Lock,
 } from "lucide-react";
 
 interface Message {
@@ -28,16 +33,64 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
   onClose,
 }) => {
   const { user } = useAuth();
+  // ⭐ État du sélecteur d'UE
+  const [availableUes, setAvailableUes] = useState<
+    Array<{
+      id: string;
+      code: string;
+      title: string;
+      level: string;
+      semester: string;
+      department: string | null;
+      sessionsCount: number;
+    }>
+  >([]);
+  const [selectedUeId, setSelectedUeId] = useState<string | null>(null);
+  const [uePickerOpen, setUePickerOpen] = useState(false);
+  const [loadingUes, setLoadingUes] = useState(false);
 
-  // ⭐ Fonction pour générer le message d'accueil (utilisée pour reset)
-  const getInitialMessage = (): Message => ({
-    role: "model",
-    text: `Bonjour ${user?.firstName || "étudiant"} ! Je suis ton assistant pédagogique UL Study Flow. Comment puis-je t'aider aujourd'hui sur tes cours de ${user?.department || "ta filière"} ?`,
-    time: new Date().toLocaleTimeString("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  });
+  // ⭐ Charger les UE accessibles au montage
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingUes(true);
+    api
+      .getAvailableUesForAi()
+      .then((res) => {
+        if (cancelled) return;
+        setAvailableUes(res.ues || []);
+      })
+      .catch((err) => {
+        console.error("Erreur chargement UE IA:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingUes(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fonction pour générer le message d'accueil (utilisée pour reset)
+  const getInitialMessage = (): Message => {
+    const ueCount = availableUes.length;
+    const hasUe = ueCount > 0;
+    let text = `Bonjour ${user?.firstName || "étudiant"} ! Je suis ton assistant pédagogique UL Study Flow.`;
+
+    if (hasUe) {
+      text += `\n\nTu as ${ueCount} UE${ueCount > 1 ? "s" : ""} débloquée${ueCount > 1 ? "s" : ""}. Sélectionne celle sur laquelle tu veux travailler en haut, puis pose-moi ta question.`;
+    } else {
+      text += `\n\nTu n'as pas encore d'UE débloquée. Tu peux quand même me poser des questions générales, mais pour une aide sur tes cours, fais une demande de déblocage depuis "Mes UE".`;
+    }
+
+    return {
+      role: "model",
+      text,
+      time: new Date().toLocaleTimeString("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+  };
 
   const [messages, setMessages] = useState<Message[]>([getInitialMessage()]);
   const [input, setInput] = useState("");
@@ -123,6 +176,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
         text,
         historyPayload,
         initialSessionContextId,
+        selectedUeId || undefined,
       );
 
       const modelMsg: Message = {
@@ -151,7 +205,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
     }
   };
 
-  // ⭐ Actions du menu
+  // Actions du menu
   const handleNewConversation = () => {
     setMessages([getInitialMessage()]);
     setOptionsOpen(false);
@@ -261,6 +315,111 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
         </div>
       </header>
 
+      {/* ⭐ BANDEAU SÉLECTEUR UE */}
+      <div className="bg-[#F0F2F5] dark:bg-[#1F2C34] px-3 sm:px-5 py-2 border-b border-[#E9EDEF] dark:border-[#222E35] shrink-0">
+        <div className="max-w-3xl mx-auto">
+          <div className="relative">
+            <button
+              onClick={() => setUePickerOpen(!uePickerOpen)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222E35] hover:border-[#25D366] transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {initialSessionContextId ? (
+                  <BookOpen className="w-4 h-4 text-[#25D366] shrink-0" />
+                ) : selectedUeId ? (
+                  <GraduationCap className="w-4 h-4 text-[#25D366] shrink-0" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-[#667781] shrink-0" />
+                )}
+                <span className="text-xs font-semibold text-[#111B21] dark:text-white truncate">
+                  {initialSessionContextId
+                    ? "Contexte : Séance en cours"
+                    : selectedUeId
+                      ? `Contexte : ${
+                          availableUes.find((u) => u.id === selectedUeId)?.code
+                        } — ${
+                          availableUes.find((u) => u.id === selectedUeId)?.title
+                        }`
+                      : "Aucune UE sélectionnée (mode général)"}
+                </span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-[#667781] shrink-0 transition-transform ${
+                  uePickerOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {/* Dropdown UE */}
+            {uePickerOpen && (
+              <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#111B21] rounded-xl shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] max-h-80 overflow-y-auto z-20">
+                {/* Option "mode général" */}
+                <button
+                  onClick={() => {
+                    setSelectedUeId(null);
+                    setUePickerOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-[#F0F2F5] dark:hover:bg-[#2A3942] transition-colors border-b border-[#E9EDEF] dark:border-[#222E35] ${
+                    !selectedUeId ? "bg-[#25D366]/10" : ""
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-[#667781]" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-[#111B21] dark:text-white">
+                      Mode général
+                    </p>
+                    <p className="text-[10px] text-[#667781] dark:text-[#8696A0]">
+                      Réponses hors contexte de cours
+                    </p>
+                  </div>
+                </button>
+
+                {/* Liste des UE */}
+                {loadingUes ? (
+                  <div className="p-4 text-center text-xs text-[#667781]">
+                    Chargement des UE...
+                  </div>
+                ) : availableUes.length === 0 ? (
+                  <div className="p-4 text-center space-y-1">
+                    <Lock className="w-5 h-5 mx-auto text-[#667781]" />
+                    <p className="text-xs font-bold text-[#111B21] dark:text-white">
+                      Aucune UE débloquée
+                    </p>
+                    <p className="text-[10px] text-[#667781] dark:text-[#8696A0]">
+                      Fais une demande de déblocage depuis "Mes UE".
+                    </p>
+                  </div>
+                ) : (
+                  availableUes.map((ue) => (
+                    <button
+                      key={ue.id}
+                      onClick={() => {
+                        setSelectedUeId(ue.id);
+                        setUePickerOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-[#F0F2F5] dark:hover:bg-[#2A3942] transition-colors border-b border-[#E9EDEF] dark:border-[#222E35] last:border-b-0 ${
+                        selectedUeId === ue.id ? "bg-[#25D366]/10" : ""
+                      }`}
+                    >
+                      <GraduationCap className="w-4 h-4 text-[#25D366] shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-[#111B21] dark:text-white truncate">
+                          {ue.code} — {ue.title}
+                        </p>
+                        <p className="text-[10px] text-[#667781] dark:text-[#8696A0]">
+                          {ue.level} · {ue.semester} · {ue.sessionsCount} séance
+                          {ue.sessionsCount > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* ============ CHAT AREA (seule zone qui scrolle) ============ */}
       <div className="flex-1 min-h-0 bg-[#EFEAE2] dark:bg-[#0B141A] px-3 sm:px-5 py-4 overflow-y-auto space-y-3">
         <div className="max-w-3xl mx-auto space-y-3">
@@ -284,7 +443,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
                       Tuteur IA
                     </p>
                   )}
-                  <div className="whitespace-pre-wrap break-words">
+                  <div className="whitespace-pre-wrap wrap-break">
                     {msg.text}
                   </div>
                   <div
@@ -345,7 +504,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
       {/* ============ MODAL À PROPOS ============ */}
       {aboutOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
           onClick={() => setAboutOpen(false)}
         >
           <div
@@ -399,7 +558,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
       {/* ============ MODAL CONFIRMATION EFFACER ============ */}
       {confirmClear && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+          className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
           onClick={() => setConfirmClear(false)}
         >
           <div

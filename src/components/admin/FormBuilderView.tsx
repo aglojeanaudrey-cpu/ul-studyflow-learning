@@ -1,20 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { DynamicForm, FormField, FormSubmission } from '../../types';
-import { api } from '../../lib/api';
+import React, { useState, useEffect } from "react";
+import { DynamicForm, FormField, FormSubmission } from "../../types";
+import { api } from "../../lib/api";
 import {
-  Plus, Trash2, FileText, CheckCircle2, Eye, X, Edit2, Download,
-  Palette, Smile, CheckSquare, AlertCircle,
-  Link as LinkIcon, Copy, Check as CheckIcon, Share2, Inbox, Clock
-} from 'lucide-react';
+  Plus,
+  Trash2,
+  FileText,
+  CheckCircle2,
+  Eye,
+  X,
+  Edit2,
+  Download,
+  Palette,
+  Smile,
+  CheckSquare,
+  AlertCircle,
+  Link as LinkIcon,
+  Copy,
+  Check as CheckIcon,
+  Share2,
+  Inbox,
+  Clock,
+} from "lucide-react";
 
 const PRESET_COLORS = [
-  { name: 'Vert UL', hex: '#075E54' },
-  { name: 'Émeraude Vif', hex: '#25D366' },
-  { name: 'Bleu Royal', hex: '#2563EB' },
-  { name: 'Violet Sombre', hex: '#7C3AED' },
-  { name: 'Ambre Chaud', hex: '#D97706' },
-  { name: 'Rose / Rouge', hex: '#E11D48' },
-  { name: 'Ardoise / Indigo', hex: '#475569' }
+  { name: "Vert UL", hex: "#075E54" },
+  { name: "Émeraude Vif", hex: "#25D366" },
+  { name: "Bleu Royal", hex: "#2563EB" },
+  { name: "Violet Sombre", hex: "#7C3AED" },
+  { name: "Ambre Chaud", hex: "#D97706" },
+  { name: "Rose / Rouge", hex: "#E11D48" },
+  { name: "Ardoise / Indigo", hex: "#475569" },
 ];
 
 export const FormBuilderView: React.FC = () => {
@@ -22,7 +37,8 @@ export const FormBuilderView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Submissions Modal State
-  const [selectedFormForSubmissions, setSelectedFormForSubmissions] = useState<DynamicForm | null>(null);
+  const [selectedFormForSubmissions, setSelectedFormForSubmissions] =
+    useState<DynamicForm | null>(null);
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
 
@@ -34,13 +50,16 @@ export const FormBuilderView: React.FC = () => {
   // Form Creator / Editor State
   const [modalOpen, setModalOpen] = useState(false);
   const [editingFormId, setEditingFormId] = useState<string | null>(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [themeColor, setThemeColor] = useState('#075E54');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [themeColor, setThemeColor] = useState("#075E54");
   const [fields, setFields] = useState<FormField[]>([]);
 
   // Delete Confirm State
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -54,10 +73,10 @@ export const FormBuilderView: React.FC = () => {
 
   const loadForms = async () => {
     try {
-      const res = await api.getAdminForms();   // ⭐ CHANGÉ (au lieu de getForms)
+      const res = await api.getAdminForms(); // ⭐ CHANGÉ (au lieu de getForms)
       setForms(res.forms);
     } catch (err) {
-      console.error('Error fetching forms:', err);
+      console.error("Error fetching forms:", err);
     } finally {
       setLoading(false);
     }
@@ -69,28 +88,44 @@ export const FormBuilderView: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingFormId(null);
-    setTitle('');
-    setDescription('');
-    setThemeColor('#075E54');
+    setTitle("");
+    setDescription("");
+    setThemeColor("#075E54");
     setFields([
-      { id: 'f_1', label: 'Nom complet de l\'étudiant', type: 'text', required: true, order: 1 },
-      { id: 'f_2', label: 'Numéro WhatsApp (+228)', type: 'phone', required: true, order: 2 },
       {
-        id: 'f_3',
-        label: 'Matières souhaitées',
-        type: 'options',
-        required: false,
-        options: ['ANG 101 (Anglais)', 'ECO 102 (Macroéconomie)', 'MTH 101 (Mathématiques)'],
-        order: 3
+        id: "f_1",
+        label: "Nom complet de l'étudiant",
+        type: "text",
+        required: true,
+        order: 1,
       },
       {
-        id: 'f_4',
-        label: 'Votre niveau de satisfaction / Réaction',
-        type: 'emoji_rating',
+        id: "f_2",
+        label: "Numéro WhatsApp (+228)",
+        type: "phone",
+        required: true,
+        order: 2,
+      },
+      {
+        id: "f_3",
+        label: "Matières souhaitées",
+        type: "options",
         required: false,
-        options: ['😡', '🙁', '😐', '😊', '🤩'],
-        order: 4
-      }
+        options: [
+          "ANG 101 (Anglais)",
+          "ECO 102 (Macroéconomie)",
+          "MTH 101 (Mathématiques)",
+        ],
+        order: 3,
+      },
+      {
+        id: "f_4",
+        label: "Votre niveau de satisfaction / Réaction",
+        type: "emoji_rating",
+        required: false,
+        options: ["😡", "🙁", "😐", "😊", "🤩"],
+        order: 4,
+      },
     ]);
     setModalOpen(true);
   };
@@ -99,42 +134,43 @@ export const FormBuilderView: React.FC = () => {
     setEditingFormId(form.id);
     setTitle(form.title);
     setDescription(form.description);
-    setThemeColor(form.themeColor || '#075E54');
+    setThemeColor(form.themeColor || "#075E54");
     setFields(form.fields || []);
     setModalOpen(true);
   };
 
-  const handleAddField = (type: FormField['type'] = 'text') => {
+  const handleAddField = (type: FormField["type"] = "text") => {
     let defaultOptions: string[] | undefined = undefined;
-    if (type === 'options') {
-      defaultOptions = ['Option 1', 'Option 2', 'Option 3'];
-    } else if (type === 'emoji_rating') {
-      defaultOptions = ['😡', '🙁', '😐', '😊', '🤩'];
-    } else if (type === 'select') {
-      defaultOptions = ['Choix 1', 'Choix 2'];
+    if (type === "options") {
+      defaultOptions = ["Option 1", "Option 2", "Option 3"];
+    } else if (type === "emoji_rating") {
+      defaultOptions = ["😡", "🙁", "😐", "😊", "🤩"];
+    } else if (type === "select") {
+      defaultOptions = ["Choix 1", "Choix 2"];
     }
 
     const newField: FormField = {
-      id: 'f_' + Date.now(),
-      label: type === 'options' 
-        ? 'Sélectionnez vos options' 
-        : type === 'emoji_rating' 
-        ? 'Votre réaction' 
-        : 'Nouveau champ',
+      id: "f_" + Date.now(),
+      label:
+        type === "options"
+          ? "Sélectionnez vos options"
+          : type === "emoji_rating"
+            ? "Votre réaction"
+            : "Nouveau champ",
       type,
       required: false,
       options: defaultOptions,
-      order: fields.length + 1
+      order: fields.length + 1,
     };
     setFields([...fields, newField]);
   };
 
   const handleRemoveField = (id: string) => {
-    setFields(fields.filter(f => f.id !== id));
+    setFields(fields.filter((f) => f.id !== id));
   };
 
   const handleFieldChange = (id: string, key: keyof FormField, val: any) => {
-    setFields(fields.map(f => (f.id === id ? { ...f, [key]: val } : f)));
+    setFields(fields.map((f) => (f.id === id ? { ...f, [key]: val } : f)));
   };
 
   const handleSaveForm = async (e: React.FormEvent) => {
@@ -145,7 +181,7 @@ export const FormBuilderView: React.FC = () => {
           title,
           description,
           themeColor,
-          fields
+          fields,
         });
         showSuccess(`Formulaire "${title}" mis à jour avec succès.`);
       } else {
@@ -153,25 +189,27 @@ export const FormBuilderView: React.FC = () => {
           title,
           description,
           themeColor,
-          fields
+          fields,
         });
         showSuccess(`Formulaire "${title}" créé avec succès.`);
       }
       setModalOpen(false);
       await loadForms();
     } catch (err: any) {
-      showError(err.message || 'Erreur lors de l\'enregistrement du formulaire.');
+      showError(
+        err.message || "Erreur lors de l'enregistrement du formulaire.",
+      );
     }
   };
 
   const handleDeleteForm = async (id: string) => {
     try {
       await api.deleteForm(id);
-      showSuccess('Formulaire et ses soumissions supprimés.');
+      showSuccess("Formulaire et ses soumissions supprimés.");
       setDeleteConfirm(null);
       await loadForms();
     } catch (err: any) {
-      showError(err.message || 'Erreur de suppression.');
+      showError(err.message || "Erreur de suppression.");
     }
   };
 
@@ -182,7 +220,7 @@ export const FormBuilderView: React.FC = () => {
       const res = await api.getFormSubmissions(form.id);
       setSubmissions(res.submissions);
     } catch (err) {
-      console.error('Error fetching submissions:', err);
+      console.error("Error fetching submissions:", err);
     } finally {
       setSubmissionsLoading(false);
     }
@@ -201,20 +239,20 @@ export const FormBuilderView: React.FC = () => {
       showSuccess(`Lien copié ! Partagez-le sur WhatsApp, SMS...`);
     } catch (err) {
       // Fallback si clipboard API indisponible
-      const textarea = document.createElement('textarea');
+      const textarea = document.createElement("textarea");
       textarea.value = url;
       document.body.appendChild(textarea);
       textarea.select();
-      document.execCommand('copy');
+      document.execCommand("copy");
       document.body.removeChild(textarea);
       setCopiedFormId(form.id);
       setTimeout(() => setCopiedFormId(null), 2500);
-      showSuccess('Lien copié !');
+      showSuccess("Lien copié !");
     }
   };
 
   const formatRelativeTime = (iso: string | null | undefined): string => {
-    if (!iso) return '';
+    if (!iso) return "";
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
@@ -224,16 +262,22 @@ export const FormBuilderView: React.FC = () => {
     if (mins < 60) return `il y a ${mins} min`;
     if (hours < 24) return `il y a ${hours}h`;
     if (days < 7) return `il y a ${days}j`;
-    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+    return new Date(iso).toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+    });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#111B21]">Form Builder Dynamique</h2>
-          <p className="text-xs text-[#667781]">
-            Création, modification, suppression et export CSV de formulaires personnalisés avec sélection d'options et réactions emojis.
+          <h2 className="text-xl font-bold text-[#111B21] dark:text-white">
+            Form Builder Dynamique
+          </h2>
+          <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+            Création, modification, suppression et export CSV de formulaires
+            personnalisés avec sélection d'options et réactions emojis.
           </p>
         </div>
 
@@ -262,12 +306,12 @@ export const FormBuilderView: React.FC = () => {
       {/* Forms Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {forms.map((form) => {
-          const formColor = form.themeColor || '#075E54';
+          const formColor = form.themeColor || "#075E54";
 
           return (
             <div
               key={form.id}
-              className="p-5 bg-white rounded-2xl border border-[#E9EDEF] shadow-xs space-y-4 hover:border-[#25D366] transition-all flex flex-col justify-between"
+              className="p-5 bg-white dark:bg-[#111B21] rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] shadow-xs space-y-4 hover:border-[#25D366] transition-all flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-start justify-between gap-2">
@@ -279,8 +323,12 @@ export const FormBuilderView: React.FC = () => {
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-sm text-[#111B21] truncate">{form.title}</h3>
-                      <p className="text-[11px] text-[#667781] mt-0.5 line-clamp-1">{form.description}</p>
+                      <h3 className="font-bold text-sm text-[#111B21] dark:text-white truncate">
+                        {form.title}
+                      </h3>
+                      <p className="text-[11px] text-[#667781] dark:text-[#8696A0] mt-0.5 line-clamp-1">
+                        {form.description}
+                      </p>
                     </div>
                   </div>
 
@@ -290,15 +338,17 @@ export const FormBuilderView: React.FC = () => {
                     </span>
                     {form.hasNewSubmissions && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-500 text-white animate-pulse">
-                        <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                        <span className="w-1.5 h-1.5 bg-white dark:bg-[#111B21] rounded-full"></span>
                         NOUVEAU
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="text-xs text-[#667781] mt-3 space-y-1.5">
-                  <p>Nombre de champs : <strong>{form.fields.length}</strong></p>
+                <div className="text-xs text-[#667781] dark:text-[#8696A0] mt-3 space-y-1.5">
+                  <p>
+                    Nombre de champs : <strong>{form.fields.length}</strong>
+                  </p>
 
                   {/* ⭐ Compteur de réponses cliquable */}
                   <button
@@ -306,18 +356,19 @@ export const FormBuilderView: React.FC = () => {
                     onClick={() => handleViewSubmissions(form)}
                     className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg font-bold transition-all ${
                       (form.submissionsCount || 0) > 0
-                        ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                     }`}
                     title="Voir toutes les réponses"
                   >
                     <Inbox className="w-3.5 h-3.5" />
-                    {form.submissionsCount || 0} réponse{(form.submissionsCount || 0) > 1 ? 's' : ''}
+                    {form.submissionsCount || 0} réponse
+                    {(form.submissionsCount || 0) > 1 ? "s" : ""}
                   </button>
 
                   {/* ⭐ Dernière soumission */}
                   {form.lastSubmissionAt && (
-                    <p className="flex items-center gap-1 text-[10px] text-[#667781] italic">
+                    <p className="flex items-center gap-1 text-[10px] text-[#667781] dark:text-[#8696A0] italic">
                       <Clock className="w-3 h-3" />
                       Dernière : {formatRelativeTime(form.lastSubmissionAt)}
                     </p>
@@ -334,7 +385,7 @@ export const FormBuilderView: React.FC = () => {
               </div>
 
               {/* Bottom Actions */}
-              <div className="pt-3 border-t border-[#E9EDEF] space-y-3">
+              <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] space-y-3">
                 {/* Ligne 1 : Actions rapides + bouton "Voir les réponses" */}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-1">
@@ -343,21 +394,37 @@ export const FormBuilderView: React.FC = () => {
                       title="Copier le lien public de partage"
                       className={`p-1.5 rounded-lg transition-colors ${
                         copiedFormId === form.id
-                          ? 'text-white bg-[#25D366]'
-                          : 'text-[#075E54] hover:bg-emerald-50'
+                          ? "text-white bg-[#25D366]"
+                          : "text-[#075E54] hover:bg-emerald-50"
                       }`}
                     >
-                      {copiedFormId === form.id
-                        ? <CheckIcon className="w-4 h-4" />
-                        : <Share2 className="w-4 h-4" />}
+                      {copiedFormId === form.id ? (
+                        <CheckIcon className="w-4 h-4" />
+                      ) : (
+                        <Share2 className="w-4 h-4" />
+                      )}
                     </button>
-                    <button onClick={() => openEditModal(form)} title="Modifier" className="p-1.5 rounded-lg text-[#075E54] hover:bg-emerald-50 transition-colors">
+                    <button
+                      onClick={() => openEditModal(form)}
+                      title="Modifier"
+                      className="p-1.5 rounded-lg text-[#075E54] hover:bg-emerald-50 transition-colors"
+                    >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleExportCsv(form.id)} title="Exporter CSV" className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors">
+                    <button
+                      onClick={() => handleExportCsv(form.id)}
+                      title="Exporter CSV"
+                      className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
                       <Download className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setDeleteConfirm({ id: form.id, title: form.title })} title="Supprimer" className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors">
+                    <button
+                      onClick={() =>
+                        setDeleteConfirm({ id: form.id, title: form.title })
+                      }
+                      title="Supprimer"
+                      className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -367,24 +434,27 @@ export const FormBuilderView: React.FC = () => {
                     onClick={() => handleViewSubmissions(form)}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
                       form.hasNewSubmissions
-                        ? 'text-white bg-[#25D366] hover:bg-[#1faa54] shadow-sm ring-2 ring-[#25D366]/40'
-                        : 'text-[#075E54] bg-[#F0F2F5] hover:bg-[#E9EDEF]'
+                        ? "text-white bg-[#25D366] hover:bg-[#1faa54] shadow-sm ring-2 ring-[#25D366]/40"
+                        : "text-[#075E54] bg-[#F0F2F5] dark:bg-[#1F2C34] hover:bg-[#E9EDEF]"
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    Voir les {form.submissionsCount || 0} réponse{(form.submissionsCount || 0) > 1 ? 's' : ''}
+                    Voir les {form.submissionsCount || 0} réponse
+                    {(form.submissionsCount || 0) > 1 ? "s" : ""}
                   </button>
                 </div>
 
                 {/* Ligne 2 : Lien public visible en bas */}
-                <div className="pt-2 border-t border-[#E9EDEF]">
+                <div className="pt-2 border-t border-[#E9EDEF] dark:border-[#222E35]">
                   <button
                     onClick={() => handleCopyLink(form)}
-                    className="w-full text-left text-[10px] text-[#667781] hover:text-[#075E54] font-mono truncate flex items-center gap-1 group"
+                    className="w-full text-left text-[10px] text-[#667781] dark:text-[#8696A0] hover:text-[#075E54] font-mono truncate flex items-center gap-1 group"
                     title="Cliquer pour copier"
                   >
                     <LinkIcon className="w-3 h-3 shrink-0 text-[#25D366]" />
-                    <span className="truncate group-hover:underline">{api.getFormPublicUrl(form.id)}</span>
+                    <span className="truncate group-hover:underline">
+                      {api.getFormPublicUrl(form.id)}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -396,99 +466,111 @@ export const FormBuilderView: React.FC = () => {
       {/* CREATE / EDIT FORM MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setModalOpen(false)}
-              className="absolute top-4 right-4 text-[#667781] hover:text-[#111B21] p-1 rounded-lg"
+              className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div>
-              <h3 className="font-bold text-lg text-[#111B21]">
-                {editingFormId ? 'Modifier le Formulaire' : 'Nouveau Formulaire Dynamique'}
+              <h3 className="font-bold text-lg text-[#111B21] dark:text-white">
+                {editingFormId
+                  ? "Modifier le Formulaire"
+                  : "Nouveau Formulaire Dynamique"}
               </h3>
-              <p className="text-xs text-[#667781]">
-                Personnalisez le titre, la couleur du thème, et ajoutez des champs classiques, d'options ou des réactions emojis.
+              <p className="text-xs text-[#667781] dark:text-[#8696A0]">
+                Personnalisez le titre, la couleur du thème, et ajoutez des
+                champs classiques, d'options ou des réactions emojis.
               </p>
             </div>
 
             <form onSubmit={handleSaveForm} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Titre du formulaire *</label>
+                <label className="block font-semibold mb-1">
+                  Titre du formulaire *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Ex : Inscription aux Séances de Tutorat en Ligne"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21]"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Description / Consignes</label>
+                <label className="block font-semibold mb-1">
+                  Description / Consignes
+                </label>
                 <textarea
                   rows={2}
                   placeholder="Instructions pour les étudiants..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5] focus:bg-white"
+                  className="w-full p-2.5 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34] focus:bg-white focus:dark:bg-[#111B21]"
                 />
               </div>
 
               {/* Theme Color Selector */}
-              <div className="p-3 bg-[#F0F2F5] rounded-xl space-y-2">
-                <div className="flex items-center gap-1.5 font-semibold text-[#111B21]">
+              <div className="p-3 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl space-y-2">
+                <div className="flex items-center gap-1.5 font-semibold text-[#111B21] dark:text-white">
                   <Palette className="w-4 h-4 text-[#075E54]" />
                   <span>Couleur du thème du formulaire</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {PRESET_COLORS.map(c => (
+                  {PRESET_COLORS.map((c) => (
                     <button
                       key={c.hex}
                       type="button"
                       onClick={() => setThemeColor(c.hex)}
                       className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
                         themeColor === c.hex
-                          ? 'border-black bg-white shadow-xs font-bold'
-                          : 'border-transparent bg-white/70 hover:bg-white'
+                          ? "border-black bg-white dark:bg-[#111B21] shadow-xs font-bold"
+                          : "border-transparent bg-white/70 dark:bg-[#111B21]/70 hover:bg-white dark:hover:bg-[#111B21]"
                       }`}
                     >
-                      <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: c.hex }} />
+                      <span
+                        className="w-3.5 h-3.5 rounded-full"
+                        style={{ backgroundColor: c.hex }}
+                      />
                       <span>{c.name}</span>
                     </button>
                   ))}
                   <div className="flex items-center gap-1 ml-auto">
-                    <span className="text-[10px] text-[#667781]">Code Hex :</span>
+                    <span className="text-[10px] text-[#667781] dark:text-[#8696A0]">
+                      Code Hex :
+                    </span>
                     <input
                       type="text"
                       value={themeColor}
                       onChange={(e) => setThemeColor(e.target.value)}
-                      className="w-20 p-1 text-[11px] rounded border border-[#E9EDEF] bg-white font-mono"
+                      className="w-20 p-1 text-[11px] rounded border border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] font-mono"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Fields Builder */}
-              <div className="space-y-3 pt-2 border-t border-[#E9EDEF]">
+              <div className="space-y-3 pt-2 border-t border-[#E9EDEF] dark:border-[#222E35]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-bold uppercase tracking-wider text-[#667781]">
+                  <span className="font-bold uppercase tracking-wider text-[#667781] dark:text-[#8696A0]">
                     Champs configurés ({fields.length})
                   </span>
 
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handleAddField('text')}
+                      onClick={() => handleAddField("text")}
                       className="inline-flex items-center gap-1 text-[11px] font-bold text-[#075E54] bg-emerald-50 px-2.5 py-1 rounded-lg hover:bg-emerald-100"
                     >
                       <Plus className="w-3 h-3" /> Texte
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAddField('options')}
+                      onClick={() => handleAddField("options")}
                       className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100"
                       title="Champ pour la sélection d'un ou plusieurs éléments"
                     >
@@ -496,7 +578,7 @@ export const FormBuilderView: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleAddField('emoji_rating')}
+                      onClick={() => handleAddField("emoji_rating")}
                       className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg hover:bg-amber-100"
                       title="Champ de réaction basé sur les emojis"
                     >
@@ -507,19 +589,26 @@ export const FormBuilderView: React.FC = () => {
 
                 <div className="space-y-2.5">
                   {fields.map((f) => (
-                    <div key={f.id} className="p-3 bg-[#F0F2F5] rounded-xl space-y-2 border border-[#E9EDEF]">
+                    <div
+                      key={f.id}
+                      className="p-3 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl space-y-2 border border-[#E9EDEF] dark:border-[#222E35]"
+                    >
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
                           value={f.label}
                           placeholder="Intitulé du champ..."
-                          onChange={(e) => handleFieldChange(f.id, 'label', e.target.value)}
-                          className="flex-1 p-2 rounded-lg bg-white border border-[#E9EDEF] font-semibold"
+                          onChange={(e) =>
+                            handleFieldChange(f.id, "label", e.target.value)
+                          }
+                          className="flex-1 p-2 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222E35] font-semibold"
                         />
                         <select
                           value={f.type}
-                          onChange={(e) => handleFieldChange(f.id, 'type', e.target.value)}
-                          className="p-2 rounded-lg bg-white border border-[#E9EDEF] font-medium"
+                          onChange={(e) =>
+                            handleFieldChange(f.id, "type", e.target.value)
+                          }
+                          className="p-2 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222E35] font-medium"
                         >
                           <option value="text">Texte court</option>
                           <option value="textarea">Texte long</option>
@@ -527,14 +616,24 @@ export const FormBuilderView: React.FC = () => {
                           <option value="phone">Téléphone</option>
                           <option value="email">Email</option>
                           <option value="select">Liste déroulante</option>
-                          <option value="options">☑ Champ d'Options (Choix multiple)</option>
-                          <option value="emoji_rating">😍 Champ Réaction Emoji</option>
+                          <option value="options">
+                            ☑ Champ d'Options (Choix multiple)
+                          </option>
+                          <option value="emoji_rating">
+                            😍 Champ Réaction Emoji
+                          </option>
                         </select>
                         <label className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer shrink-0">
                           <input
                             type="checkbox"
                             checked={f.required}
-                            onChange={(e) => handleFieldChange(f.id, 'required', e.target.checked)}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                f.id,
+                                "required",
+                                e.target.checked,
+                              )
+                            }
                             className="w-3.5 h-3.5 text-[#25D366] rounded"
                           />
                           Obligatoire
@@ -549,25 +648,34 @@ export const FormBuilderView: React.FC = () => {
                       </div>
 
                       {/* If type is options or select or emoji_rating, allow editing choices */}
-                      {(f.type === 'options' || f.type === 'select' || f.type === 'emoji_rating') && (
-                        <div className="pl-2 pt-1 border-t border-[#E9EDEF]">
-                          <label className="block text-[10px] font-bold text-[#667781] mb-1">
-                            {f.type === 'emoji_rating'
-                              ? 'Emojis de réaction (séparés par une virgule ou espace) :'
-                              : 'Options de sélection (séparées par une virgule) :'}
+                      {(f.type === "options" ||
+                        f.type === "select" ||
+                        f.type === "emoji_rating") && (
+                        <div className="pl-2 pt-1 border-t border-[#E9EDEF] dark:border-[#222E35]">
+                          <label className="block text-[10px] font-bold text-[#667781] dark:text-[#8696A0] mb-1">
+                            {f.type === "emoji_rating"
+                              ? "Emojis de réaction (séparés par une virgule ou espace) :"
+                              : "Options de sélection (séparées par une virgule) :"}
                           </label>
                           <input
                             type="text"
-                            value={(f.options || []).join(', ')}
+                            value={(f.options || []).join(", ")}
                             onChange={(e) =>
                               handleFieldChange(
                                 f.id,
-                                'options',
-                                e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                                "options",
+                                e.target.value
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean),
                               )
                             }
-                            placeholder={f.type === 'emoji_rating' ? '😡, 🙁, 😐, 😊, 🤩' : 'Option 1, Option 2, Option 3'}
-                            className="w-full p-1.5 rounded-lg bg-white border border-[#E9EDEF] text-xs font-mono"
+                            placeholder={
+                              f.type === "emoji_rating"
+                                ? "😡, 🙁, 😐, 😊, 🤩"
+                                : "Option 1, Option 2, Option 3"
+                            }
+                            className="w-full p-1.5 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222E35] text-xs font-mono"
                           />
                         </div>
                       )}
@@ -576,11 +684,11 @@ export const FormBuilderView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-[#E9EDEF] flex justify-end gap-2">
+              <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 font-semibold text-[#667781]"
+                  className="px-4 py-2 font-semibold text-[#667781] dark:text-[#8696A0]"
                 >
                   Annuler
                 </button>
@@ -588,7 +696,9 @@ export const FormBuilderView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
                 >
-                  {editingFormId ? 'Enregistrer les modifications' : 'Publier le formulaire'}
+                  {editingFormId
+                    ? "Enregistrer les modifications"
+                    : "Publier le formulaire"}
                 </button>
               </div>
             </form>
@@ -599,20 +709,20 @@ export const FormBuilderView: React.FC = () => {
       {/* VIEW SUBMISSIONS MODAL */}
       {selectedFormForSubmissions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-3xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setSelectedFormForSubmissions(null)}
-              className="absolute top-4 right-4 text-[#667781] hover:text-[#111B21] p-1 rounded-lg"
+              className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="font-bold text-lg text-[#111B21]">
+                <h3 className="font-bold text-lg text-[#111B21] dark:text-white">
                   Soumissions : {selectedFormForSubmissions.title}
                 </h3>
-                <div className="flex items-center gap-2 text-xs text-[#667781]">
+                <div className="flex items-center gap-2 text-xs text-[#667781] dark:text-[#8696A0]">
                   <span>{submissions.length} réponse(s) enregistrée(s).</span>
                   {selectedFormForSubmissions.hasNewSubmissions && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-rose-500 text-white animate-pulse">
@@ -632,43 +742,61 @@ export const FormBuilderView: React.FC = () => {
             </div>
 
             {submissionsLoading ? (
-              <div className="py-12 text-center text-xs text-[#667781]">
+              <div className="py-12 text-center text-xs text-[#667781] dark:text-[#8696A0]">
                 Chargement des réponses...
               </div>
             ) : submissions.length === 0 ? (
-              <div className="p-8 text-center bg-[#F0F2F5] rounded-xl text-xs text-[#667781]">
+              <div className="p-8 text-center bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl text-xs text-[#667781] dark:text-[#8696A0]">
                 Aucune réponse reçue pour le moment.
               </div>
             ) : (
-              <div className="overflow-x-auto border border-[#E9EDEF] rounded-xl">
-                <table className="w-full text-left text-xs divide-y divide-[#E9EDEF]">
-                  <thead className="bg-[#F0F2F5] text-[#667781] font-semibold">
+              <div className="overflow-x-auto border border-[#E9EDEF] dark:border-[#222E35] rounded-xl">
+                <table className="w-full text-left text-xs divide-y divide-[#E9EDEF] dark:divide-[#222E35]">
+                  <thead className="bg-[#F0F2F5] dark:bg-[#1F2C34] text-[#667781] dark:text-[#8696A0] font-semibold">
                     <tr>
                       <th className="p-3">Date</th>
                       <th className="p-3">Étudiant</th>
                       <th className="p-3">Téléphone</th>
-                      {selectedFormForSubmissions.fields.map(f => (
-                        <th key={f.id} className="p-3">{f.label}</th>
+                      {selectedFormForSubmissions.fields.map((f) => (
+                        <th key={f.id} className="p-3">
+                          {f.label}
+                        </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E9EDEF]">
+                  <tbody className="divide-y divide-[#E9EDEF] dark:divide-[#222E35]">
                     {submissions.map((sub) => (
-                      <tr key={sub.id} className="hover:bg-[#F0F2F5]/50">
-                        <td className="p-3 text-[11px] text-[#667781] whitespace-nowrap">
-                          {new Date(sub.submittedAt).toLocaleDateString('fr-FR')} {new Date(sub.submittedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      <tr
+                        key={sub.id}
+                        className="hover:bg-[#F0F2F5]/50 dark:hover:bg-[#1F2C34]/50"
+                      >
+                        <td className="p-3 text-[11px] text-[#667781] dark:text-[#8696A0] whitespace-nowrap">
+                          {new Date(sub.submittedAt).toLocaleDateString(
+                            "fr-FR",
+                          )}{" "}
+                          {new Date(sub.submittedAt).toLocaleTimeString(
+                            "fr-FR",
+                            { hour: "2-digit", minute: "2-digit" },
+                          )}
                         </td>
-                        <td className="p-3 font-bold text-[#111B21] whitespace-nowrap">
+                        <td className="p-3 font-bold text-[#111B21] dark:text-white whitespace-nowrap">
                           {sub.userName}
                         </td>
-                        <td className="p-3 text-[#667781] font-mono whitespace-nowrap">
+                        <td className="p-3 text-[#667781] dark:text-[#8696A0] font-mono whitespace-nowrap">
                           {sub.userPhone}
                         </td>
-                        {selectedFormForSubmissions.fields.map(f => {
+                        {selectedFormForSubmissions.fields.map((f) => {
                           const val = sub.data?.[f.id];
-                          const displayVal = Array.isArray(val) ? val.join(', ') : val !== undefined ? String(val) : '-';
+                          const displayVal = Array.isArray(val)
+                            ? val.join(", ")
+                            : val !== undefined
+                              ? String(val)
+                              : "-";
                           return (
-                            <td key={f.id} className="p-3 text-[#111B21]">
+                            <td
+                              key={f.id}
+                              className="p-3 text-[#111B21] dark:text-white"
+                            >
                               {displayVal}
                             </td>
                           );
@@ -686,15 +814,19 @@ export const FormBuilderView: React.FC = () => {
       {/* DELETE FORM CONFIRMATION */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] space-y-4">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-md w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
             <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
               <Trash2 className="w-6 h-6" />
             </div>
 
             <div>
-              <h3 className="font-bold text-base text-[#111B21]">Supprimer ce formulaire</h3>
-              <p className="text-xs text-[#667781] mt-1 leading-relaxed">
-                Êtes-vous sûr de vouloir supprimer définitivement le formulaire <strong>"{deleteConfirm.title}"</strong> et toutes ses réponses associées ?
+              <h3 className="font-bold text-base text-[#111B21] dark:text-white">
+                Supprimer ce formulaire
+              </h3>
+              <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-1 leading-relaxed">
+                Êtes-vous sûr de vouloir supprimer définitivement le formulaire{" "}
+                <strong>"{deleteConfirm.title}"</strong> et toutes ses réponses
+                associées ?
               </p>
             </div>
 
@@ -702,7 +834,7 @@ export const FormBuilderView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-xs font-semibold text-[#667781]"
+                className="px-4 py-2 text-xs font-semibold text-[#667781] dark:text-[#8696A0]"
               >
                 Annuler
               </button>

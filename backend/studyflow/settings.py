@@ -84,13 +84,25 @@ DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('SUPABASE_DB_URL')
 SUPABASE_DB_HOST = os.getenv('SUPABASE_DB_HOST') or os.getenv('DB_HOST')
 
 if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=600,
-            ssl_require=True
-        )
-    }
+    # Détection du Transaction Pooler (port 6543)
+    # En mode pooler, on doit désactiver les prepared statements psycopg3
+    # pour éviter les conflits de session.
+    is_pooler = ':6543' in DATABASE_URL or 'pooler.supabase.com' in DATABASE_URL
+
+    _db_config = dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=60,          # Réduit pour éviter la saturation du pooler
+        conn_health_checks=True,
+        ssl_require=True,
+    )
+
+    # psycopg3 : désactiver les prepared statements en mode pooler
+    if is_pooler:
+        _db_config.setdefault('OPTIONS', {})
+        _db_config['OPTIONS']['prepare_threshold'] = None
+
+    DATABASES = {'default': _db_config}
+
 elif SUPABASE_DB_HOST:
     DATABASES = {
         'default': {
@@ -102,12 +114,13 @@ elif SUPABASE_DB_HOST:
             'PORT': os.getenv('SUPABASE_DB_PORT') or os.getenv('DB_PORT') or '5432',
             'OPTIONS': {
                 'sslmode': 'require',
+                'prepare_threshold': None,  # psycopg3 pooler-safe
             },
-            'CONN_MAX_AGE': 600,
+            'CONN_MAX_AGE': 60,
         }
     }
 else:
-    # Fallback to local SQLite when Supabase credentials are not yet populated in .env
+    # Fallback SQLite
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -119,6 +132,9 @@ else:
 SUPABASE_URL = os.getenv('SUPABASE_URL', '')
 SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY', '')
 SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
+SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
+SUPABASE_JWT_ISSUER = os.getenv('SUPABASE_JWT_ISSUER', 'ulstudyflow')
+SUPABASE_JWT_TTL_SECONDS = 300
 
 
 # Custom User Model
@@ -199,12 +215,19 @@ AI_MAX_HISTORY_MESSAGES = 10
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-CSRF_COOKIE_HTTPONLY = False
+
+# Cookies de session
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SAMESITE = 'None'   # CRITIQUE : permet le cross-origin
-CSRF_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SAMESITE = 'None' 
+SESSION_COOKIE_SECURE = True              # FORCÉ à True en prod
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_AGE = 7 * 24 * 60 * 60     # 7 jours
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False   # Persiste entre sessions
+
+# Cookies CSRF
+CSRF_COOKIE_HTTPONLY = False              # JS doit pouvoir lire le CSRF token
+CSRF_COOKIE_SECURE = True                 # FORCÉ à True
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_AGE = 7 * 24 * 60 * 60        # 7 jours (par défaut = session)
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',

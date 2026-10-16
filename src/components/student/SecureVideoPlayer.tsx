@@ -48,7 +48,7 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
   const [captureWarning, setCaptureWarning] = useState<string | null>(null);
   const [videoLoaded, setVideoLoaded] = useState(false);
 
-  // ⭐ Hook anti-capture
+  // Hook anti-capture
   const { isTabHidden, rightClickAttempts, blockedShortcuts } = useAntiCapture({
     enabled: isProtected,
     onCaptureDetected: (reason) => {
@@ -90,7 +90,7 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
     }
   }, [isTabHidden]);
 
-  // Watermark dynamique (nom + téléphone)
+  // 2. Watermark dynamique (nom + téléphone)
   const watermarkText = [
     watermarkName,
     watermarkPhone,
@@ -98,6 +98,24 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
   ]
     .filter(Boolean)
     .join(" · ");
+
+  // état de la position du watermark
+  const [wmPosition, setWmPosition] = useState(0);
+  const WM_POSITIONS = [
+    "top-4 right-4",
+    "top-24 left-4",
+    "bottom-20 right-4",
+    "bottom-20 left-4",
+  ];
+
+  // 4. useEffect qui tourne toutes les 30s
+  useEffect(() => {
+    if (!isProtected) return;
+    const interval = setInterval(() => {
+      setWmPosition((p) => (p + 1) % WM_POSITIONS.length);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isProtected]);
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
@@ -198,20 +216,22 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
           className="w-full max-h-[70vh] object-contain"
         />
 
-        {/* Watermark dynamique — visible discrètement */}
+        {/* Watermarks dynamiques et multiples */}
         {isProtected && watermarkText && (
           <>
-            {/* Watermark principale bas-droite */}
-            <div className="absolute bottom-16 right-4 pointer-events-none select-none">
-              <span className="text-white text-[11px] font-mono opacity-25 drop-shadow-lg">
+            {/* Watermark principal — position change toutes les 30s */}
+            <div
+              className={`absolute ${WM_POSITIONS[wmPosition]} pointer-events-none select-none transition-all duration-700 ease-in-out`}
+            >
+              <span className="text-white text-[12px] sm:text-[14px] font-bold tracking-wide opacity-30 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                 {watermarkText}
               </span>
             </div>
 
-            {/* Watermark secondaire haut-gauche (plus discret) */}
-            <div className="absolute top-3 left-3 pointer-events-none select-none">
-              <span className="text-white text-[9px] font-mono opacity-15">
-                UL Study Flow · {watermarkName}
+            {/* Watermark central très discret (toujours visible au centre) */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+              <span className="text-white text-[28px] sm:text-[40px] font-extrabold tracking-widest opacity-[0.06] transform -rotate-12 whitespace-nowrap">
+                {watermarkName || "UL Study Flow"}
               </span>
             </div>
           </>

@@ -20,6 +20,11 @@ import {
   TrendingUp,
   ChevronDown,
   Phone,
+  Home,
+  Route,
+  Coins,
+  HelpCircle,
+  Info,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -226,47 +231,98 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* ============ TABLET NAV (md → lg) : icônes compactes ============ */}
-          <nav className="hidden md:flex lg:hidden items-center gap-0.5 text-emerald-100">
-            {!user ? (
-              <span className="text-xs text-emerald-200 italic pr-2">
-                Bienvenue
-              </span>
-            ) : (
-              <>
-                {studentNavItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = currentTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleNav(item.id)}
-                      title={item.label}
-                      className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
-                        isActive ? "text-[#25D366] bg-white/5" : ""
-                      }`}
-                    >
-                      <Icon
-                        className={`w-4 h-4 ${item.isHighlight ? "text-[#25D366]" : ""}`}
-                      />
-                    </button>
-                  );
-                })}
-                {(user.role === "STAFF" || user.role === "SUPERUSER") && (
-                  <button
-                    onClick={() => handleNav("admin")}
-                    title="Administration"
-                    className={`p-2 rounded-lg bg-[#128C7E] dark:bg-[#1F2C34] text-white hover:bg-emerald-600 transition-colors ${
-                      currentTab.startsWith("admin")
-                        ? "ring-1 ring-[#25D366]"
-                        : ""
-                    }`}
-                  >
-                    <Shield className="w-4 h-4 text-[#25D366]" />
-                  </button>
-                )}
-              </>
-            )}
-          </nav>
+<nav className="hidden md:flex lg:hidden items-center gap-0.5 text-emerald-100">
+  {!user ? (
+    <>
+      <button
+        onClick={() => handleNav("home")}
+        title="Accueil"
+        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+          currentTab === "home" ? "text-[#25D366] bg-white/5" : ""
+        }`}
+      >
+        <Home className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => handleNav("features")}
+        title="Fonctionnalités"
+        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+          currentTab === "features" ? "text-[#25D366] bg-white/5" : ""
+        }`}
+      >
+        <Sparkles className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => handleNav("how_it_works")}
+        title="Comment ça marche"
+        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+          currentTab === "how_it_works" ? "text-[#25D366] bg-white/5" : ""
+        }`}
+      >
+        <Route className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => handleNav("pricing")}
+        title="Tarifs"
+        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+          currentTab === "pricing" ? "text-[#25D366] bg-white/5" : ""
+        }`}
+      >
+        <Coins className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => handleNav("faq")}
+        title="FAQ"
+        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+          currentTab === "faq" ? "text-[#25D366] bg-white/5" : ""
+        }`}
+      >
+        <HelpCircle className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => handleNav("about")}
+        title="À propos"
+        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+          currentTab === "about" ? "text-[#25D366] bg-white/5" : ""
+        }`}
+      >
+        <Info className="w-4 h-4" />
+      </button>
+    </>
+  ) : (
+    <>
+      {studentNavItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = currentTab === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => handleNav(item.id)}
+            title={item.label}
+            className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+              isActive ? "text-[#25D366] bg-white/5" : ""
+            }`}
+          >
+            <Icon
+              className={`w-4 h-4 ${item.isHighlight ? "text-[#25D366]" : ""}`}
+            />
+          </button>
+        );
+      })}
+      {(user.role === "STAFF" || user.role === "SUPERUSER") && (
+        <button
+          onClick={() => handleNav("admin")}
+          title="Administration"
+          className={`p-2 rounded-lg bg-[#128C7E] dark:bg-[#1F2C34] text-white hover:bg-emerald-600 transition-colors ${
+            currentTab.startsWith("admin") ? "ring-1 ring-[#25D366]" : ""
+          }`}
+        >
+          <Shield className="w-4 h-4 text-[#25D366]" />
+        </button>
+      )}
+    </>
+  )}
+</nav>
 
           {/* ============ RIGHT SIDE (Desktop md+) ============ */}
           <div className="hidden md:flex items-center gap-1.5 lg:gap-2">

@@ -20,38 +20,95 @@ class QuizSerializer(serializers.ModelSerializer):
         model = Quiz
         fields = ['id', 'sessionId', 'chapterId', 'title', 'description', 'passingScorePercent', 'questions']
 
-
 class ChapterSerializer(serializers.ModelSerializer):
-    sessionId = serializers.CharField(source='session_id')
-    summaryText = serializers.CharField(source='summary_text', allow_blank=True, default='')
-    summaryHtml = serializers.CharField(source='summary_html', allow_blank=True, default='')
-    summaryJson = serializers.JSONField(source='summary_json', required=False)
-    summaryBlocksStyle = serializers.JSONField(source='summary_blocks_style', required=False)
-    quiz = QuizSerializer(read_only=True)
-    hasQuiz = serializers.SerializerMethodField()
-    hasRichContent = serializers.SerializerMethodField()
-    effectiveContent = serializers.SerializerMethodField()
+    """
+    Serializer du chapitre avec masquage des URLs médias protégées.
+
+    ⭐ Sécurité : si le média est hébergé sur Cloudinary en mode
+    'authenticated', on N'EXPOSE PAS son URL brute. Le frontend devra
+    appeler POST /api/chapters/<id>/secure-video-url pour obtenir
+    une URL signée temporaire (avec watermark + expiration).
+    """
+
+    video = serializers.SerializerMethodField()
+    audio = serializers.SerializerMethodField()
+    pdf = serializers.SerializerMethodField()
 
     class Meta:
         model = Chapter
-        fields = [
-            'id', 'sessionId', 'number', 'title', 'objectives', 'order',
-            'summaryText', 'summaryHtml', 'summaryJson', 'summaryBlocksStyle',
-            'effectiveContent', 'hasRichContent',
-            'video', 'audio', 'pdf', 'flashcards', 'quiz', 'hasQuiz'
-        ]
+        fields = '__all__'
 
-    def get_hasQuiz(self, obj):
-        return hasattr(obj, 'quiz') and obj.quiz is not None
+    # ─────────────────────────────────────────────────────────
+    # Helpers internes
+    # ─────────────────────────────────────────────────────────
 
-    def get_hasRichContent(self, obj):
-        return bool(obj.summary_json and obj.summary_json.get('content'))
+    def _is_protected(self, media: dict) -> bool:
+        """Détecte si un média est protégé (Cloudinary authenticated)."""
+        if not isinstance(media, dict):
+            return False
+        # Cas 1 : flag explicite
+        if media.get('isProtected') is True:
+            return True
+        # Cas 2 : type authenticated
+        if media.get('type') == 'authenticated':
+            return True
+        # Cas 3 : présent avec un public_id mais pas d'URL exploitable
+        #          ET provider cloudinary
+        if (
+            media.get('public_id')
+            and media.get('provider') == 'cloudinary'
+            and not media.get('url')
+        ):
+            return True
+        return False
 
-    def get_effectiveContent(self, obj):
-        """Contenu à afficher : HTML prioritaire, sinon markdown legacy."""
-        if obj.summary_html:
-            return obj.summary_html
-        return obj.summary_text or ''
+    def _sanitize_media(self, media, kind: str) -> dict:
+        """
+        Nettoie un média avant exposition :
+        - Si protégé : garde les métadonnées publiques (title, duration,
+          thumbnail, etc.) mais masque url + public_id.
+        - Sinon : retourne tel quel.
+        """
+        if not isinstance(media, dict) or not media:
+            return {}
+
+        if self._is_protected(media):
+            safe = {
+                'title': media.get('title'),
+                'duration': media.get('duration'),
+                'provider': 'cloudinary',
+                'isProtected': True,
+                # ⭐ On masque ces 2 champs critiques
+                'url': None,
+                'public_id': None,
+            }
+            # Métadonnées spécifiques
+            if kind == 'video':
+                safe['thumbnail_url'] = media.get('thumbnail_url')
+            elif kind == 'audio':
+                safe['speaker'] = media.get('speaker')
+            elif kind == 'pdf':
+                safe['pages'] = media.get('pages')
+                safe['sizeMb'] = media.get('sizeMb') or media.get('size_mb')
+            return safe
+
+        # Média non protégé → tel quel (YouTube, URL externe, etc.)
+        return media
+
+    # ─────────────────────────────────────────────────────────
+    # Champs
+    # ─────────────────────────────────────────────────────────
+
+    def get_video(self, obj):
+        return self._sanitize_media(obj.video, 'video')
+
+    def get_audio(self, obj):
+        return self._sanitize_media(obj.audio, 'audio')
+
+    def get_pdf(self, obj):
+        return self._sanitize_media(obj.pdf, 'pdf')
+
+
 
 class SessionContentSerializer(serializers.Serializer):
     summaryText = serializers.CharField(source='summary_text', allow_blank=True, default='')

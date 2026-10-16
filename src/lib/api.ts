@@ -102,6 +102,22 @@ export const api = {
     return request<{ user: User }>("/api/auth/me");
   },
 
+  async updateProfile(payload: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    department?: string;
+    program?: string;
+    level?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }): Promise<{ success: boolean; user: User }> {
+    return request<{ success: boolean; user: User }>("/api/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
   async logout(): Promise<void> {
     try {
       await fetch(`${API_URL}/api/auth/logout`, {
@@ -176,14 +192,35 @@ export const api = {
   },
 
   // ============ AI ASSISTANT ============
+  async getAvailableUesForAi(): Promise<{
+    ues: Array<{
+      id: string;
+      code: string;
+      title: string;
+      level: string;
+      semester: string;
+      department: string | null;
+      sessionsCount: number;
+    }>;
+    count: number;
+  }> {
+    return request("/api/ai/available-ues");
+  },
+
   async askAi(
     message: string,
     history: { role: "user" | "model"; text: string }[] = [],
     contextSessionId?: string,
+    contextUeId?: string,
   ): Promise<{ reply: string }> {
     return request<{ reply: string }>("/api/ai/ask", {
       method: "POST",
-      body: JSON.stringify({ message, history, contextSessionId }),
+      body: JSON.stringify({
+        message,
+        history,
+        contextSessionId,
+        contextUeId,
+      }),
     });
   },
 
@@ -557,6 +594,20 @@ export const api = {
   },
 
   // ============ NOTIFICATIONS ============
+  async getRealtimeToken(): Promise<{
+    token: string;
+    expiresIn: number;
+    supabaseUrl: string;
+    supabaseAnonKey: string;
+  }> {
+    return request<{
+      token: string;
+      expiresIn: number;
+      supabaseUrl: string;
+      supabaseAnonKey: string;
+    }>("/api/notifications/realtime-token", { method: "POST" });
+  },
+
   async getNotifications(): Promise<{
     notifications: AppNotification[];
     unreadCount: number;
@@ -1050,8 +1101,22 @@ export const api = {
   async getCloudinarySignature(
     resourceType: "video" | "image" | "raw" = "video",
     folder = "ulstudyflow/chapters",
-  ): Promise<CloudinarySignature> {
-    return request<CloudinarySignature>("/api/cloudinary/signature", {
+  ): Promise<{
+    signature: string;
+    timestamp: number;
+    api_key: string;
+    cloud_name: string;
+    folder: string;
+    type: string;
+  }> {
+    return request<{
+      signature: string;
+      timestamp: number;
+      api_key: string;
+      cloud_name: string;
+      folder: string;
+      type: string;
+    }>("/api/cloudinary/signature", {
       method: "POST",
       body: JSON.stringify({ resourceType, folder }),
     });
@@ -1062,7 +1127,7 @@ export const api = {
     onProgress?: (percent: number) => void,
     folder = "ulstudyflow/chapters",
   ): Promise<CloudinaryUploadResult> {
-    // 1. Obtenir la signature
+    // 1. Obtenir la signature (renvoie maintenant type='authenticated')
     const signature = await this.getCloudinarySignature("video", folder);
 
     // 2. Déterminer le resource_type selon le fichier
@@ -1078,6 +1143,9 @@ export const api = {
       formData.append("timestamp", String(signature.timestamp));
       formData.append("signature", signature.signature);
       formData.append("folder", signature.folder);
+      // CRUCIAL : envoyer le type 'authenticated' pour que Cloudinary
+      //     accepte la signature (elle a été générée avec ce paramètre)
+      formData.append("type", signature.type || "authenticated");
 
       const xhr = new XMLHttpRequest();
 
@@ -1107,7 +1175,17 @@ export const api = {
             reject(new Error("Réponse Cloudinary invalide."));
           }
         } else {
-          reject(new Error(`Erreur upload Cloudinary (${xhr.status})`));
+          // Log l'erreur Cloudinary pour le debug
+          let detail = "";
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            detail = errData?.error?.message || "";
+          } catch (_) {}
+          reject(
+            new Error(
+              `Erreur upload Cloudinary (${xhr.status})${detail ? ` : ${detail}` : ""}`,
+            ),
+          );
         }
       });
 
@@ -1127,5 +1205,71 @@ export const api = {
     return request<SecureVideoResponse>(
       `/api/chapters/${chapterId}/secure-video-url`,
     );
+  },
+
+  // ============ PARTENARIAT (PUBLIC) ============
+  async submitPartnershipRequest(payload: {
+    fullName: string;
+    phone: string;
+    email?: string;
+    department: string;
+    program: string;
+    level: string;
+    isDelegate: boolean;
+    motivation: string;
+    contribution?: string;
+  }): Promise<{ success: boolean; message: string; requestId: string }> {
+    return request("/api/partnership-requests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ============ PARTENARIAT (ADMIN) ============
+  async getAdminPartnershipRequests(
+    status?: string,
+  ): Promise<{ requests: any[]; total: number; pendingCount: number }> {
+    const qs = status && status !== "ALL" ? `?status=${status}` : "";
+    return request(`/api/admin/partnerships${qs}`);
+  },
+
+  async updateAdminPartnershipRequest(
+    reqId: string,
+    payload: { status?: string; adminNote?: string },
+  ): Promise<{ success: boolean; request: any }> {
+    return request(`/api/admin/partnerships/${reqId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteAdminPartnershipRequest(
+    reqId: string,
+  ): Promise<{ success: boolean }> {
+    return request(`/api/admin/partnerships/${reqId}`, { method: "DELETE" });
+  },
+
+  // ============ CONTACT (ADMIN) ============
+  async getAdminContactMessages(
+    status?: string,
+  ): Promise<{ messages: any[]; total: number; newCount: number }> {
+    const qs = status && status !== "ALL" ? `?status=${status}` : "";
+    return request(`/api/admin/contacts${qs}`);
+  },
+
+  async updateAdminContactMessage(
+    msgId: string,
+    payload: { status?: string; adminNote?: string },
+  ): Promise<{ success: boolean; message: any }> {
+    return request(`/api/admin/contacts/${msgId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteAdminContactMessage(
+    msgId: string,
+  ): Promise<{ success: boolean }> {
+    return request(`/api/admin/contacts/${msgId}`, { method: "DELETE" });
   },
 };

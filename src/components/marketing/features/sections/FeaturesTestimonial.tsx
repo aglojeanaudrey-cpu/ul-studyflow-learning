@@ -1,7 +1,7 @@
-import React from 'react';
-import { Star, BadgeCheck } from 'lucide-react';
-import { Container } from '../../ui/Container';
-import campusImage from '@/src/assets/images/campus_university_lome_1790533866163.jpg';
+import React from "react";
+import { Star, BadgeCheck } from "lucide-react";
+import { Container } from "../../ui/Container";
+import Afiwa from "@/src/assets/images/afiwa.jpg";
 
 export const FeaturesTestimonial: React.FC = () => {
   return (
@@ -13,7 +13,7 @@ export const FeaturesTestimonial: React.FC = () => {
             <div className="relative shrink-0">
               <div className="w-36 h-36 sm:w-48 sm:h-48 rounded-2xl overflow-hidden border-2 border-[#25D366] shadow-md">
                 <img
-                  src={campusImage}
+                  src={Afiwa}
                   alt="Étudiante togolaise souriante sur le campus de l'Université de Lomé"
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"

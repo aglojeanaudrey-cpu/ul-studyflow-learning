@@ -1,7 +1,7 @@
-import React from 'react';
-import { Globe, Network, CloudDownload, Wallet, Verified } from 'lucide-react';
-import { Container } from '../../ui/Container';
-import testimonialImage from '@/src/assets/images/hero_ul_student_1790533845064.jpg';
+import React from "react";
+import { Globe, Network, CloudDownload, Wallet, Verified } from "lucide-react";
+import { Container } from "../../ui/Container";
+import testimonialImage from "@/src/assets/images/Reality.jpg";
 
 interface Pillar {
   icon: React.ReactNode;
@@ -12,19 +12,19 @@ interface Pillar {
 const PILLARS: Pillar[] = [
   {
     icon: <Network className="w-5 h-5" />,
-    title: 'Économie extrême de Data Internet',
+    title: "Économie extrême de Data Internet",
     description:
       "Moins de 2 Mo par fiche téléchargeable. Un pass internet WhatsApp ou 150 F Moov/Togocom suffit pour tout réviser.",
   },
   {
     icon: <CloudDownload className="w-5 h-5" />,
-    title: 'Mode 100% Hors-ligne',
+    title: "Mode 100% Hors-ligne",
     description:
-      'Une fois le cours ou PDF enregistré sur ton téléphone, coupe ta connexion et étudie sans aucune distraction.',
+      "Une fois le cours ou PDF enregistré sur ton téléphone, coupe ta connexion et étudie sans aucune distraction.",
   },
   {
     icon: <Wallet className="w-5 h-5" />,
-    title: 'Micro-paiement Flooz & T-Money',
+    title: "Micro-paiement Flooz & T-Money",
     description:
       "Pas d'abonnement mensuel piégeur ni de carte bancaire Visa/Mastercard. Tu ne paies que l'UE que tu souhaites travailler.",
   },
@@ -50,9 +50,9 @@ export const TogoRealitiesSection: React.FC = () => {
 
             <p className="text-base text-[#667781] dark:text-[#8696A0] leading-relaxed">
               Nous savons qu'étudier au campus universitaire de Lomé impose des
-              contraintes uniques : forfaits limités, coupures
-              de réseau et budgets serrés. Notre technologie a été allégée pour
-              fonctionner même sur une connexion 3G instable.
+              contraintes uniques : forfaits limités, coupures de réseau et
+              budgets serrés. Notre technologie a été allégée pour fonctionner
+              même sur une connexion 3G instable.
             </p>
 
             {/* Les 3 piliers */}

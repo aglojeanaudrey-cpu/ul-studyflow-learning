@@ -15,6 +15,8 @@ import {
   Megaphone,
   Gift,
   Trash2,
+  Handshake,
+  Mail,
 } from "lucide-react";
 import { AdminDashboard } from "./AdminDashboard";
 import { UserManagement } from "./UserManagement";
@@ -29,9 +31,12 @@ import { AdsManagerView } from "./AdsManagerView";
 import { AdsTemplatesView } from "./AdsTemplatesView";
 import { AdminReferralsView } from "./AdminReferralsView";
 import { TrashBinView } from "./TrashBinView";
+import { AdminPartnershipsView } from "./AdminPartnershipsView";
+import { AdminContactsView } from "./AdminContactsView";
 
 interface AdminViewProps {
   onBackToStudent: () => void;
+  initialSection?: string;
 }
 
 interface AdminNavTab {
@@ -52,6 +57,8 @@ export const ADMIN_NAV_TABS: AdminNavTab[] = [
   { id: "notifications", label: "Notifications & Alertes", icon: Bell },
   { id: "ads", label: "Publicités & Annonces", icon: Megaphone },
   { id: "referrals", label: "Parrainage", icon: Gift },
+  { id: "partnerships", label: "Partenariats", icon: Handshake },
+  { id: "contacts", label: "Messages de Contact", icon: Mail },
   { id: "trash", label: "Corbeille", icon: Trash2, superuserOnly: true },
   { id: "audit", label: "Audit Logs", icon: Shield, superuserOnly: true },
 ];
@@ -95,9 +102,19 @@ const AdsSection: React.FC = () => {
   );
 };
 
-export const AdminView: React.FC<AdminViewProps> = ({ onBackToStudent }) => {
+export const AdminView: React.FC<AdminViewProps> = ({
+  onBackToStudent,
+  initialSection = "dashboard",
+}) => {
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<string>("dashboard");
+  const [activeSection, setActiveSection] = useState<string>(initialSection);
+
+  // Sync si la prop change (nouvelle notif cliquée pendant qu'on est déjà en admin)
+  useEffect(() => {
+    if (initialSection && initialSection !== activeSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection]);
 
   if (!user || (user.role !== "STAFF" && user.role !== "SUPERUSER")) {
     return (
@@ -122,18 +139,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBackToStudent }) => {
 
   const isSuperuser = user.role === "SUPERUSER";
 
-  // Granular check function
+  // ⭐ Permission granulaire par onglet
   const hasAccessToTab = (tabId: string): boolean => {
     if (isSuperuser) return true;
     const perms = user.adminPermissions || [];
     if (perms.length === 0) {
-      // Default initial permissions for staff without explicit restrictions
+      // Permissions par défaut pour un staff sans restriction explicite
       return ["dashboard", "courses", "progress"].includes(tabId);
     }
     return perms.includes(tabId);
   };
 
-  // Filter tabs visible to this specific user
+  // Filtre les onglets visibles pour cet utilisateur
   const visibleTabs = ADMIN_NAV_TABS.filter((tab) => {
     if (tab.superuserOnly && !isSuperuser) {
       return (user.adminPermissions || []).includes(tab.id);
@@ -141,7 +158,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBackToStudent }) => {
     return hasAccessToTab(tab.id);
   });
 
-  // Ensure current active section is allowed, otherwise switch to first allowed
+  // Si la section active n'est plus autorisée, rediriger vers la première accessible
   useEffect(() => {
     if (visibleTabs.length > 0 && !hasAccessToTab(activeSection)) {
       setActiveSection(visibleTabs[0].id);
@@ -150,7 +167,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBackToStudent }) => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 space-y-6">
-      {/* Return to Student Mode Banner */}
+      {/* Bandeau retour espace étudiant */}
       <div className="flex items-center justify-between">
         <button
           onClick={onBackToStudent}
@@ -167,7 +184,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBackToStudent }) => {
         </span>
       </div>
 
-      {/* Admin Horizontal Subnav Bar - Granular permissions filtered */}
+      {/* Navigation admin horizontale */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-[#E9EDEF] dark:border-[#222E35]">
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
@@ -189,7 +206,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBackToStudent }) => {
         })}
       </div>
 
-      {/* Render active section */}
+      {/* Rendu de la section active */}
       <div>
         {activeSection === "dashboard" && hasAccessToTab("dashboard") && (
           <AdminDashboard onNavigateSection={(sec) => setActiveSection(sec)} />
@@ -218,12 +235,21 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBackToStudent }) => {
         {activeSection === "referrals" && hasAccessToTab("users") && (
           <AdminReferralsView />
         )}
+
+        {/* ⭐ Nouvelles sections avec contrôle d'accès */}
+        {activeSection === "partnerships" && hasAccessToTab("partnerships") && (
+          <AdminPartnershipsView />
+        )}
+        {activeSection === "contacts" && hasAccessToTab("contacts") && (
+          <AdminContactsView />
+        )}
+
         {activeSection === "trash" && isSuperuser && <TrashBinView />}
         {activeSection === "audit" && hasAccessToTab("audit") && (
           <AuditLogsView />
         )}
 
-        {/* Fallback if unauthorized tab entered */}
+        {/* Fallback si onglet non autorisé */}
         {!hasAccessToTab(activeSection) && (
           <div className="bg-white dark:bg-[#111B21] p-12 rounded-2xl border border-rose-200 dark:border-rose-900 text-center space-y-3">
             <Lock className="w-10 h-10 text-rose-500 mx-auto" />

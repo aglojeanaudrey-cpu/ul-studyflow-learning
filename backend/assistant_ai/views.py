@@ -30,6 +30,7 @@ class AiAskView(APIView):
             history = []
 
         context_session_id = request.data.get('contextSessionId')
+        context_ue_id = request.data.get('contextUeId')
 
         try:
             reply = ask_pedagogical_assistant(
@@ -37,6 +38,7 @@ class AiAskView(APIView):
                 user_message=message,
                 history=history,
                 context_session_id=context_session_id,
+                context_ue_id=context_ue_id,
             )
         except Exception as e:
             # Sécurité : ne jamais renvoyer une stacktrace au front
@@ -49,3 +51,37 @@ class AiAskView(APIView):
             )
 
         return Response({'reply': reply})
+
+from .service import _get_user_ues  # ⭐ importe le helper existant
+
+
+class AiAvailableUesView(APIView):
+    """
+    Liste les UE débloquées pour l'utilisateur connecté.
+    Utilisé par le sélecteur d'UE de l'assistant IA.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        ues = _get_user_ues(user)
+
+        data = []
+        for ue in ues:
+            sessions_count = ue.sessions.filter(
+                is_published=True, is_suspended=False
+            ).count()
+            data.append({
+                'id': ue.id,
+                'code': ue.code,
+                'title': ue.title,
+                'level': ue.level,
+                'semester': ue.semester,
+                'department': ue.department.name if ue.department else None,
+                'sessionsCount': sessions_count,
+            })
+
+        return Response({
+            'ues': data,
+            'count': len(data),
+        })

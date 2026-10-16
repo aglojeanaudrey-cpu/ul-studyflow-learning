@@ -19,6 +19,8 @@ from .prompts import (
     AI_BUSY_OUT_OF_SESSION,
     build_system_instruction_in_session,
     build_system_instruction_welcome,
+    build_system_instruction_ue_context,
+    build_system_instruction_general,
 )
 
 logger = logging.getLogger(__name__)
@@ -143,6 +145,56 @@ def _get_session_if_authorized(user: User, session_id: str, user_ues):
     return session
 
 
+def _get_ue_if_authorized(user, ue_id, user_ues):
+    """Retourne l'UE si l'utilisateur y a accès, sinon None."""
+    if not ue_id:
+        return None
+    allowed_ids = {u.id for u in user_ues}
+    if ue_id not in allowed_ids:
+        return None
+    return next((u for u in user_ues if u.id == ue_id), None)
+
+def _build_ue_context(ue) -> str:
+    """
+    Construit un résumé textuel de toute l'UE :
+    titre, description, sessions avec extraits de chapitres.
+    """
+    lines = []
+    lines.append(f"UE : {ue.title} ({ue.code}) — {ue.level}, {ue.semester}")
+    if ue.description:
+        lines.append(f"Description : {ue.description}")
+    if ue.objective:
+        lines.append(f"Objectifs : {ue.objective}")
+    lines.append("")
+
+    sessions = ue.sessions.filter(
+        is_published=True, is_suspended=False
+    ).prefetch_related('chapters').order_by('order', 'session_number')
+
+    for s in sessions:
+        lines.append(f"── Séance {s.session_number} : {s.title} ──")
+        if s.objective:
+            lines.append(f"Objectif : {s.objective}")
+
+        for ch in s.chapters.all().order_by('order', 'number'):
+            lines.append(f"\n  ▸ Chapitre {ch.number} : {ch.title}")
+            if ch.objectives:
+                lines.append(f"    Objectifs : {ch.objectives}")
+            # Priorité au summary_text (léger) puis fallback sur le HTML stripé
+            content = ch.summary_text or ''
+            if not content and ch.summary_html:
+                # Strip basique des balises pour alléger le prompt
+                import re
+                content = re.sub(r'<[^>]+>', ' ', ch.summary_html)
+                content = re.sub(r'\s+', ' ', content).strip()
+            if content:
+                # Limite à 1500 caractères par chapitre pour ne pas exploser le prompt
+                lines.append(f"    Contenu : {content[:1500]}")
+
+        lines.append("")
+
+    return "\n".join(lines)
+
 # ─────────────────────────────────────────────────────────────
 # Point d'entrée principal
 # ─────────────────────────────────────────────────────────────
@@ -151,6 +203,7 @@ def ask_pedagogical_assistant(
     user_message: str,
     history: list = None,
     context_session_id: str = None,
+    context_ue_id: str = None,       # ⭐ NEW
 ) -> str:
     history = history or []
 
@@ -158,7 +211,7 @@ def ask_pedagogical_assistant(
     if user.is_ai_suspended:
         return _support_message_suspended()
 
-    # 2. Validation du message
+    # 2. Validation
     if not user_message or not isinstance(user_message, str):
         return "Votre message est vide ou invalide."
 
@@ -177,8 +230,13 @@ def ask_pedagogical_assistant(
     user_ues = _get_user_ues(user)
     ues_summary = _build_ues_summary(user_ues)
     active_session = _get_session_if_authorized(user, context_session_id, user_ues)
+    active_ue = _get_ue_if_authorized(user, context_ue_id, user_ues)  # ⭐ NEW
 
-    # 5. System prompt
+    # Si une session est fournie, on remonte son UE automatiquement
+    if active_session and not active_ue:
+        active_ue = active_session.ue
+
+    # 5. System prompt — 3 cas de figure
     if active_session:
         system_instruction = build_system_instruction_in_session(
             user=user,
@@ -186,8 +244,18 @@ def ask_pedagogical_assistant(
             session=active_session,
             ues_summary=ues_summary,
         )
+    elif active_ue:
+        # mode "UE entière" (toutes les séances + chapitres)
+        ue_context = _build_ue_context(active_ue)
+        system_instruction = build_system_instruction_ue_context(
+            user=user,
+            ue=active_ue,
+            ue_context=ue_context,
+            ues_summary=ues_summary,
+        )
     else:
-        system_instruction = build_system_instruction_welcome(
+        # Mode général — l'IA répond mais prévient qu'elle sort du cours
+        system_instruction = build_system_instruction_general(
             user=user,
             ues_summary=ues_summary,
         )
@@ -224,10 +292,13 @@ def ask_pedagogical_assistant(
         )
 
         # Cascade de modèles
-        primary_model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.5-flash')
+        primary_model = getattr(settings, 'GEMINI_MODEL', 'gemini-3.5-flash-lite')
         fallback_models = [
-            primary_model,
-            'gemini-1.5-flash',
+            primary_model,                 # gemini-3.5-flash-lite
+            'gemini-3.5-flash',            # version pleine (si lite indisponible)
+            'gemini-3.6-flash',            # alternative stable
+            'gemini-3.8-flash',            # flagship (dernier recours)
+            'gemini-3.1-flash-lite',       # dernière chance lite
         ]
 
         seen = set()
@@ -240,18 +311,25 @@ def ask_pedagogical_assistant(
         last_error = None
         for model_name in models_to_try:
             try:
+                logger.info(f"[Gemini] Tentative avec {model_name}...")
                 response = client.models.generate_content(
                     model=model_name,
                     contents=prompt,
                 )
                 reply = (response.text or '').strip()
                 if reply:
+                    logger.info(f"[Gemini] ✅ Succès avec {model_name}")
                     return reply
                 else:
                     last_error = "Réponse vide"
+                    logger.warning(f"[Gemini] {model_name} : réponse vide")
             except Exception as e:
+                # Log complet avec type + message
+                logger.warning(
+                    f"[Gemini] {model_name} indisponible : "
+                    f"{type(e).__name__} — {e}"
+                )
                 last_error = e
-                logger.warning(f"Modèle {model_name} indisponible : {e}")
                 continue
 
         # Aucun modèle n'a fonctionné

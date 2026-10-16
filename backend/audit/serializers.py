@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import AuditLog, TrashBin
+from accounts.models import PartnershipRequest, ContactMessage
 
 class AuditLogSerializer(serializers.ModelSerializer):
     userId = serializers.CharField(source='user_id', allow_null=True)
@@ -46,3 +47,21 @@ class TrashBinSerializer(serializers.ModelSerializer):
         if obj.restored_by:
             return f"{obj.restored_by.first_name} {obj.restored_by.last_name}"
         return None
+
+
+class PartnershipRequestSerializer(serializers.ModelSerializer):
+    user_phone = serializers.CharField(source='user.phone', read_only=True)
+    reviewed_by_phone = serializers.CharField(source='reviewed_by.phone', read_only=True)
+
+    class Meta:
+        model = PartnershipRequest
+        fields = '__all__'
+
+
+class ContactMessageSerializer(serializers.ModelSerializer):
+    user_phone = serializers.CharField(source='user.phone', read_only=True)
+    handled_by_phone = serializers.CharField(source='handled_by.phone', read_only=True)
+
+    class Meta:
+        model = ContactMessage
+        fields = '__all__'

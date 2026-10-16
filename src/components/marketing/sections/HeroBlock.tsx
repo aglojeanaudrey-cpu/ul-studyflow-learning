@@ -1,8 +1,8 @@
-import React from 'react';
-import { ArrowRight, Play, CheckCircle2, GraduationCap } from 'lucide-react';
-import { Container } from '../ui/Container';
-import { STATS, PRICING } from '@/src/lib/constants';
-import heroImage from '@/src/assets/images/hero_ul_student_1790533845064.jpg';
+import React from "react";
+import { ArrowRight, Play, CheckCircle2, GraduationCap } from "lucide-react";
+import { Container } from "../ui/Container";
+import { STATS, PRICING } from "@/src/lib/constants";
+import heroImage from "@/src/assets/images/hero_ul_student_1790533845064.jpg";
 
 interface HeroBlockProps {
   onGetStarted: () => void;
@@ -14,13 +14,14 @@ export const HeroBlock: React.FC<HeroBlockProps> = ({
   onExploreCourses,
 }) => {
   return (
-    <section className="relative pt-12 pb-16 md:py-20 overflow-hidden bg-gradient-to-b from-[#F0F2F5] via-white to-[#25D366]/5 dark:from-[#0B141A] dark:via-[#111B21] dark:to-[#075E54]/10">
+    <section className="relative pt-12 pb-16 md:py-20 overflow-hidden bg-linear-to-b from-[#F0F2F5] via-white to-[#25D366]/5 dark:from-[#0B141A] dark:via-[#111B21] dark:to-[#075E54]/10">
       {/* Motif de points décoratifs */}
       <div
         className="absolute inset-0 opacity-40 pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(rgba(37, 211, 102, 0.15) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
+          backgroundImage:
+            "radial-gradient(rgba(37, 211, 102, 0.15) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
         }}
       />
 
@@ -32,22 +33,26 @@ export const HeroBlock: React.FC<HeroBlockProps> = ({
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#25D366]/10 border border-[#25D366]/30 text-[#075E54] dark:text-[#25D366] text-xs sm:text-sm font-semibold shadow-sm">
               <span className="w-2 h-2 rounded-full bg-[#25D366] animate-ping" />
               <span className="w-2 h-2 rounded-full bg-[#25D366] -ml-3.5" />
-              <span>Plateforme EdTech indépendante par et pour les étudiants de Lomé</span>
+              <span>
+                Plateforme EdTech indépendante par et pour les étudiants de Lomé
+              </span>
             </div>
 
             {/* Titre */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#111B21] dark:text-white tracking-tight leading-[1.12]">
-              Apprends mieux.<br />
-              Comprends plus vite.<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#075E54] to-[#25D366] dark:from-[#25D366] dark:to-emerald-400">
+              Apprends mieux.
+              <br />
+              Comprends plus vite.
+              <br />
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-[#075E54] to-[#25D366] dark:from-[#25D366] dark:to-emerald-400">
                 Progresse à ton rythme.
               </span>
             </h1>
 
             {/* Sous-titre */}
             <p className="text-base sm:text-lg text-[#667781] dark:text-[#8696A0] leading-relaxed max-w-2xl">
-              Retrouve tous tes cours universitaires conformes au système de l'UL.
-              Première séance de chaque UE 100% gratuite, résumés PDF
+              Retrouve tous tes cours universitaires conformes au système de
+              l'UL. Première séance de chaque UE 100% gratuite, résumés PDF
               téléchargeables, vidéos, podcasts audio et questionnaires avec
               corrections détaillées.
             </p>
@@ -102,52 +107,17 @@ export const HeroBlock: React.FC<HeroBlockProps> = ({
 
           {/* Colonne droite : visuel */}
           <div className="lg:col-span-5 relative">
-            <div className="absolute -inset-4 bg-gradient-to-tr from-[#25D366]/20 to-emerald-400/20 rounded-3xl blur-2xl -z-10" />
+            <div className="absolute -inset-4 bg-linear-to-tr from-[#25D366]/20 to-emerald-400/20 rounded-3xl blur-2xl -z-10" />
 
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-2 border-white/80 dark:border-[#222E35] bg-white dark:bg-[#111B21] group">
               <img
                 src={heroImage}
                 alt="Étudiants de l'Université de Lomé révisant ensemble"
-                className="w-full h-auto object-cover rounded-3xl aspect-[4/3] transform duration-300 group-hover:scale-105"
+                className="w-full h-auto object-cover rounded-3xl aspect-4/3 transform duration-300 group-hover:scale-105"
                 referrerPolicy="no-referrer"
               />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-[#075E54]/70 via-transparent to-transparent pointer-events-none rounded-3xl" />
-
-              {/* Badge flottant haut-droit */}
-              <div className="absolute top-4 right-4 bg-white/95 dark:bg-[#111B21]/95 backdrop-blur-sm rounded-2xl p-3 shadow-lg border border-[#25D366]/20 flex items-center gap-3 z-10">
-                <div className="w-9 h-9 rounded-xl bg-[#25D366]/20 flex items-center justify-center text-[#075E54] dark:text-[#25D366] shrink-0 font-bold text-sm">
-                  🎧
-                </div>
-                <div className="text-left pr-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
-                    <p className="text-xs font-bold text-[#111B21] dark:text-white">
-                      Podcast
-                    </p>
-                  </div>
-                  <p className="text-[11px] text-[#075E54] dark:text-[#25D366] font-semibold">
-                    Anglais ANG 101 • 8 min
-                  </p>
-                </div>
-              </div>
-
-              {/* Carte flottante bas-gauche */}
-              <div className="absolute bottom-4 left-4 right-4 sm:right-auto bg-white/95 dark:bg-[#111B21]/95 backdrop-blur-sm border border-[#25D366]/30 rounded-2xl p-3.5 flex items-center gap-3 shadow-xl z-10">
-                <div className="w-10 h-10 rounded-xl bg-[#25D366] text-[#075E54] flex items-center justify-center font-black text-base shadow-sm shrink-0">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-bold text-[#111B21] dark:text-white">
-                      Quiz & flashcard
-                    </p>
-                  </div>
-                  <p className="text-[11px] text-[#667781] dark:text-[#8696A0]">
-                    Pour maitre en pratique tes connaissances.
-                  </p>
-                </div>
-              </div>
+              <div className="absolute inset-0 bg-linear-to-t from-[#075E54]/70 via-transparent to-transparent pointer-events-none rounded-3xl" />
             </div>
           </div>
         </div>

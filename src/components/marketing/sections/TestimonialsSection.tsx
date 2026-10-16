@@ -1,8 +1,11 @@
-import React from 'react';
-import { Star, CheckCircle2 } from 'lucide-react';
-import { Container } from '../ui/Container';
-import { SectionBadge } from '../ui/SectionBadge';
-import { SectionHeader } from '../ui/SectionHeader';
+import React from "react";
+import { Star, CheckCircle2 } from "lucide-react";
+import { Container } from "../ui/Container";
+import { SectionBadge } from "../ui/SectionBadge";
+import { SectionHeader } from "../ui/SectionHeader";
+import Ela from "@/src/assets/images/ela.jpg";
+import Koffi from "@/src/assets/images/koffi.jpg";
+import Afiwa from "@/src/assets/images/afiwa.jpg";
 
 interface Testimonial {
   quote: string;
@@ -15,26 +18,23 @@ const TESTIMONIALS: Testimonial[] = [
   {
     quote:
       "En amphi 1500, c'était impossible de tout noter. Grâce aux fiches et aux quiz Ul-StudyFlow-Learning, j'ai validé ma Microéconomie avec 15/20 sans rattrapages !",
-    name: 'Koffi Mensah',
-    role: 'FASEG · Semestre 2',
-    avatar:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCdfCajjzLWYSMfFQ9rGOqKFdrN3TLPHX1Hhnm8BD1ewewA6m4qeu0uemWned8tufVtiaungoldb2iD-xz2oSQUUWABC1GS52qe1fRDNqkLTACeKiEuHbMHG0bQPfT3nrN-b4rG2exUmrL1xoMbUad2FAmvxD05fnDIMyw2IoeOK9scVbj_TAPXBB64IbLpP7xpHtzoTNtBjAHmoXA-C0U-Ftu7mUraV_WXMbjRV_9V-_JV_6b2LvmzbA',
+    name: "Koffi Mensah",
+    role: "FASEG · Semestre 2",
+    avatar: Koffi,
   },
   {
     quote:
       "Le déblocage par T-Money à 300 F est presque immédiat et les cours en audio m'ont sauvée pour réviser.",
-    name: 'Afiwa Adjo',
-    role: 'Faculté de Droit (FDD) · L1',
-    avatar:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuA-iJBmeQ_6BZjxNSOi7LMb9UzC54NF0B1UAi01EAzgSPFp7wIeBjs_l7rDxQfaq7PyAF_BbByIDO8TYHxwc4x2QoMSzsBhetFbXdrJeCunpFhSOteiGyYZgQd_6IbtKCa9Lol-3SfgeTlskf6SRC4U5Uwh2t4Dq6zMGCGzykqa6vBF0MfQSBjpdcAgvrpeNhBvQMVdc-SrEmuSufD6brQeMoXYdS-zOoj9Fu8C7tVrt4kyGrliTO4ZPA',
+    name: "Afiwa Adjo",
+    role: "Faculté de Droit (FDD) · L1",
+    avatar: Afiwa,
   },
   {
     quote:
       "Les explications détaillées des QCM permettent de comprendre les pièges fréquents des examens de Lomé. Une vraie révolution pour nous étudiants !",
-    name: 'Ela S.',
-    role: 'FDS / Sciences · L2',
-    avatar:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuD3bobRjyUOVgVxfnMbj9YfiQ35L-iNNUe02v-lc0r5IjmCVrVqLXNEe2XOIDToW21UUQo1gea-jf-Bh4PcE6V2peHbUxE82pcPq-GPEWS7RijMisERIxPnvzPVaMu48SKmVs_lTSAU7smcq-bS8_W7X5DQeZYmf99WP-9wY8FV9xne5yD0KE3nYr6IY69I2z5a8PbnI_FmjH9-Hsmt5C_LaEDIj5C7gSDTZkC0cqY_ArtlkUgj_Zr2gQ',
+    name: "Ela S.",
+    role: "FDS / Sciences · L2",
+    avatar: Ela,
   },
 ];
 

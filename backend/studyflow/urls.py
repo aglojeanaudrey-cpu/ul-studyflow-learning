@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/auth/login', acc_views.LoginView.as_view(), name='api-auth-login'),
     path('api/auth/logout', acc_views.LogoutView.as_view(), name='api-auth-logout'),
     path('api/auth/me', acc_views.MeView.as_view(), name='api-auth-me'),
+    path('api/auth/profile', acc_views.UpdateProfileView.as_view(), name='api-auth-profile-update'),
 
     # -------------------------------------------------------------
     # API: ACADEMIC METADATA
@@ -47,12 +48,12 @@ urlpatterns = [
     path('api/sessions/<str:session_id>/complete', crs_views.SessionCompleteView.as_view(), name='api-session-complete'),
     path('api/quizzes/<str:quiz_id>/submit', crs_views.QuizSubmitView.as_view(), name='api-quiz-submit'),
     path('api/progress', crs_views.StudentProgressOverviewView.as_view(), name='api-progress'),
-
     # -------------------------------------------------------------
     # API: AI PEDAGOGICAL ASSISTANT (GEMINI)
     # -------------------------------------------------------------
     path('api/ai/ask', ai_views.AiAskView.as_view(), name='api-ai-ask'),
-
+    path('api/ai/available-ues', ai_views.AiAvailableUesView.as_view(), name='api-ai-available-ues'),
+    path('api/ai/ask', ai_views.AiAskView.as_view(), name='api-ai-ask'),
     # -------------------------------------------------------------
     # API: DYNAMIC FORMS
     # -------------------------------------------------------------
@@ -64,6 +65,7 @@ urlpatterns = [
     # API: CONTACT & PUBLIC SERVICES
     # -------------------------------------------------------------
     path('api/contact', aud_views.ContactView.as_view(), name='api-contact'),
+    path('api/partnership-requests', aud_views.SubmitPartnershipRequestView.as_view(), name='api-partnership-submit'),
 
     # -------------------------------------------------------------
     # API: PROMO CODES & UNLOCK REQUESTS
@@ -76,6 +78,13 @@ urlpatterns = [
     # API: ADMINISTRATION (STAFF & SUPERUSER)
     # -------------------------------------------------------------
     path('api/admin/stats', aud_views.AdminStatsView.as_view(), name='api-admin-stats'),
+    # Partnership Requests
+    path('api/admin/partnerships', aud_views.AdminPartnershipRequestsView.as_view(), name='api-admin-partnerships'),
+    path('api/admin/partnerships/<str:req_id>', aud_views.AdminPartnershipRequestDetailView.as_view(), name='api-admin-partnership-detail'),
+
+    # Contact Messages
+    path('api/admin/contacts', aud_views.AdminContactMessagesView.as_view(), name='api-admin-contacts'),
+    path('api/admin/contacts/<str:msg_id>', aud_views.AdminContactMessageDetailView.as_view(), name='api-admin-contact-detail'),
 
     # User Management
     path('api/admin/users', acc_views.AdminUsersListView.as_view(), name='api-admin-users'),
@@ -140,6 +149,7 @@ urlpatterns = [
     # -------------------------------------------------------------
     # API: INTERNAL NOTIFICATIONS (MESSAGES PROGRAMMES & ALERTES)
     # -------------------------------------------------------------
+    path('api/notifications/realtime-token', notif_views.RealtimeTokenView.as_view(), name='api-notifications-realtime-token'),
     path('api/notifications', notif_views.UserNotificationsListView.as_view(), name='api-notifications-list'),
     path('api/notifications/read-all', notif_views.NotificationMarkAllReadView.as_view(), name='api-notifications-read-all'),
     path('api/notifications/<str:notif_id>/read', notif_views.NotificationMarkReadView.as_view(), name='api-notifications-read-single'),

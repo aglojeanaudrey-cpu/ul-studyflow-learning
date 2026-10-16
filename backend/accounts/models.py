@@ -156,3 +156,104 @@ class AuthToken(models.Model):
 
     def __str__(self):
         return f"Token for {self.user.phone} (expires: {self.expires_at})"
+
+
+import secrets
+from django.db import models
+from django.utils import timezone
+from accounts.models import User
+
+
+class PartnershipRequest(models.Model):
+    """Demande d'un étudiant délégué souhaitant rejoindre le projet."""
+
+    STATUS_CHOICES = (
+        ('pending', 'En attente'),
+        ('reviewing', 'En cours d\'examen'),
+        ('accepted', 'Acceptée'),
+        ('rejected', 'Refusée'),
+    )
+
+    id = models.CharField(max_length=64, primary_key=True, default='')
+    user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='partnership_requests',
+        verbose_name="Utilisateur soumetteur",
+    )
+    full_name = models.CharField(max_length=200, verbose_name="Nom complet")
+    phone = models.CharField(max_length=30, verbose_name="Téléphone / WhatsApp")
+    email = models.EmailField(blank=True, verbose_name="Email (optionnel)")
+    department = models.CharField(max_length=120, verbose_name="Département / Faculté")
+    program = models.CharField(max_length=120, verbose_name="Filière")
+    level = models.CharField(max_length=20, verbose_name="Niveau")
+    is_delegate = models.BooleanField(default=False, verbose_name="Est délégué(e) ?")
+    motivation = models.TextField(verbose_name="Motivation")
+    contribution = models.TextField(blank=True, verbose_name="Contribution envisagée")
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    admin_note = models.TextField(blank=True, verbose_name="Note interne")
+    created_at = models.DateTimeField(default=timezone.now)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewed_partnerships',
+    )
+
+    class Meta:
+        verbose_name = "Demande de partenariat"
+        verbose_name_plural = "Demandes de partenariat"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.full_name} ({self.department}) - {self.status}"
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = f"part_{int(timezone.now().timestamp())}_{secrets.token_hex(3)}"
+        super().save(*args, **kwargs)
+
+
+class ContactMessage(models.Model):
+    """Message envoyé depuis le formulaire de contact public."""
+
+    STATUS_CHOICES = (
+        ('new', 'Nouveau'),
+        ('read', 'Lu'),
+        ('replied', 'Répondu'),
+        ('archived', 'Archivé'),
+    )
+
+    id = models.CharField(max_length=64, primary_key=True, default='')
+    name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=30)
+    email = models.EmailField(blank=True)
+    subject = models.CharField(max_length=200, default='Général')
+    message = models.TextField()
+
+    user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='contact_messages',
+        verbose_name="Utilisateur (si connecté)",
+    )
+    ip = models.GenericIPAddressField(null=True, blank=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    admin_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    handled_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='handled_contacts',
+    )
+
+    class Meta:
+        verbose_name = "Message de contact"
+        verbose_name_plural = "Messages de contact"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.subject} ({self.status})"
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = f"contact_{int(timezone.now().timestamp())}_{secrets.token_hex(3)}"
+        super().save(*args, **kwargs)
