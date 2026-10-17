@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 import { UE } from "@/src/types";
+import { trackEvent, ANALYTICS_EVENTS } from "../../lib/analytics";
 import {
   Send,
   Sparkles,
@@ -25,7 +26,7 @@ interface Message {
 
 interface AiAssistantViewProps {
   initialSessionContextId?: string;
-  onClose?: () => void; // ⭐ Fonction appelée quand on ferme
+  onClose?: () => void; // Fonction appelée quand on ferme
 }
 
 export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
@@ -33,7 +34,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
   onClose,
 }) => {
   const { user } = useAuth();
-  // ⭐ État du sélecteur d'UE
+  //  État du sélecteur d'UE
   const [availableUes, setAvailableUes] = useState<
     Array<{
       id: string;
@@ -48,8 +49,19 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
   const [selectedUeId, setSelectedUeId] = useState<string | null>(null);
   const [uePickerOpen, setUePickerOpen] = useState(false);
   const [loadingUes, setLoadingUes] = useState(false);
+  // Ref du textarea + état pour auto-grow
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // Auto-grow du textarea (comme WhatsApp)
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    // Max 160px pour ne pas prendre tout l'écran
+    ta.style.height = Math.min(ta.scrollHeight, 160) + "px";
+  };
 
-  // ⭐ Charger les UE accessibles au montage
+  // Charger les UE accessibles au montage
   useEffect(() => {
     let cancelled = false;
     setLoadingUes(true);
@@ -109,7 +121,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
     scrollToBottom();
   }, [messages, loading]);
 
-  // ⭐ Fermer le dropdown si on clique ailleurs
+  // Fermer le dropdown si on clique ailleurs
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -127,7 +139,14 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
     };
   }, [optionsOpen]);
 
-  // ⭐ Fermer avec ESC
+  // Reset la hauteur après envoi
+  useEffect(() => {
+    if (!input && textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [input]);
+
+  // Fermer avec ESC
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -166,6 +185,10 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
+    trackEvent(ANALYTICS_EVENTS.AI_MESSAGE_SENT, {
+      has_context_ue: selectedUeId ? "yes" : "no",
+      has_session_context: initialSessionContextId ? "yes" : "no",
+    });
 
     try {
       const historyPayload = messages.map((m) => ({
@@ -224,7 +247,7 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
 
   return (
     // ⭐ Popup plein écran : fixed inset-0 + h-screen w-screen + z-50
-    <div className="fixed inset-0 z-50 h-screen w-screen bg-white dark:bg-[#0B141A] flex flex-col overflow-hidden animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 h-[100dvh] w-screen bg-white dark:bg-[#0B141A] flex flex-col overflow-hidden animate-in fade-in duration-150">
       {/* ============ HEADER ============ */}
       <header className="bg-[#075E54] dark:bg-[#111B21] text-white px-3 sm:px-5 py-3 flex items-center justify-between shadow-md shrink-0 border-b border-[#128C7E] dark:border-[#222E35]">
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -480,21 +503,28 @@ export const AiAssistantView: React.FC<AiAssistantViewProps> = ({
       </div>
 
       {/* ============ INPUT ============ */}
-      <footer className="bg-[#F0F2F5] dark:bg-[#1F2C34] px-3 sm:px-5 py-3 border-t border-[#E9EDEF] dark:border-[#222E35] shrink-0">
-        <div className="max-w-3xl mx-auto flex items-center gap-2">
-          <input
-            type="text"
+      <footer className="bg-[#F0F2F5] dark:bg-[#1F2C34] px-3 sm:px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-[#E9EDEF] dark:border-[#222E35] shrink-0">
+        <div className="max-w-3xl mx-auto flex items-end gap-2">
+          <textarea
+            ref={textareaRef}
+            rows={1}
             placeholder="Pose ta question sur tes cours..."
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
             disabled={loading}
-            className="flex-1 text-xs sm:text-sm px-4 py-3 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] text-[#111B21] dark:text-white focus:outline-none focus:border-[#25D366] disabled:opacity-50"
+            className="flex-1 min-h-[44px] max-h-[160px] text-sm px-4 py-3 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] text-[#111B21] dark:text-white focus:outline-none focus:border-[#25D366] disabled:opacity-50 resize-none overflow-y-auto leading-snug"
+            style={{ height: "auto" }}
           />
           <button
             onClick={() => handleSend()}
             disabled={!input.trim() || loading}
-            className="w-11 h-11 rounded-xl bg-[#25D366] text-[#075E54] flex items-center justify-center hover:bg-[#1faa54] transition-all disabled:opacity-50 shrink-0 shadow-xs active:scale-95"
+            className="w-11 h-11 rounded-xl bg-[#25D366] text-[#075E54] flex items-center justify-center hover:bg-[#1faa54] transition-all disabled:opacity-50 shrink-0 shadow-xs active:scale-95 mb-0.5"
           >
             <Send className="w-4 h-4 fill-[#075E54]" />
           </button>

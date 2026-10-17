@@ -253,3 +253,28 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
         api_secret=CLOUDINARY_API_SECRET,
         secure=True,  # Force HTTPS
     )
+
+# ═══════════════════════════════════════════════════════════════
+# SENTRY — Monitoring des erreurs (production uniquement)
+# ═══════════════════════════════════════════════════════════════
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
+SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+
+if SENTRY_DSN and not DEBUG:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(
+                transaction_style='url',
+            ),
+        ],
+        # 10% des requêtes HTTP seront tracées (performance monitoring)
+        traces_sample_rate=0.1,  # [citation:1][citation:5]
+        # Important : ne PAS envoyer les données personnelles
+        send_default_pii=False,
+        environment='production',
+        # Release = version de ton déploiement (Render met souvent le commit SHA)
+        release=os.getenv('RENDER_GIT_COMMIT', 'dev'),
+    )

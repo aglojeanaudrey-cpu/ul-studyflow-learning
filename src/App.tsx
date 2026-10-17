@@ -31,8 +31,9 @@ import { ActivePopup } from "./components/marketing/ActivePopup";
 import { ReferralView } from "./components/student/ReferralView";
 import { PageProgressBar } from "./components/ui/PageProgressBar";
 import { AppSplashScreen } from "./components/ui/AppSplashScreen";
-import { useLoading } from "./context/LoadingContext";
+import { useLoading, LoadingProvider } from "./context/LoadingContext";
 import { PartnershipModal } from "./components/marketing/PartnershipModal";
+import { trackEvent, ANALYTICS_EVENTS } from "./lib/analytics";
 
 // Mobile Bottom Nav Icons
 import {
@@ -68,7 +69,7 @@ function AppContent() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [legalModalType, setLegalModalType] = useState<
-    "privacy" | "terms" | null
+    "privacy" | "terms" | "mentions" | null
   >(null);
   const [partnershipOpen, setPartnershipOpen] = useState(false);
 
@@ -117,6 +118,7 @@ function AppContent() {
 
   // Handlers for switching views
   const handleOpenUe = (ueId: string) => {
+    trackEvent(ANALYTICS_EVENTS.UE_OPENED, { ue_id: ueId });
     setActiveUeId(ueId);
     setCurrentTab("student_ue_detail");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -421,14 +423,14 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F0F2F5] dark:bg-[#0B141A] text-[#111B21] dark:text-[#E9EDEF] font-sans pb-16 lg:pb-0 transition-colors duration-200">
-      {/* ⭐ Barre de progression globale en haut */}
+      {/* Barre de progression globale en haut */}
       <PageProgressBar loading={isLoading} />
 
       {/* Top Navbar */}
       <Navbar
         currentTab={currentTab}
         onNavigate={(tab) => {
-          // ⭐ Si on navigue vers l'IA, mémoriser la page d'origine
+          // Si on navigue vers l'IA, mémoriser la page d'origine
           if (tab === "student_ai" && currentTab !== "student_ai") {
             setPreviousTab(currentTab);
           }
@@ -523,8 +525,8 @@ function AppContent() {
       {!user && (
         <Footer
           onNavigate={(tab) => {
-            if (tab === "privacy" || tab === "terms") {
-              setLegalModalType(tab);
+            if (tab === "privacy" || tab === "terms" || tab === "mentions") {
+              setLegalModalType(tab as "privacy" | "terms" | "mentions");
             } else {
               setCurrentTab(tab);
               window.scrollTo({ top: 0, behavior: "smooth" });
@@ -582,9 +584,11 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <LoadingProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </LoadingProvider>
     </ThemeProvider>
   );
 }

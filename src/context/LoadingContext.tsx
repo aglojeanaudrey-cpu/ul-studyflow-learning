@@ -1,19 +1,10 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { createContext, useContext, useState } from "react";
 
 interface LoadingContextType {
   isLoading: boolean;
-  // Nombre d'opérations en cours (permet de gérer plusieurs loadings simultanés)
-  activeCount: number;
+  setIsLoading: (v: boolean) => void;
   startLoading: () => void;
   stopLoading: () => void;
-  // Force l'arrêt de tout
-  resetLoading: () => void;
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
@@ -21,38 +12,25 @@ const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
 export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [activeCount, setActiveCount] = useState(0);
-
-  const startLoading = useCallback(() => {
-    setActiveCount((c) => c + 1);
-  }, []);
-
-  const stopLoading = useCallback(() => {
-    setActiveCount((c) => Math.max(0, c - 1));
-  }, []);
-
-  const resetLoading = useCallback(() => {
-    setActiveCount(0);
-  }, []);
-
-  const value = useMemo(
-    () => ({
-      isLoading: activeCount > 0,
-      activeCount,
-      startLoading,
-      stopLoading,
-      resetLoading,
-    }),
-    [activeCount, startLoading, stopLoading, resetLoading],
-  );
-
+  const [isLoading, setIsLoading] = useState(false);
   return (
-    <LoadingContext.Provider value={value}>{children}</LoadingContext.Provider>
+    <LoadingContext.Provider
+      value={{
+        isLoading,
+        setIsLoading,
+        startLoading: () => setIsLoading(true),
+        stopLoading: () => setIsLoading(false),
+      }}
+    >
+      {children}
+    </LoadingContext.Provider>
   );
 };
 
-export function useLoading() {
+export const useLoading = () => {
   const ctx = useContext(LoadingContext);
-  if (!ctx) throw new Error("useLoading must be used within a LoadingProvider");
+  if (!ctx) {
+    throw new Error("useLoading must be used within a LoadingProvider");
+  }
   return ctx;
-}
+};

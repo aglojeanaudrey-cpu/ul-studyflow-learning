@@ -95,13 +95,13 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
     if (initialSelectedUeId) {
       setSelectedUeIds([initialSelectedUeId]);
     }
-    // ⭐ Pré-remplir le code promo si fourni
+    // Pré-remplir le code promo si fourni
     if (initialPromoCode && isOpen) {
       setPromoCodeInput(initialPromoCode);
     }
   }, [user, initialSelectedUeId, initialPromoCode, isOpen]);
 
-  // ⭐ Auto-appliquer le code promo quand il est pré-rempli
+  // Auto-appliquer le code promo quand il est pré-rempli
   useEffect(() => {
     if (
       isOpen &&

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { X, LogIn, Phone, Lock, Mail } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { UlStudyFlowLogo } from '../brand/UlStudyFlowLogo';
-import { PasswordInput } from '../ui/PasswordInput';
+import React, { useState } from "react";
+import { X, LogIn, Phone, Lock, Mail } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { UlStudyFlowLogo } from "../brand/UlStudyFlowLogo";
+import { PasswordInput } from "../ui/PasswordInput";
+import { trackEvent, ANALYTICS_EVENTS } from "../../lib/analytics";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -11,10 +12,15 @@ interface LoginModalProps {
   onSuccess?: () => void;
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({
+  isOpen,
+  onClose,
+  onSwitchToRegister,
+  onSuccess,
+}) => {
   const { login } = useAuth();
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,10 +35,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
       await login(identifier, password);
       onClose();
       if (onSuccess) {
+        trackEvent(ANALYTICS_EVENTS.USER_LOGIN);
         onSuccess();
       }
     } catch (err: any) {
-      setError(err.message || 'Échec de connexion.');
+      setError(err.message || "Échec de connexion.");
     } finally {
       setLoading(false);
     }
@@ -53,7 +60,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
             <div className="mb-3">
               <UlStudyFlowLogo size="sm" showTagline />
             </div>
-            <h3 className="font-bold text-xl text-[#111B21] dark:text-white">Connexion à votre compte</h3>
+            <h3 className="font-bold text-xl text-[#111B21] dark:text-white">
+              Connexion à votre compte
+            </h3>
             <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-1">
               Accédez à vos cours et à votre progression universitaire LMD.
             </p>
@@ -107,12 +116,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitc
               disabled={loading}
               className="w-full py-3 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] transition-all shadow-sm active:scale-95 disabled:opacity-50 mt-2"
             >
-              {loading ? 'Connexion en cours...' : 'Se connecter'}
+              {loading ? "Connexion en cours..." : "Se connecter"}
             </button>
           </form>
 
           <div className="pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] text-center text-xs text-[#667781] dark:text-[#8696A0]">
-            Pas encore de compte étudiant ?{' '}
+            Pas encore de compte étudiant ?{" "}
             <button
               onClick={onSwitchToRegister}
               className="font-bold text-[#075E54] dark:text-[#25D366] hover:underline"

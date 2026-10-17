@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
-import { Quiz, QuizAttempt, QuizCorrection } from '../../types';
-import { api } from '../../lib/api';
-import { X, CheckCircle2, AlertCircle, ArrowRight, RotateCcw, Award } from 'lucide-react';
+import React, { useState } from "react";
+import { Quiz, QuizAttempt, QuizCorrection } from "../../types";
+import { api } from "../../lib/api";
+import {
+  X,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  RotateCcw,
+  Award,
+} from "lucide-react";
+import { trackEvent, ANALYTICS_EVENTS } from "../../lib/analytics";
 
 interface QuizModalProps {
   isOpen: boolean;
@@ -14,7 +22,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({
   isOpen,
   quiz,
   onClose,
-  onSuccess
+  onSuccess,
 }) => {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
@@ -28,9 +36,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({
   if (!isOpen) return null;
 
   const handleSelectOption = (questionId: string, optionIndex: string) => {
-    setAnswers(prev => ({
+    setAnswers((prev) => ({
       ...prev,
-      [questionId]: optionIndex
+      [questionId]: optionIndex,
     }));
   };
 
@@ -43,8 +51,17 @@ export const QuizModal: React.FC<QuizModalProps> = ({
       const res = await api.submitQuiz(quiz.id, answers);
       setResult(res);
       onSuccess(res.attempt);
+      trackEvent(
+        res.attempt.passed
+          ? ANALYTICS_EVENTS.QUIZ_PASSED
+          : ANALYTICS_EVENTS.QUIZ_FAILED,
+        {
+          percentage: res.attempt.percentage,
+          quiz_id: quiz.id,
+        },
+      );
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de la soumission du quiz.');
+      setError(err.message || "Erreur lors de la soumission du quiz.");
     } finally {
       setLoading(false);
     }
@@ -72,7 +89,9 @@ export const QuizModal: React.FC<QuizModalProps> = ({
             <div className="text-center space-y-2 pb-4 border-b border-[#E9EDEF]">
               <div
                 className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto ${
-                  result.attempt.passed ? 'bg-emerald-100 text-[#075E54]' : 'bg-amber-100 text-amber-800'
+                  result.attempt.passed
+                    ? "bg-emerald-100 text-[#075E54]"
+                    : "bg-amber-100 text-amber-800"
                 }`}
               >
                 {result.attempt.passed ? (
@@ -83,11 +102,14 @@ export const QuizModal: React.FC<QuizModalProps> = ({
               </div>
 
               <h2 className="text-xl font-extrabold text-[#111B21]">
-                {result.attempt.passed ? 'Félicitations ! Questionnaire Réussi' : 'À retravailler pour progresser'}
+                {result.attempt.passed
+                  ? "Félicitations ! Questionnaire Réussi"
+                  : "À retravailler pour progresser"}
               </h2>
 
               <p className="text-sm font-bold text-[#075E54] tabular-nums">
-                Score obtenu : {result.attempt.score} / {result.attempt.maxScore} ({result.attempt.percentage}%)
+                Score obtenu : {result.attempt.score} /{" "}
+                {result.attempt.maxScore} ({result.attempt.percentage}%)
               </p>
               <p className="text-xs text-[#667781]">
                 Seuil de réussite exigé : {result.passingScorePercent}%
@@ -105,8 +127,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({
                   key={corr.questionId}
                   className={`p-4 rounded-xl border space-y-2 text-xs ${
                     corr.isCorrect
-                      ? 'bg-emerald-50/70 border-emerald-200'
-                      : 'bg-rose-50/70 border-rose-200'
+                      ? "bg-emerald-50/70 border-emerald-200"
+                      : "bg-rose-50/70 border-rose-200"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -116,8 +138,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({
                     <span
                       className={`font-bold px-2 py-0.5 rounded text-[11px] shrink-0 ${
                         corr.isCorrect
-                          ? 'bg-emerald-200 text-emerald-800'
-                          : 'bg-rose-200 text-rose-800'
+                          ? "bg-emerald-200 text-emerald-800"
+                          : "bg-rose-200 text-rose-800"
                       }`}
                     >
                       {corr.earnedPoints} / {corr.points} pts
@@ -125,8 +147,19 @@ export const QuizModal: React.FC<QuizModalProps> = ({
                   </div>
 
                   <div className="space-y-1">
-                    <p className={corr.isCorrect ? 'text-emerald-800 font-medium' : 'text-rose-800 font-medium'}>
-                      Votre réponse : {String(corr.userAnswer !== undefined ? corr.userAnswer : 'Non répondue')}
+                    <p
+                      className={
+                        corr.isCorrect
+                          ? "text-emerald-800 font-medium"
+                          : "text-rose-800 font-medium"
+                      }
+                    >
+                      Votre réponse :{" "}
+                      {String(
+                        corr.userAnswer !== undefined
+                          ? corr.userAnswer
+                          : "Non répondue",
+                      )}
                     </p>
                     {!corr.isCorrect && (
                       <p className="text-emerald-800 font-medium">
@@ -136,7 +169,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({
                   </div>
 
                   <div className="pt-2 border-t border-black/5 text-slate-700 italic">
-                    <strong>Explication pédagogique :</strong> {corr.explanation}
+                    <strong>Explication pédagogique :</strong>{" "}
+                    {corr.explanation}
                   </div>
                 </div>
               ))}
@@ -168,7 +202,8 @@ export const QuizModal: React.FC<QuizModalProps> = ({
                 {quiz.title}
               </h2>
               <p className="text-xs text-[#667781] mt-1">
-                {quiz.description} Répondez à toutes les questions avant de valider.
+                {quiz.description} Répondez à toutes les questions avant de
+                valider.
               </p>
             </div>
 
@@ -180,7 +215,10 @@ export const QuizModal: React.FC<QuizModalProps> = ({
 
             <div className="space-y-5">
               {quiz.questions.map((q, idx) => (
-                <div key={q.id} className="p-4 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5]/40 space-y-3">
+                <div
+                  key={q.id}
+                  className="p-4 rounded-xl border border-[#E9EDEF] bg-[#F0F2F5]/40 space-y-3"
+                >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-[#075E54]">
                       Question {idx + 1}
@@ -201,22 +239,24 @@ export const QuizModal: React.FC<QuizModalProps> = ({
                         <button
                           key={optIdx}
                           type="button"
-                          onClick={() => handleSelectOption(q.id, String(optIdx))}
+                          onClick={() =>
+                            handleSelectOption(q.id, String(optIdx))
+                          }
                           className={`w-full p-3 rounded-lg text-left text-xs font-medium transition-all flex items-center justify-between ${
                             isSelected
-                              ? 'bg-emerald-50 border-2 border-[#25D366] text-[#075E54] font-bold shadow-xs'
-                              : 'bg-white border border-[#E9EDEF] text-slate-800 hover:bg-[#F0F2F5]'
+                              ? "bg-emerald-50 border-2 border-[#25D366] text-[#075E54] font-bold shadow-xs"
+                              : "bg-white border border-[#E9EDEF] text-slate-800 hover:bg-[#F0F2F5]"
                           }`}
                         >
                           <span>{opt}</span>
                           <span
                             className={`w-4 h-4 rounded-full border flex items-center justify-center text-[10px] ${
                               isSelected
-                                ? 'border-[#25D366] bg-[#25D366] text-[#075E54]'
-                                : 'border-[#E9EDEF]'
+                                ? "border-[#25D366] bg-[#25D366] text-[#075E54]"
+                                : "border-[#E9EDEF]"
                             }`}
                           >
-                            {isSelected ? '✓' : ''}
+                            {isSelected ? "✓" : ""}
                           </span>
                         </button>
                       );
@@ -239,7 +279,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({
                 disabled={loading}
                 className="inline-flex items-center gap-1.5 px-6 py-2.5 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] transition-all disabled:opacity-50 shadow-sm"
               >
-                {loading ? 'Correction en cours...' : 'Valider mes réponses'}
+                {loading ? "Correction en cours..." : "Valider mes réponses"}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

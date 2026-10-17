@@ -1,13 +1,16 @@
-import React from 'react';
-import { Phone, MapPin, Mail } from 'lucide-react';
-import { UlStudyFlowLogo } from '../brand/UlStudyFlowLogo';
+import React from "react";
+import { Phone, MapPin, Mail } from "lucide-react";
+import { UlStudyFlowLogo } from "../brand/UlStudyFlowLogo";
 
 interface FooterProps {
   onNavigate: (tab: string) => void;
   onOpenContact: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenContact }) => {
+export const Footer: React.FC<FooterProps> = ({
+  onNavigate,
+  onOpenContact,
+}) => {
   return (
     <footer className="bg-[#075E54] dark:bg-[#0B141A] text-white border-t border-[#128C7E] dark:border-[#222E35] transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -16,7 +19,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenContact }) => 
           <div className="md:col-span-1 space-y-3">
             <UlStudyFlowLogo size="md" lightText showTagline />
             <p className="text-xs text-emerald-100 dark:text-gray-300 leading-relaxed pt-1">
-              La plateforme EdTech indépendante conçue par les étudiants de l'Université de Lomé, pour les étudiants. Apprends mieux, comprends plus vite et progresse à ton rythme.
+              La plateforme EdTech indépendante conçue par les étudiants de
+              l'Université de Lomé, pour les étudiants. Apprends mieux,
+              comprends plus vite et progresse à ton rythme.
             </p>
             <div className="pt-2 text-xs text-emerald-200/90 dark:text-emerald-400/90 space-y-1.5 font-medium">
               <div className="flex items-center gap-2">
@@ -41,27 +46,42 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenContact }) => 
             </h4>
             <ul className="space-y-2 text-xs text-emerald-100 dark:text-gray-300">
               <li>
-                <button onClick={() => onNavigate('home')} className="hover:text-white transition-colors">
+                <button
+                  onClick={() => onNavigate("home")}
+                  className="hover:text-white transition-colors"
+                >
                   Accueil
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('features')} className="hover:text-white transition-colors">
+                <button
+                  onClick={() => onNavigate("features")}
+                  className="hover:text-white transition-colors"
+                >
                   Fonctionnalités
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('how_it_works')} className="hover:text-white transition-colors">
+                <button
+                  onClick={() => onNavigate("how_it_works")}
+                  className="hover:text-white transition-colors"
+                >
                   Comment ça marche
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('pricing')} className="hover:text-white transition-colors">
+                <button
+                  onClick={() => onNavigate("pricing")}
+                  className="hover:text-white transition-colors"
+                >
                   Tarifs & Déblocage
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('faq')} className="hover:text-white transition-colors">
+                <button
+                  onClick={() => onNavigate("faq")}
+                  className="hover:text-white transition-colors"
+                >
                   Foire aux questions (FAQ)
                 </button>
               </li>
@@ -89,20 +109,27 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenContact }) => 
             </h4>
             <div className="space-y-2 text-xs text-emerald-100 dark:text-gray-300">
               <p className="text-[11px] leading-relaxed text-emerald-200 dark:text-gray-400">
-                Paiements acceptés via Mix Togo (+228 71 67 69 45) {/*et Flooz Togo (+228 99 70 59 20)*/}.
+                Paiements acceptés via Mix Togo (+228 71 67 69 45){" "}
+                {/*et Flooz Togo (+228 99 70 59 20)*/}.
               </p>
               <div className="pt-2 flex flex-col gap-1.5">
                 <button
-                  onClick={() => onNavigate('privacy')}
+                  onClick={() => onNavigate("privacy")}
                   className="text-left hover:text-white text-xs underline underline-offset-2"
                 >
                   Politique de confidentialité
                 </button>
                 <button
-                  onClick={() => onNavigate('terms')}
+                  onClick={() => onNavigate("terms")}
                   className="text-left hover:text-white text-xs underline underline-offset-2"
                 >
                   Conditions Générales d'Utilisation
+                </button>
+                <button
+                  onClick={() => onNavigate("mentions")}
+                  className="text-left hover:text-white text-xs underline underline-offset-2"
+                >
+                  Mentions légales
                 </button>
                 <button
                   onClick={onOpenContact}

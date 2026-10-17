@@ -14,6 +14,7 @@ import { api } from "../../lib/api";
 import { Department, Program } from "../../types";
 import { UlStudyFlowLogo } from "../brand/UlStudyFlowLogo";
 import { PasswordInput } from "../ui/PasswordInput";
+import { trackEvent, ANALYTICS_EVENTS } from "../../lib/analytics";
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -150,7 +151,11 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
         level,
         password,
         confirmPassword,
-        referralCode: referralCode || undefined, // ⭐ Passer le code de parrainage
+        referralCode: referralCode || undefined, // le code de parrainage
+      });
+      trackEvent(ANALYTICS_EVENTS.USER_SIGNUP, {
+        department: departmentCode || "unknown",
+        level: level || "unknown",
       });
       onClose();
     } catch (err: any) {
