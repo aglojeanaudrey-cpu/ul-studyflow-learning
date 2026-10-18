@@ -45,6 +45,7 @@
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite-plugin-sitemap-from-routes": "^1.0.0"
   }
 }
