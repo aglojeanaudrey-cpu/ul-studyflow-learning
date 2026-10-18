@@ -1,18 +1,18 @@
-import React from 'react';
-import iconImg from '../../assets/images/ul_study_icon_1790588282181.jpg';
+import React from "react";
+import iconImg from "../../assets/images/ul_study_icon_1790588282181.webp";
 
 interface UlStudyFlowIconProps {
   className?: string;
   size?: number | string;
-  variant?: 'image' | 'svg';
+  variant?: "image" | "svg";
 }
 
 export const UlStudyFlowIcon: React.FC<UlStudyFlowIconProps> = ({
-  className = 'w-9 h-9',
+  className = "w-9 h-9",
   size,
-  variant = 'image'
+  variant = "image",
 }) => {
-  if (variant === 'image') {
+  if (variant === "image") {
     return (
       <img
         src={iconImg}
@@ -44,10 +44,7 @@ export const UlStudyFlowIcon: React.FC<UlStudyFlowIconProps> = ({
       </defs>
 
       {/* Graduation Cap */}
-      <path
-        d="M50 14L85 28L50 42L15 28L50 14Z"
-        fill="url(#ulGrad)"
-      />
+      <path d="M50 14L85 28L50 42L15 28L50 14Z" fill="url(#ulGrad)" />
       <path
         d="M26 33V46C26 53 37 58 50 58C63 58 74 53 74 46V33"
         stroke="#075E54"
@@ -55,7 +52,12 @@ export const UlStudyFlowIcon: React.FC<UlStudyFlowIconProps> = ({
         strokeLinecap="round"
       />
       {/* Tassel */}
-      <path d="M78 28V43" stroke="#25D366" strokeWidth="2.5" strokeLinecap="round" />
+      <path
+        d="M78 28V43"
+        stroke="#25D366"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
       <circle cx="78" cy="46" r="3" fill="#25D366" />
 
       {/* U letter */}
@@ -65,10 +67,7 @@ export const UlStudyFlowIcon: React.FC<UlStudyFlowIconProps> = ({
       />
 
       {/* L letter */}
-      <path
-        d="M58 46V78H78V70H67V46H58Z"
-        fill="url(#ulGrad)"
-      />
+      <path d="M58 46V78H78V70H67V46H58Z" fill="url(#ulGrad)" />
 
       {/* Dynamic 3 Wave stripes */}
       <path

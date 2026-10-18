@@ -10,7 +10,7 @@ import {
   FileDown,
 } from "lucide-react";
 import { Container } from "../../ui/Container";
-import heroImage from "@/src/assets/images/hero_ul_student_fonctionnalite.jpg";
+import heroImage from "@/src/assets/images/hero_ul_student_fonctionnalite.webp";
 
 interface FeaturesHeroProps {
   onGetStarted: () => void;

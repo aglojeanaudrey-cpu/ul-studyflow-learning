@@ -1,7 +1,7 @@
 import React from "react";
 import { Star, TrendingDown, TrendingUp, Quote, PiggyBank } from "lucide-react";
 import { Container } from "../../ui/Container";
-import Afiwa from "@/src/assets/images/afiwa.jpg";
+import Afiwa from "@/src/assets/images/afiwa.webp";
 
 export const TestimonialSection: React.FC = () => {
   return (

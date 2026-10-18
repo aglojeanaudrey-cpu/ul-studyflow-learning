@@ -3,9 +3,9 @@ import { Star, CheckCircle2 } from "lucide-react";
 import { Container } from "../ui/Container";
 import { SectionBadge } from "../ui/SectionBadge";
 import { SectionHeader } from "../ui/SectionHeader";
-import Ela from "@/src/assets/images/ela.jpg";
-import Koffi from "@/src/assets/images/koffi.jpg";
-import Afiwa from "@/src/assets/images/afiwa.jpg";
+import Ela from "@/src/assets/images/ela.webp";
+import Koffi from "@/src/assets/images/koffi.webp";
+import Afiwa from "@/src/assets/images/afiwa.webp";
 
 interface Testimonial {
   quote: string;

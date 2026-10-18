@@ -1,7 +1,13 @@
-import React from 'react';
-import { ArrowRight, CheckCircle2, Smartphone, Wallet, Verified } from 'lucide-react';
-import { Container } from '../../ui/Container';
-import heroImage from '@/src/assets/images/campus_university_lome_1790533866163.jpg';
+import React from "react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Smartphone,
+  Wallet,
+  Verified,
+} from "lucide-react";
+import { Container } from "../../ui/Container";
+import heroImage from "@/src/assets/images/campus_university_lome_1790533866163.webp";
 
 interface HowItWorksHeroProps {
   onGetStarted: () => void;
@@ -11,8 +17,8 @@ export const HowItWorksHero: React.FC<HowItWorksHeroProps> = ({
   onGetStarted,
 }) => {
   const scrollToSteps = () => {
-    const el = document.getElementById('etapes');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const el = document.getElementById("etapes");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -36,10 +42,10 @@ export const HowItWorksHero: React.FC<HowItWorksHeroProps> = ({
           </h1>
 
           <p className="text-base sm:text-lg text-[#667781] dark:text-[#8696A0] max-w-2xl mx-auto">
-            De l'amphi bondé à la mention : découvre comment{' '}
+            De l'amphi bondé à la mention : découvre comment{" "}
             <strong className="text-[#075E54] dark:text-[#25D366]">
               Ul-StudyFlow-Learning
-            </strong>{' '}
+            </strong>{" "}
             transforme tes révisions en 4 étapes fluides, pensées pour les
             réalités du campus togolais (faible débit, forfait data,
             micro-paiement T-Money & Flooz).
@@ -67,9 +73,7 @@ export const HowItWorksHero: React.FC<HowItWorksHeroProps> = ({
           <div className="pt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-[#667781] dark:text-[#8696A0]">
             <div className="flex items-center gap-1.5">
               <Verified className="w-4 h-4 text-[#25D366]" />
-              <span className="text-xs font-semibold">
-                Sans carte bancaire
-              </span>
+              <span className="text-xs font-semibold">Sans carte bancaire</span>
             </div>
             <span className="w-1.5 h-1.5 rounded-full bg-[#E9EDEF] dark:bg-[#222E35] hidden sm:block" />
             <div className="flex items-center gap-1.5">
@@ -111,7 +115,11 @@ export const HowItWorksHero: React.FC<HowItWorksHeroProps> = ({
               </h2>
 
               <p className="text-sm text-[#667781] dark:text-[#8696A0]">
-                À Lomé, trouver le calme pour se concentrer au milieu du brouhaha des amphis bondés relève souvent de l'exploit. Ul-StudyFlow-Learning synthétise 100% du programme officiel en modules de 5-15 minutes chrono pour vous isoler du bruit et travailler efficacement
+                À Lomé, trouver le calme pour se concentrer au milieu du
+                brouhaha des amphis bondés relève souvent de l'exploit.
+                Ul-StudyFlow-Learning synthétise 100% du programme officiel en
+                modules de 5-15 minutes chrono pour vous isoler du bruit et
+                travailler efficacement
               </p>
 
               <div className="space-y-2 pt-3 border-t border-[#25D366]/30">
@@ -121,7 +129,10 @@ export const HowItWorksHero: React.FC<HowItWorksHeroProps> = ({
                 </div>
                 <div className="flex items-center gap-2 text-xs font-bold text-[#075E54] dark:text-[#25D366]">
                   <span>⚡</span>
-                  <span>Validation dans les minutes qui suivent (accès garanti 6 mois)</span>
+                  <span>
+                    Validation dans les minutes qui suivent (accès garanti 6
+                    mois)
+                  </span>
                 </div>
               </div>
             </div>

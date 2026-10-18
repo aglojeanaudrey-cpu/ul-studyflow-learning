@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowRight, Play, CheckCircle2, GraduationCap } from "lucide-react";
 import { Container } from "../ui/Container";
 import { STATS, PRICING } from "@/src/lib/constants";
-import heroImage from "@/src/assets/images/hero_ul_student_1790533845064.jpg";
+import heroImage from "@/src/assets/images/hero_ul_student_1790533845064.webp";
 
 interface HeroBlockProps {
   onGetStarted: () => void;

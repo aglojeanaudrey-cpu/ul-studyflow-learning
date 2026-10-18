@@ -1,7 +1,7 @@
 import React from "react";
 import { Globe, Network, CloudDownload, Wallet, Verified } from "lucide-react";
 import { Container } from "../../ui/Container";
-import testimonialImage from "@/src/assets/images/Reality.jpg";
+import testimonialImage from "@/src/assets/images/Reality.webp";
 
 interface Pillar {
   icon: React.ReactNode;

@@ -14,7 +14,7 @@ interface AboutPageProps {
 export const AboutPage: React.FC<AboutPageProps> = ({
   onGetStarted,
   onContactClick,
-}) => {
+}: any) => {
   return (
     <div className="min-h-screen bg-white dark:bg-[#0B141A] transition-colors">
       <AboutHero onGetStarted={onGetStarted} />

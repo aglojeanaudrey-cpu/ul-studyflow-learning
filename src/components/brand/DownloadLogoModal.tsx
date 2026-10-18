@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   X,
   Download,
@@ -9,24 +9,31 @@ import {
   Sparkles,
   ExternalLink,
   Shield,
-  Palette
-} from 'lucide-react';
-import { UlStudyFlowLogo } from './UlStudyFlowLogo';
-import { UlStudyFlowIcon } from './UlStudyFlowIcon';
+  Palette,
+} from "lucide-react";
+import { UlStudyFlowLogo } from "./UlStudyFlowLogo";
+import { UlStudyFlowIcon } from "./UlStudyFlowIcon";
 
 interface DownloadLogoModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, onClose }) => {
-  const [downloadedMap, setDownloadedMap] = useState<Record<string, boolean>>({});
-  const [previewBg, setPreviewBg] = useState<'green' | 'dark' | 'white'>('green');
+export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  const [downloadedMap, setDownloadedMap] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [previewBg, setPreviewBg] = useState<"green" | "dark" | "white">(
+    "green",
+  );
 
   if (!isOpen) return null;
 
   const triggerDownload = (url: string, filename: string, key: string) => {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = filename;
     document.body.appendChild(link);
@@ -80,16 +87,26 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
   </g>
 </svg>`;
 
-    const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+    const blob = new Blob([svgContent], {
+      type: "image/svg+xml;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
-    triggerDownload(url, 'ul_studyflow_logo_vector.svg', 'svg_logo');
+    triggerDownload(url, "ul_studyflow_logo_vector.svg", "svg_logo");
     setTimeout(() => URL.revokeObjectURL(url), 3000);
   };
 
   const handleDownloadAll = () => {
-    triggerDownload('/ul_studyflow_logo.png', 'ul_studyflow_logo_complet.png', 'all_logo');
+    triggerDownload(
+      "/ul_studyflow_logo.webp",
+      "ul_studyflow_logo_complet.png",
+      "all_logo",
+    );
     setTimeout(() => {
-      triggerDownload('/ul_studyflow_icon.png', 'ul_studyflow_icone_hd.png', 'all_icon');
+      triggerDownload(
+        "/ul_studyflow_icon.webp",
+        "ul_studyflow_icone_hd.png",
+        "all_icon",
+      );
     }, 400);
     setTimeout(() => {
       downloadSvgLogo();
@@ -99,7 +116,6 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white dark:bg-[#111B21] w-full max-w-3xl rounded-3xl shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] overflow-hidden flex flex-col max-h-[90vh]">
-        
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-5 bg-[#075E54] dark:bg-[#1F2C34] text-white">
           <div className="flex items-center gap-3">
@@ -126,7 +142,6 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-[#111B21] dark:text-white">
-          
           {/* Live Preview Box with background switcher */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -135,25 +150,31 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
               </span>
               <div className="flex items-center gap-1.5 text-xs bg-[#F0F2F5] dark:bg-[#1F2C34] p-1 rounded-xl">
                 <button
-                  onClick={() => setPreviewBg('green')}
+                  onClick={() => setPreviewBg("green")}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                    previewBg === 'green' ? 'bg-[#075E54] text-white shadow-xs' : 'text-[#667781] dark:text-[#8696A0]'
+                    previewBg === "green"
+                      ? "bg-[#075E54] text-white shadow-xs"
+                      : "text-[#667781] dark:text-[#8696A0]"
                   }`}
                 >
                   Fond Vert UL
                 </button>
                 <button
-                  onClick={() => setPreviewBg('dark')}
+                  onClick={() => setPreviewBg("dark")}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                    previewBg === 'dark' ? 'bg-[#0B141A] text-white shadow-xs' : 'text-[#667781] dark:text-[#8696A0]'
+                    previewBg === "dark"
+                      ? "bg-[#0B141A] text-white shadow-xs"
+                      : "text-[#667781] dark:text-[#8696A0]"
                   }`}
                 >
                   Fond Sombre
                 </button>
                 <button
-                  onClick={() => setPreviewBg('white')}
+                  onClick={() => setPreviewBg("white")}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                    previewBg === 'white' ? 'bg-white text-[#111B21] shadow-xs' : 'text-[#667781] dark:text-[#8696A0]'
+                    previewBg === "white"
+                      ? "bg-white text-[#111B21] shadow-xs"
+                      : "text-[#667781] dark:text-[#8696A0]"
                   }`}
                 >
                   Fond Clair
@@ -163,16 +184,16 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
 
             <div
               className={`p-6 sm:p-8 rounded-2xl border border-[#E9EDEF] dark:border-[#222E35] flex items-center justify-center transition-colors duration-200 min-h-[140px] ${
-                previewBg === 'green'
-                  ? 'bg-[#075E54]'
-                  : previewBg === 'dark'
-                  ? 'bg-[#0B141A]'
-                  : 'bg-[#F8FAFC]'
+                previewBg === "green"
+                  ? "bg-[#075E54]"
+                  : previewBg === "dark"
+                    ? "bg-[#0B141A]"
+                    : "bg-[#F8FAFC]"
               }`}
             >
               <UlStudyFlowLogo
                 size="lg"
-                lightText={previewBg !== 'white'}
+                lightText={previewBg !== "white"}
                 showTagline={true}
               />
             </div>
@@ -187,9 +208,12 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
                   <ImageIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">Logo Complet (PNG HD)</h4>
+                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">
+                    Logo Complet (PNG HD)
+                  </h4>
                   <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-0.5">
-                    Logo horizontal haute résolution avec typographie et devise académique.
+                    Logo horizontal haute résolution avec typographie et devise
+                    académique.
                   </p>
                   <span className="inline-block text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1">
                     Format: PNG · 278 Ko · Fond transparent
@@ -197,14 +221,20 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
                 </div>
               </div>
               <button
-                onClick={() => triggerDownload('/ul_studyflow_logo.png', 'ul_studyflow_logo.png', 'logo_png')}
+                onClick={() =>
+                  triggerDownload(
+                    "/ul_studyflow_logo.webp",
+                    "ul_studyflow_logo.png",
+                    "logo_png",
+                  )
+                }
                 className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                  downloadedMap['logo_png']
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-[#075E54] hover:bg-[#064e46] dark:bg-[#25D366] dark:hover:bg-[#1faa54] text-white dark:text-[#075E54]'
+                  downloadedMap["logo_png"]
+                    ? "bg-emerald-600 text-white"
+                    : "bg-[#075E54] hover:bg-[#064e46] dark:bg-[#25D366] dark:hover:bg-[#1faa54] text-white dark:text-[#075E54]"
                 }`}
               >
-                {downloadedMap['logo_png'] ? (
+                {downloadedMap["logo_png"] ? (
                   <>
                     <Check className="w-4 h-4" /> Téléchargé !
                   </>
@@ -223,9 +253,12 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
                   <Layers className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">Icône / Symbole (PNG 512x512)</h4>
+                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">
+                    Icône / Symbole (PNG 512x512)
+                  </h4>
                   <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-0.5">
-                    Emblème officiel (chapeau académique, monogramme UL et ondes de succès).
+                    Emblème officiel (chapeau académique, monogramme UL et ondes
+                    de succès).
                   </p>
                   <span className="inline-block text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1">
                     Format: PNG · 512x512 px · Profils & App
@@ -233,14 +266,20 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
                 </div>
               </div>
               <button
-                onClick={() => triggerDownload('/ul_studyflow_icon.png', 'ul_studyflow_icon.png', 'icon_png')}
+                onClick={() =>
+                  triggerDownload(
+                    "/ul_studyflow_icon.webp",
+                    "ul_studyflow_icon.png",
+                    "icon_png",
+                  )
+                }
                 className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                  downloadedMap['icon_png']
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-[#075E54] hover:bg-[#064e46] dark:bg-[#25D366] dark:hover:bg-[#1faa54] text-white dark:text-[#075E54]'
+                  downloadedMap["icon_png"]
+                    ? "bg-emerald-600 text-white"
+                    : "bg-[#075E54] hover:bg-[#064e46] dark:bg-[#25D366] dark:hover:bg-[#1faa54] text-white dark:text-[#075E54]"
                 }`}
               >
-                {downloadedMap['icon_png'] ? (
+                {downloadedMap["icon_png"] ? (
                   <>
                     <Check className="w-4 h-4" /> Téléchargé !
                   </>
@@ -259,9 +298,12 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
                   <FileCode className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">Logo Vectoriel (SVG pur)</h4>
+                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">
+                    Logo Vectoriel (SVG pur)
+                  </h4>
                   <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-0.5">
-                    Fichier vectoriel agrandissable à l'infini pour impressions, t-shirts, affiches.
+                    Fichier vectoriel agrandissable à l'infini pour impressions,
+                    t-shirts, affiches.
                   </p>
                   <span className="inline-block text-[10px] font-mono text-amber-600 dark:text-amber-400 mt-1">
                     Format: SVG · Qualité d'impression HD
@@ -271,12 +313,12 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
               <button
                 onClick={downloadSvgLogo}
                 className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                  downloadedMap['svg_logo']
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-[#128C7E] hover:bg-[#075E54] text-white'
+                  downloadedMap["svg_logo"]
+                    ? "bg-emerald-600 text-white"
+                    : "bg-[#128C7E] hover:bg-[#075E54] text-white"
                 }`}
               >
-                {downloadedMap['svg_logo'] ? (
+                {downloadedMap["svg_logo"] ? (
                   <>
                     <Check className="w-4 h-4" /> SVG Exporté !
                   </>
@@ -295,7 +337,9 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">Favicon & Raccourcis (ICO)</h4>
+                  <h4 className="font-bold text-sm text-[#111B21] dark:text-white">
+                    Favicon & Raccourcis (ICO)
+                  </h4>
                   <p className="text-xs text-[#667781] dark:text-[#8696A0] mt-0.5">
                     Icône pour barre de navigateur, signets et applications PWA.
                   </p>
@@ -305,14 +349,16 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
                 </div>
               </div>
               <button
-                onClick={() => triggerDownload('/favicon.ico', 'favicon.ico', 'favicon_ico')}
+                onClick={() =>
+                  triggerDownload("/favicon.ico", "favicon.ico", "favicon_ico")
+                }
                 className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                  downloadedMap['favicon_ico']
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-[#128C7E] hover:bg-[#075E54] text-white'
+                  downloadedMap["favicon_ico"]
+                    ? "bg-emerald-600 text-white"
+                    : "bg-[#128C7E] hover:bg-[#075E54] text-white"
                 }`}
               >
-                {downloadedMap['favicon_ico'] ? (
+                {downloadedMap["favicon_ico"] ? (
                   <>
                     <Check className="w-4 h-4" /> Téléchargé !
                   </>
@@ -328,35 +374,44 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
           {/* Color Palette Spec */}
           <div className="p-4 rounded-2xl bg-[#F0F2F5] dark:bg-[#1F2C34] space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-[#075E54] dark:text-[#25D366]">
-              <Palette className="w-4 h-4" /> Charte Graphique & Codes Couleurs Officiels
+              <Palette className="w-4 h-4" /> Charte Graphique & Codes Couleurs
+              Officiels
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="flex items-center gap-2 bg-white dark:bg-[#111B21] p-2 rounded-xl border border-[#E9EDEF] dark:border-[#222E35]">
                 <div className="w-6 h-6 rounded-lg bg-[#075E54] shrink-0"></div>
                 <div>
                   <p className="font-bold text-[11px]">Vert UL</p>
-                  <p className="text-[10px] font-mono text-[#667781] dark:text-[#8696A0]">#075E54</p>
+                  <p className="text-[10px] font-mono text-[#667781] dark:text-[#8696A0]">
+                    #075E54
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-white dark:bg-[#111B21] p-2 rounded-xl border border-[#E9EDEF] dark:border-[#222E35]">
                 <div className="w-6 h-6 rounded-lg bg-[#25D366] shrink-0"></div>
                 <div>
                   <p className="font-bold text-[11px]">Vert Vif Flow</p>
-                  <p className="text-[10px] font-mono text-[#667781] dark:text-[#8696A0]">#25D366</p>
+                  <p className="text-[10px] font-mono text-[#667781] dark:text-[#8696A0]">
+                    #25D366
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-white dark:bg-[#111B21] p-2 rounded-xl border border-[#E9EDEF] dark:border-[#222E35]">
                 <div className="w-6 h-6 rounded-lg bg-[#128C7E] shrink-0"></div>
                 <div>
                   <p className="font-bold text-[11px]">Sarcelle</p>
-                  <p className="text-[10px] font-mono text-[#667781] dark:text-[#8696A0]">#128C7E</p>
+                  <p className="text-[10px] font-mono text-[#667781] dark:text-[#8696A0]">
+                    #128C7E
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-white dark:bg-[#111B21] p-2 rounded-xl border border-[#E9EDEF] dark:border-[#222E35]">
                 <div className="w-6 h-6 rounded-lg bg-[#0B141A] shrink-0"></div>
                 <div>
                   <p className="font-bold text-[11px]">Dark Mode</p>
-                  <p className="text-[10px] font-mono text-[#667781] dark:text-[#8696A0]">#0B141A</p>
+                  <p className="text-[10px] font-mono text-[#667781] dark:text-[#8696A0]">
+                    #0B141A
+                  </p>
                 </div>
               </div>
             </div>
@@ -384,7 +439,6 @@ export const DownloadLogoModal: React.FC<DownloadLogoModalProps> = ({ isOpen, on
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

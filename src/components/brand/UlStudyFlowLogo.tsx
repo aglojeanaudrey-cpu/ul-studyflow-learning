@@ -1,5 +1,5 @@
 import React from "react";
-import logoImg from "../../assets/images/ul_study_logo_1790588296770.jpg";
+import logoImg from "../../assets/images/ul_study_logo_1790588296770.webp";
 import { UlStudyFlowIcon } from "./UlStudyFlowIcon";
 
 interface UlStudyFlowLogoProps {
@@ -27,7 +27,7 @@ export const UlStudyFlowLogo: React.FC<UlStudyFlowLogoProps> = ({
     );
   }
 
-  // ⭐ Icône : taille responsive
+  // Icône : taille responsive
   const iconSizeClass =
     size === "sm"
       ? "w-7 h-7 sm:w-8 sm:h-8"
@@ -35,7 +35,7 @@ export const UlStudyFlowLogo: React.FC<UlStudyFlowLogoProps> = ({
         ? "w-10 h-10 sm:w-12 sm:h-12"
         : "w-8 h-8 sm:w-10 sm:h-10";
 
-  // ⭐ Titre "UL STUDYFLOW" : responsive (petit mobile, normal desktop)
+  // Titre "UL STUDYFLOW" : responsive (petit mobile, normal desktop)
   const titleClass =
     size === "sm"
       ? "text-xs sm:text-base"
@@ -43,7 +43,7 @@ export const UlStudyFlowLogo: React.FC<UlStudyFlowLogoProps> = ({
         ? "text-lg sm:text-2xl"
         : "text-sm sm:text-lg";
 
-  // ⭐ Tagline : TAILLE FIXE, identique partout (même taille que mobile)
+  // Tagline : TAILLE FIXE, identique partout (même taille que mobile)
   const taglineClass = "text-[7px]";
 
   // Gap et marge responsive (légèrement plus serrés sur mobile)
