@@ -1,19 +1,25 @@
-import React from 'react';
-import { PricingHero } from '../sections/PricingHero';
-import { PricingCardsSection } from '../sections/PricingCardsSection';
-import { MobileMoneySection } from '../sections/MobileMoneySection';
-import { ComparisonTable } from '../sections/ComparisonTable';
-import { TutoratSection } from '../sections/TutoratSection';
-import { BookingWidget } from '../sections/BookingWidget';
-import { TestimonialSection } from '../sections/TestimonialSection';
-import { PricingFaqSection } from '../sections/PricingFaqSection';
-import { PricingFinalCta } from '../sections/PricingFinalCta';
+import React from "react";
+import { PricingHero } from "../sections/PricingHero";
+import { PricingCardsSection } from "../sections/PricingCardsSection";
+import { MobileMoneySection } from "../sections/MobileMoneySection";
+import { ComparisonTable } from "../sections/ComparisonTable";
+import { TutoratSection } from "../sections/TutoratSection";
+import { BookingWidget } from "../sections/BookingWidget";
+import { TestimonialSection } from "../sections/TestimonialSection";
+import { PricingFaqSection } from "../sections/PricingFaqSection";
+import { PricingFinalCta } from "../sections/PricingFinalCta";
+import { useSEO } from "@/src/hooks/useSEO";
 
 interface PricingPageProps {
   onGetStarted: () => void;
 }
 
 export const PricingPage: React.FC<PricingPageProps> = ({ onGetStarted }) => {
+  useSEO({
+    title: "UL Study Flow | Révisions et cours pour les étudiants de Lomé",
+    description:
+      "La plateforme EdTech qui aide les étudiants de l'Université de Lomé à réviser plus efficacement : fiches, audios, vidéos et assistant IA.",
+  });
   return (
     <div className="w-full">
       {/* 1. Hero tarifs + toggle À la carte / Packs */}
