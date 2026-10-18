@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { Navbar } from "./components/layout/Navbar";
@@ -22,11 +22,8 @@ import { RegisterModal } from "./components/auth/RegisterModal";
 import { StudentDashboard } from "./components/student/StudentDashboard";
 import { MyCoursesView } from "./components/student/MyCoursesView";
 import { UeDetailView } from "./components/student/UeDetailView";
-import { SessionView } from "./components/student/SessionView";
 import { ProgressView } from "./components/student/ProgressView";
-import { AiAssistantView } from "./components/student/AiAssistantView";
 import { StudentProfileView } from "./components/student/StudentProfileView";
-import { AdminView } from "./components/admin/AdminView";
 import { ActivePopup } from "./components/marketing/ActivePopup";
 import { ReferralView } from "./components/student/ReferralView";
 import { PageProgressBar } from "./components/ui/PageProgressBar";
@@ -48,6 +45,25 @@ import {
 import { DynamicFormModal } from "./components/student/DynamicFormModal";
 import { api } from "./lib/api";
 import { DynamicForm, PopupCampaign } from "./types";
+
+// Lazy imports
+const AiAssistantView = lazy(() =>
+  import("./components/student/AiAssistantView").then((m) => ({
+    default: m.AiAssistantView,
+  })),
+);
+
+const AdminView = lazy(() =>
+  import("./components/admin/AdminView").then((m) => ({
+    default: m.AdminView,
+  })),
+);
+
+const SessionView = lazy(() =>
+  import("./components/student/SessionView").then((m) => ({
+    default: m.SessionView,
+  })),
+);
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -97,7 +113,7 @@ function AppContent() {
       setCurrentTab(user!.role === "SUPERUSER" ? "admin" : "student_home");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (wasLoggedIn && !isLoggedIn) {
-      // ⭐ Just logged out : forcer la sortie de toute vue protégée
+      // Just logged out : forcer la sortie de toute vue protégée
       setActiveUeId(null);
       setActiveSessionId(null);
       setAiContextSessionId(undefined);
@@ -110,11 +126,45 @@ function AppContent() {
       !isLoggedIn &&
       (currentTab === "admin" || currentTab.startsWith("student_"))
     ) {
-      // ⭐ Sécurité : si anonyme sur vue protégée → retour home
+      // Sécurité : si anonyme sur vue protégée → retour home
       setCurrentTab("home");
     }
     prevUserRef.current = user;
   }, [user, currentTab]);
+
+  React.useEffect(() => {
+    // Fallback : si on est sur un onglet inconnu, rediriger proprement
+    const KNOWN_TABS = [
+      "home",
+      "features",
+      "how_it_works",
+      "pricing",
+      "faq",
+      "about",
+      "student_home",
+      "student_courses",
+      "student_ue_detail",
+      "student_session",
+      "student_progress",
+      "student_ai",
+      "student_referral",
+      "student_profile",
+      "admin",
+    ];
+    const isKnownTab =
+      KNOWN_TABS.includes(currentTab) ||
+      currentTab.startsWith("admin/") ||
+      currentTab.startsWith("student_");
+
+    if (!isKnownTab && currentTab !== "") {
+      console.warn(
+        `[Nav] Onglet inconnu détecté: "${currentTab}". Redirection vers accueil.`,
+      );
+      setCurrentTab(
+        user ? (user.role === "SUPERUSER" ? "admin" : "student_home") : "home",
+      );
+    }
+  }, [currentTab, user]);
 
   // Handlers for switching views
   const handleOpenUe = (ueId: string) => {
@@ -442,7 +492,17 @@ function AppContent() {
       />
 
       {/* Main Container */}
-      <main className="flex-1">{renderMainView()}</main>
+      <main className="flex-1">
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="w-8 h-8 border-3 border-[#25D366] border-t-transparent rounded-full animate-spin" />
+            </div>
+          }
+        >
+          {renderMainView()}
+        </Suspense>
+      </main>
 
       {/* Mobile & Tablet Bottom Navigation (visible on < lg: screens, < 15% height) */}
       {user && currentTab !== "admin" && (

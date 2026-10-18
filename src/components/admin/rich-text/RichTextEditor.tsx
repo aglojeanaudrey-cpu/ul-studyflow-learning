@@ -119,7 +119,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialBlocksStyle]);
 
-  // ⭐ Clic sur un bloc
+  // Clic sur un bloc
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const block = target.closest(".rte-block") as HTMLElement | null;

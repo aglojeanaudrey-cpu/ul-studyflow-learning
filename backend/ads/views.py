@@ -152,19 +152,10 @@ class AdminPopupsListView(APIView):
     permission_classes = [require_admin_permission('ads')]
 
     def get(self, request):
-        print(f"[DEBUG] User: {request.user}")
-        print(f"[DEBUG] is_authenticated: {request.user.is_authenticated}")
-        print(f"[DEBUG] role: {getattr(request.user, 'role', 'NO_ROLE')}")
-        print(f"[DEBUG] is_superuser: {getattr(request.user, 'is_superuser', 'NO_ATTR')}")
-        print(f"[DEBUG] has_admin_permission('ads'): {request.user.has_admin_permission('ads') if hasattr(request.user, 'has_admin_permission') else 'NO_METHOD'}")
         qs = PopupCampaign.objects.all().order_by('-priority', '-created_at')
         return Response({'popups': PopupCampaignSerializer(qs, many=True).data})
 
     def post(self, request):
-        print(f"[DEBUG POST] User: {request.user}")
-        print(f"[DEBUG POST] is_authenticated: {request.user.is_authenticated}")
-        print(f"[DEBUG POST] role: {getattr(request.user, 'role', 'NO_ROLE')}")
-        print(f"[DEBUG POST] has_admin_permission('ads'): {request.user.has_admin_permission('ads') if hasattr(request.user, 'has_admin_permission') else 'NO_METHOD'}")
     
         serializer = PopupCampaignSerializer(data=request.data)
         if not serializer.is_valid():

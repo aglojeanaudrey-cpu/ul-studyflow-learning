@@ -509,7 +509,7 @@ export const CourseManagement: React.FC = () => {
       flashcards: chapter.flashcards || [],
     });
 
-    // ⭐ Reset modes selon l'existant
+    // Reset modes selon l'existant
     setVideoMode(
       chapter.video?.url?.includes("cloudinary.com") ? "upload" : "url",
     );
@@ -521,16 +521,16 @@ export const CourseManagement: React.FC = () => {
     setChapterHtml(chapter.summaryHtml || "");
     setChapterJson(chapter.summaryJson || null);
     setChapterBlocksStyle(chapter.summaryBlocksStyle || {});
+    // forcer chapterHtml/Json à jour dès l'ouverture
+    setChapterHtml(chapter.summaryHtml || chapter.summaryText || "");
+    setChapterJson(chapter.summaryJson || null);
+    setChapterBlocksStyle(chapter.summaryBlocksStyle || {});
     setChapterModalOpen(true);
   };
 
   const handleSaveChapter = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("🟢 handleSaveChapter appelé");
-    console.log("   chapterParentSessionId:", chapterParentSessionId);
-    console.log("   selectedUe:", selectedUe?.id);
-    console.log("   form state:", chapterForm);
-    // ⭐ Validation manuelle avec messages
+    // Validation manuelle avec messages
     if (!chapterForm.title?.trim()) {
       showError("Le titre du chapitre est obligatoire.");
       setChapterStep(1);
@@ -565,10 +565,10 @@ export const CourseManagement: React.FC = () => {
         number: chapterForm.number,
         title: chapterForm.title,
         objectives: chapterForm.objectives,
-        summaryText: chapterForm.summaryText,
-        summaryHtml: chapterHtml,
-        summaryJson: chapterJson,
-        summaryBlocksStyle: chapterBlocksStyle,
+        summaryText: chapterForm.summaryText || "",
+        summaryHtml: chapterHtml || "",
+        summaryJson: chapterJson || {},
+        summaryBlocksStyle: chapterBlocksStyle || {},
         video: chapterForm.hasVideo
           ? {
               title: chapterForm.videoTitle,
@@ -613,7 +613,6 @@ export const CourseManagement: React.FC = () => {
             }
           : false,
       };
-
       await api.saveChapter(payload);
       setChapterModalOpen(false);
       showSuccess(
@@ -623,6 +622,8 @@ export const CourseManagement: React.FC = () => {
       );
       await loadSessionsForUe(selectedUe.id);
     } catch (err: any) {
+      console.error("❌ Erreur saveChapter:", err);
+      console.error("   Message:", err.message);
       showError(err.message || "Erreur lors de l'enregistrement du chapitre.");
     }
   };
@@ -1939,10 +1940,32 @@ export const CourseManagement: React.FC = () => {
                               </div>
                             </div>
 
-                            <div>
-                              <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
-                                URL du fichier Audio
-                              </label>
+                            {/* ⭐ Uploader Cloudinary */}
+                            <MediaUploader
+                              kind="audio"
+                              currentUrl={chapterForm.audioUrl}
+                              onUploaded={(data) => {
+                                setChapterForm({
+                                  ...chapterForm,
+                                  audioUrl: data.url,
+                                });
+                                showSuccess(
+                                  "Audio uploadé avec succès sur Cloudinary.",
+                                );
+                              }}
+                              onRemoved={() => {
+                                setChapterForm({
+                                  ...chapterForm,
+                                  audioUrl: "",
+                                });
+                              }}
+                            />
+
+                            {/* Fallback URL manuelle */}
+                            <details className="text-[10px] text-[#667781]">
+                              <summary className="cursor-pointer font-semibold">
+                                Ou coller une URL manuellement
+                              </summary>
                               <input
                                 type="text"
                                 placeholder="https://..."
@@ -1953,9 +1976,9 @@ export const CourseManagement: React.FC = () => {
                                     audioUrl: e.target.value,
                                   })
                                 }
-                                className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-[11px]"
+                                className="w-full mt-2 p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-[11px]"
                               />
-                            </div>
+                            </details>
                           </div>
                         )}
                       </div>
@@ -2016,10 +2039,33 @@ export const CourseManagement: React.FC = () => {
                               </div>
                             </div>
 
-                            <div>
-                              <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-300">
-                                URL Vidéo / Embed
-                              </label>
+                            {/* ⭐ Uploader Cloudinary */}
+                            <MediaUploader
+                              kind="video"
+                              currentUrl={chapterForm.videoUrl}
+                              onUploaded={(data) => {
+                                setChapterForm({
+                                  ...chapterForm,
+                                  videoUrl: data.url,
+                                });
+                                showSuccess(
+                                  "Vidéo uploadée avec succès sur Cloudinary.",
+                                );
+                              }}
+                              onRemoved={() => {
+                                setChapterForm({
+                                  ...chapterForm,
+                                  videoUrl: "",
+                                });
+                              }}
+                            />
+
+                            {/* Fallback URL manuelle */}
+                            <details className="text-[10px] text-[#667781]">
+                              <summary className="cursor-pointer font-semibold">
+                                Ou coller une URL manuellement (YouTube,
+                                Vimeo...)
+                              </summary>
                               <input
                                 type="text"
                                 placeholder="https://..."
@@ -2030,9 +2076,9 @@ export const CourseManagement: React.FC = () => {
                                     videoUrl: e.target.value,
                                   })
                                 }
-                                className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-[11px]"
+                                className="w-full mt-2 p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 font-mono text-[11px]"
                               />
-                            </div>
+                            </details>
                           </div>
                         )}
                       </div>

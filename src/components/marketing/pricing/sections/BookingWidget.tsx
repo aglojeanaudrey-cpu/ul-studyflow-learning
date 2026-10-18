@@ -1,64 +1,64 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from "react";
 import {
   CalendarCheck,
   Calendar,
   CheckCircle2,
   Shield,
   Send,
-} from 'lucide-react';
-import { Container } from '../../ui/Container';
+} from "lucide-react";
+import { Container } from "../../ui/Container";
 
 // ─────────────────────────────────────────────────────────────
 // Données : Facultés → Matières
 // ─────────────────────────────────────────────────────────────
 const FACULTIES: Record<string, string[]> = {
   FASEG: [
-    'Microéconomie I & II',
-    'Macroéconomie L1/L2',
-    'Comptabilité Générale & Analytique',
-    'Statistiques & Probabilités',
-    'Mathématiques pour Économistes',
+    "Microéconomie I & II",
+    "Macroéconomie L1/L2",
+    "Comptabilité Générale & Analytique",
+    "Statistiques & Probabilités",
+    "Mathématiques pour Économistes",
   ],
   FDD: [
-    'Droit Constitutionnel & Institutions',
-    'Introduction Générale au Droit',
-    'Droit Civil & Régime des Obligations',
-    'Droit Pénal Général & Procédure',
-    'Méthodologie du Cas Pratique & Dissertation',
+    "Droit Constitutionnel & Institutions",
+    "Introduction Générale au Droit",
+    "Droit Civil & Régime des Obligations",
+    "Droit Pénal Général & Procédure",
+    "Méthodologie du Cas Pratique & Dissertation",
   ],
   FDS: [
-    'Algèbre Linéaire & Analyse I',
-    'Mécanique du Point & Électrostatique',
-    'Chimie Générale & Atomistique',
-    'Algorithmique & Programmation en C/Python',
-    'Biologie Cellulaire & Génétique',
+    "Algèbre Linéaire & Analyse I",
+    "Mécanique du Point & Électrostatique",
+    "Chimie Générale & Atomistique",
+    "Algorithmique & Programmation en C/Python",
+    "Biologie Cellulaire & Génétique",
   ],
   FLLA: [
-    'Grammaire & Linguistique Française',
-    'Littérature Africaine & Comparée',
+    "Grammaire & Linguistique Française",
+    "Littérature Africaine & Comparée",
     "Techniques d'Expression & Synthèse",
-    'Anglais Universitaire & Traduction',
+    "Anglais Universitaire & Traduction",
   ],
   FSHS: [
-    'Sociologie Générale & Anthropologie',
-    'Histoire Contemporaine du Togo',
-    'Géographie Physique & Économique',
-    'Méthodologie de Recherche en SHS',
+    "Sociologie Générale & Anthropologie",
+    "Histoire Contemporaine du Togo",
+    "Géographie Physique & Économique",
+    "Méthodologie de Recherche en SHS",
   ],
 };
 
 const FACULTY_LABELS: Record<string, string> = {
-  FASEG: 'FASEG — Économie & Gestion',
-  FDD: 'FDD — Droit & Sciences Politiques',
-  FDS: 'FDS — Faculté des Sciences (Maths, Physique, Info)',
-  FLLA: 'FLLA — Lettres, Langues & Arts',
+  FASEG: "FASEG — Économie & Gestion",
+  FDD: "FDD — Droit & Sciences Politiques",
+  FDS: "FDS — Faculté des Sciences (Maths, Physique, Info)",
+  FLLA: "FLLA — Lettres, Langues & Arts",
   FSHS: "FSHS — Sciences de l'Homme & de la Société",
 };
 
 // ─────────────────────────────────────────────────────────────
 // Formules disponibles
 // ─────────────────────────────────────────────────────────────
-type FormulaType = 'whatsapp-audio' | 'meet-video' | 'whatsapp-video';
+type FormulaType = "whatsapp-audio" | "meet-video" | "whatsapp-video";
 
 interface Formula {
   id: FormulaType;
@@ -70,28 +70,28 @@ interface Formula {
 
 const FORMULAS: Formula[] = [
   {
-    id: 'whatsapp-audio',
-    label: 'Option A • WhatsApp Audio',
+    id: "whatsapp-audio",
+    label: "Option A • WhatsApp Audio",
     description:
-      'Audio + messages écrits structurés + corrigés de TD en photo.',
+      "Audio + messages écrits structurés + corrigés de TD en photo.",
     price: 1000,
-    badge: '1 000 F CFA',
+    badge: "1 000 F CFA",
   },
   {
-    id: 'meet-video',
-    label: 'Option B • Google Meet Vidéo',
+    id: "meet-video",
+    label: "Option B • Google Meet Vidéo",
     description:
-      'Visio interactive en direct, tableau blanc partagé & calculs pas à pas.',
+      "Visio interactive en direct, tableau blanc partagé & calculs pas à pas.",
     price: 1500,
-    badge: '1 500 F CFA',
+    badge: "1 500 F CFA",
   },
   {
-    id: 'whatsapp-video',
-    label: 'Option C • WhatsApp Vidéo',
+    id: "whatsapp-video",
+    label: "Option C • WhatsApp Vidéo",
     description:
-      'Appel vidéo direct dans WhatsApp, simple, direct et sans application supplémentaire.',
+      "Appel vidéo direct dans WhatsApp, simple, direct et sans application supplémentaire.",
     price: 1500,
-    badge: '1 500 F CFA',
+    badge: "1 500 F CFA",
   },
 ];
 
@@ -99,20 +99,20 @@ const FORMULAS: Formula[] = [
 // Créneaux disponibles
 // ─────────────────────────────────────────────────────────────
 const SLOTS = [
-  '10h00 - 11h30',
-  '14h30 - 16h00',
-  '17h00 - 18h30',
-  '19h00 - 20h30',
-  '20h30 - 22h00',
-  'Sur mesure',
+  "10h00 - 11h30",
+  "14h30 - 16h00",
+  "17h00 - 18h30",
+  "19h00 - 20h30",
+  "20h30 - 22h00",
+  "Sur mesure",
 ];
 
 const DAYS = [
   "Aujourd'hui (Créneaux express)",
-  'Demain',
-  'Après-demain',
-  'Samedi prochain (Grandes révisions)',
-  'Dimanche prochain',
+  "Demain",
+  "Après-demain",
+  "Samedi prochain (Grandes révisions)",
+  "Dimanche prochain",
 ];
 
 interface BookingWidgetProps {
@@ -122,12 +122,12 @@ interface BookingWidgetProps {
 export const BookingWidget: React.FC<BookingWidgetProps> = ({
   onSubmitted,
 }) => {
-  const [faculty, setFaculty] = useState<string>('FASEG');
-  const [subject, setSubject] = useState<string>(FACULTIES['FASEG'][0]);
-  const [formula, setFormula] = useState<FormulaType>('whatsapp-audio');
+  const [faculty, setFaculty] = useState<string>("FASEG");
+  const [subject, setSubject] = useState<string>(FACULTIES["FASEG"][0]);
+  const [formula, setFormula] = useState<FormulaType>("whatsapp-audio");
   const [day, setDay] = useState<string>(DAYS[0]);
   const [slot, setSlot] = useState<string>(SLOTS[0]);
-  const [phone, setPhone] = useState<string>('');
+  const [phone, setPhone] = useState<string>("");
   const [success, setSuccess] = useState<boolean>(false);
 
   // Met à jour la matière quand la faculté change
@@ -139,7 +139,7 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
   // Formule sélectionnée
   const selectedFormula = useMemo(
     () => FORMULAS.find((f) => f.id === formula)!,
-    [formula]
+    [formula],
   );
 
   // Soumission (placeholder — backend plus tard)
@@ -148,30 +148,21 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
 
     if (!phone || phone.trim().length < 8) {
       alert(
-        'Veuillez renseigner un numéro de téléphone togolais valide (T-Money ou Flooz).'
+        "Veuillez renseigner un numéro de téléphone togolais valide (T-Money ou Flooz).",
       );
       return;
     }
 
     // TODO: brancher sur /api/unlock-requests (backend plus tard)
-    console.log('📅 Réservation tutorat :', {
-      faculty,
-      subject,
-      formula,
-      day,
-      slot,
-      phone,
-      price: selectedFormula.price,
-    });
 
     setSuccess(true);
     onSubmitted?.();
 
     // Scroll vers le message de succès
     setTimeout(() => {
-      const el = document.getElementById('booking-success-msg');
+      const el = document.getElementById("booking-success-msg");
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
     }, 100);
   };
@@ -262,8 +253,8 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
                       key={f.id}
                       className={`relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all ${
                         isSelected
-                          ? 'border-[#25D366] bg-[#25D366]/10 ring-2 ring-[#25D366]/20'
-                          : 'border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] hover:border-[#25D366]/60'
+                          ? "border-[#25D366] bg-[#25D366]/10 ring-2 ring-[#25D366]/20"
+                          : "border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] hover:border-[#25D366]/60"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -324,8 +315,8 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
                           onClick={() => setSlot(s)}
                           className={`py-2 px-2 text-center rounded-lg border text-xs font-bold transition-all ${
                             isSelected
-                              ? 'border-[#25D366] bg-[#25D366]/20 text-[#075E54] dark:text-[#25D366]'
-                              : 'border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] text-[#111B21] dark:text-white hover:border-[#25D366]/60'
+                              ? "border-[#25D366] bg-[#25D366]/20 text-[#075E54] dark:text-[#25D366]"
+                              : "border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] text-[#111B21] dark:text-white hover:border-[#25D366]/60"
                           }`}
                         >
                           {s}
@@ -369,7 +360,7 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
                         Total à payer
                       </span>
                       <span className="text-2xl font-extrabold text-[#075E54] dark:text-[#25D366]">
-                        {selectedFormula.price.toLocaleString('fr-FR')} F CFA
+                        {selectedFormula.price.toLocaleString("fr-FR")} F CFA
                       </span>
                     </div>
                     <div className="text-right">
@@ -401,7 +392,8 @@ export const BookingWidget: React.FC<BookingWidgetProps> = ({
               >
                 <Calendar className="w-5 h-5" />
                 <span>
-                  Réserver ma séance ({selectedFormula.price.toLocaleString('fr-FR')} F CFA)
+                  Réserver ma séance (
+                  {selectedFormula.price.toLocaleString("fr-FR")} F CFA)
                 </span>
               </button>
             </div>

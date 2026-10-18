@@ -1,6 +1,6 @@
-import React from 'react';
-import { ArrowRight, Download, Sparkles } from 'lucide-react';
-import { Container } from '../../ui/Container';
+import React from "react";
+import { ArrowRight, Download, Sparkles } from "lucide-react";
+import { Container } from "../../ui/Container";
 
 interface HowItWorksFinalCtaProps {
   onGetStarted: () => void;
@@ -16,7 +16,6 @@ export const HowItWorksFinalCta: React.FC<HowItWorksFinalCtaProps> = ({
       onDownloadSpecimen();
     } else {
       // Placeholder : à brancher plus tard sur un vrai PDF
-      console.log('📄 Téléchargement du spécimen PDF demandé');
     }
   };
 

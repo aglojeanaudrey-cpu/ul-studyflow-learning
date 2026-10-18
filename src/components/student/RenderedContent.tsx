@@ -4,12 +4,12 @@ import { BlockStyle } from "../../types";
 interface RenderedContentProps {
   html: string;
   className?: string;
-  /** ⭐ Styles de blocs appliqués par l'admin */
+  /** Styles de blocs appliqués par l'admin */
   blocksStyle?: Record<string, BlockStyle>;
 }
 
 /**
- * ⭐ Composant de rendu LECTURE SEULE
+ * Composant de rendu LECTURE SEULE
  * - Utilisé pour l'affichage étudiant (dans SessionView)
  * - Utilisé pour l'aperçu admin (dans CourseManagement)
  * - NE CONTIENT AUCUN CONTRÔLE (pas de barre de réglage)

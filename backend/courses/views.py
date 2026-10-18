@@ -547,6 +547,11 @@ class AdminChapterSaveView(APIView):
     permission_classes = [IsStaffOrSuperuser]
 
     def post(self, request):
+        import logging
+        logging.getLogger(__name__).error(f"CHAPTER SAVE ERROR: {request.data}")
+        print(f"\n\n=== CHAPTER SAVE DEBUG ===")
+        print(f"Data reçue: {dict(request.data)}")
+        print(f"==========================\n\n")
         try:
             data = request.data
             chapter_id = data.get('id')
@@ -576,7 +581,7 @@ class AdminChapterSaveView(APIView):
             pdf_data = data.get('pdf') if isinstance(data.get('pdf'), dict) else {}
             flashcards_data = data.get('flashcards') if isinstance(data.get('flashcards'), list) else []
 
-                        # ⭐ Récupérer les styles de blocs (peut être un dict JSON)
+            # Récupérer les styles de blocs (peut être un dict JSON)
             blocks_style_data = data.get('summaryBlocksStyle')
             if not isinstance(blocks_style_data, dict):
                 blocks_style_data = {}
@@ -687,6 +692,8 @@ class AdminChapterSaveView(APIView):
             return Response({'success': True, 'chapter': ChapterSerializer(chapter, context={'request': request}).data})
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return Response({'error': f"Erreur lors de l'enregistrement du chapitre: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 

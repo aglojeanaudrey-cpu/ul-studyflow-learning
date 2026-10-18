@@ -1,5 +1,11 @@
 import React from "react";
-import { Move, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
+import {
+  Move,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  RotateCcw,
+} from "lucide-react";
 import { BlockStyle } from "../../../types";
 
 interface BlockControlsProps {
@@ -18,22 +24,27 @@ export const BlockControls: React.FC<BlockControlsProps> = ({
   const isImage = blockType === "image";
 
   return (
-    <div className="bg-[#0B141A] dark:bg-[#1F2C34] rounded-2xl shadow-2xl border border-[#25D366]/40 p-3 space-y-3">
+    <div className="bg-[#0B141A] dark:bg-[#1F2C34] rounded-2xl shadow-2xl border border-[#25D366]/40 p-2.5 sm:p-3 space-y-3 max-h-[80vh] overflow-y-auto">
+      {/* Header */}
       <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/10">
-        <span className="text-[11px] font-bold text-[#25D366] flex items-center gap-1.5">
-          <Move className="w-3.5 h-3.5" />
-          Personnaliser le bloc ({blockType})
+        <span className="text-[11px] font-bold text-[#25D366] flex items-center gap-1.5 truncate">
+          <Move className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Personnaliser le bloc ({blockType})</span>
         </span>
         <button
           onClick={onReset}
-          className="text-[10px] text-rose-300 hover:text-rose-200 font-semibold underline"
+          className="text-[10px] text-rose-300 hover:text-rose-200 font-semibold flex items-center gap-1 shrink-0"
+          title="Réinitialiser le style"
         >
-          Réinitialiser
+          <RotateCcw className="w-3 h-3" />
+          <span className="hidden xs:inline">Réinitialiser</span>
         </button>
       </div>
 
-      {/* Width + Height */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Width + Height (responsive: 1 col sur mobile, 2 sur sm+) */}
+      <div
+        className={`grid gap-3 ${isImage ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
+      >
         <div>
           <label className="text-[10px] text-gray-400 font-semibold flex items-center justify-between mb-1">
             <span>Largeur</span>
@@ -75,7 +86,9 @@ export const BlockControls: React.FC<BlockControlsProps> = ({
       </div>
 
       {/* Object-fit + Radius */}
-      <div className="grid grid-cols-2 gap-3">
+      <div
+        className={`grid gap-3 ${isImage ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
+      >
         {isImage && (
           <div>
             <label className="text-[10px] text-gray-400 font-semibold mb-1 block">
@@ -103,7 +116,7 @@ export const BlockControls: React.FC<BlockControlsProps> = ({
           </div>
         )}
 
-        <div className={isImage ? "" : "col-span-2"}>
+        <div>
           <label className="text-[10px] text-gray-400 font-semibold flex items-center justify-between mb-1">
             <span>Arrondi</span>
             <span className="text-[#25D366] font-mono">
@@ -154,12 +167,12 @@ export const BlockControls: React.FC<BlockControlsProps> = ({
         <label className="text-[10px] text-gray-400 font-semibold mb-1 block">
           Ombre
         </label>
-        <div className="flex items-center gap-1 bg-[#075E54]/40 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-[#075E54]/40 rounded-lg p-1 overflow-x-auto">
           {(["none", "sm", "md", "lg", "xl"] as const).map((s) => (
             <button
               key={s}
               onClick={() => onUpdate({ shadow: s })}
-              className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-colors ${
+              className={`flex-1 min-w-8 text-[10px] font-bold py-1 rounded-md transition-colors ${
                 (activeStyle.shadow || "none") === s
                   ? "bg-[#25D366] text-[#075E54]"
                   : "text-gray-300 hover:bg-white/10"

@@ -20,16 +20,19 @@ class QuizSerializer(serializers.ModelSerializer):
         model = Quiz
         fields = ['id', 'sessionId', 'chapterId', 'title', 'description', 'passingScorePercent', 'questions']
 
+
 class ChapterSerializer(serializers.ModelSerializer):
     """
     Serializer du chapitre avec masquage des URLs médias protégées.
-
-    ⭐ Sécurité : si le média est hébergé sur Cloudinary en mode
-    'authenticated', on N'EXPOSE PAS son URL brute. Le frontend devra
-    appeler POST /api/chapters/<id>/secure-video-url pour obtenir
-    une URL signée temporaire (avec watermark + expiration).
     """
+    # ⭐ Mapping explicite des champs camelCase
+    sessionId = serializers.CharField(source='session.id', read_only=True)
+    summaryText = serializers.CharField(source='summary_text', required=False, allow_blank=True)
+    summaryHtml = serializers.CharField(source='summary_html', required=False, allow_blank=True)
+    summaryJson = serializers.JSONField(source='summary_json', required=False)
+    summaryBlocksStyle = serializers.JSONField(source='summary_blocks_style', required=False)
 
+    # ⭐ Champs média avec masquage
     video = serializers.SerializerMethodField()
     audio = serializers.SerializerMethodField()
     pdf = serializers.SerializerMethodField()
@@ -42,18 +45,13 @@ class ChapterSerializer(serializers.ModelSerializer):
     # Helpers internes
     # ─────────────────────────────────────────────────────────
 
-    def _is_protected(self, media: dict) -> bool:
-        """Détecte si un média est protégé (Cloudinary authenticated)."""
+    def _is_protected(self, media) -> bool:
         if not isinstance(media, dict):
             return False
-        # Cas 1 : flag explicite
         if media.get('isProtected') is True:
             return True
-        # Cas 2 : type authenticated
         if media.get('type') == 'authenticated':
             return True
-        # Cas 3 : présent avec un public_id mais pas d'URL exploitable
-        #          ET provider cloudinary
         if (
             media.get('public_id')
             and media.get('provider') == 'cloudinary'
@@ -62,13 +60,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             return True
         return False
 
-    def _sanitize_media(self, media, kind: str) -> dict:
-        """
-        Nettoie un média avant exposition :
-        - Si protégé : garde les métadonnées publiques (title, duration,
-          thumbnail, etc.) mais masque url + public_id.
-        - Sinon : retourne tel quel.
-        """
+    def _sanitize_media(self, media, kind: str):
         if not isinstance(media, dict) or not media:
             return {}
 
@@ -78,11 +70,9 @@ class ChapterSerializer(serializers.ModelSerializer):
                 'duration': media.get('duration'),
                 'provider': 'cloudinary',
                 'isProtected': True,
-                # ⭐ On masque ces 2 champs critiques
                 'url': None,
                 'public_id': None,
             }
-            # Métadonnées spécifiques
             if kind == 'video':
                 safe['thumbnail_url'] = media.get('thumbnail_url')
             elif kind == 'audio':
@@ -92,12 +82,7 @@ class ChapterSerializer(serializers.ModelSerializer):
                 safe['sizeMb'] = media.get('sizeMb') or media.get('size_mb')
             return safe
 
-        # Média non protégé → tel quel (YouTube, URL externe, etc.)
         return media
-
-    # ─────────────────────────────────────────────────────────
-    # Champs
-    # ─────────────────────────────────────────────────────────
 
     def get_video(self, obj):
         return self._sanitize_media(obj.video, 'video')
@@ -107,8 +92,6 @@ class ChapterSerializer(serializers.ModelSerializer):
 
     def get_pdf(self, obj):
         return self._sanitize_media(obj.pdf, 'pdf')
-
-
 
 class SessionContentSerializer(serializers.Serializer):
     summaryText = serializers.CharField(source='summary_text', allow_blank=True, default='')

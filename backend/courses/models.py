@@ -114,6 +114,11 @@ class Chapter(models.Model):
             return self.summary_html
         return self.summary_text or ''
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = f"chap_{secrets.token_hex(4)}"
+        super().save(*args, **kwargs)
+
 class Quiz(models.Model):
     id = models.CharField(max_length=64, primary_key=True)
     session = models.OneToOneField(Session, on_delete=models.CASCADE, related_name='quiz', verbose_name="Séance associée", null=True, blank=True)

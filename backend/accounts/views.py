@@ -72,20 +72,20 @@ class RegisterView(APIView):
             display_phone=data['display_phone']
         )
 
-        # ⭐ Notification de bienvenue
+        # Notification de bienvenue
         try:
             notify_welcome(user)
         except Exception as e:
             print(f"[accounts] Erreur notif welcome : {e}")
 
-        # ⭐ Créer le code de parrainage de ce nouvel utilisateur
+        # Créer le code de parrainage de ce nouvel utilisateur
         try:
             from referrals.models import ReferralCode
             ReferralCode.objects.create(user=user)
         except Exception as e:
             print(f"[accounts] Erreur création code parrainage : {e}")
 
-        # ⭐ Créer le parrainage si un code a été utilisé
+        # Créer le parrainage si un code a été utilisé
         if referral_code_used:
             try:
                 from referrals.utils import create_referral_from_code

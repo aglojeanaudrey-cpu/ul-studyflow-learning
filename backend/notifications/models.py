@@ -51,6 +51,7 @@ class Notification(models.Model):
     scheduled_for = models.DateTimeField(null=True, blank=True, verbose_name="Date & Heure programmée d'envoi")
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='SENT', verbose_name="Statut")
+    # Lien d'action interne
     action_url = models.CharField(max_length=255, blank=True, null=True, verbose_name="Lien d'action interne")
 
     class Meta:
