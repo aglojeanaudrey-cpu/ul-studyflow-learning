@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
 import { sitemapPlugin } from "vite-plugin-sitemap-from-routes";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(() => {
   return {
@@ -12,10 +13,48 @@ export default defineConfig(() => {
       // Configuration du plugin Sitemap
       sitemapPlugin({
         baseUrl: "https://ul-studyflow-learning.pages.dev",
-        // Tu peux pointer vers ton fichier de routes existant si tu en as un
-        // Ou simplement lister les routes directement si ce n'est pas un fichier TypeScript
+        // lister les routes directement si ce n'est pas un fichier TypeScript
         routesFile: "src/routes-list.js",
         outputFileName: "sitemap.xml",
+      }),
+      VitePWA({
+        registerType: "autoUpdate",
+        includeAssets: [
+          "ul_studyflow_icon.webp",
+          "ul_studyflow_icon.png",
+          "robots.txt",
+        ],
+        manifest: {
+          name: "UL Study Flow Learning",
+          short_name: "UL Study Flow",
+          description: "La plateforme de révision pour les étudiants de Lomé",
+          theme_color: "#075E54",
+          background_color: "#F0F2F5",
+          display: "standalone",
+          orientation: "portrait",
+          start_url: "/",
+          scope: "/",
+          icons: [
+            {
+              src: "/ul_studyflow_icon.webp",
+              sizes: "720x720",
+              type: "image/webp",
+              purpose: "any",
+            },
+            {
+              src: "/ul_studyflow_icon.webp",
+              sizes: "720x720",
+              type: "image/webp",
+              purpose: "maskable", // ⭐ Important pour Android
+            },
+            {
+              src: "/ul_studyflow_icon.png",
+              sizes: "512x512",
+              type: "image/png",
+              purpose: "any",
+            },
+          ],
+        },
       }),
     ],
     resolve: {

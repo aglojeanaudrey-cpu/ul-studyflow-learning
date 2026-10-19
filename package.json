@@ -46,6 +46,7 @@
     "esbuild": "^0.28.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
+    "vite-plugin-pwa": "^2.0.0",
     "vite-plugin-sitemap-from-routes": "^1.0.0"
   }
 }
