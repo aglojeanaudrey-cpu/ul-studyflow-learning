@@ -99,7 +99,7 @@ function AppContent() {
   const [publicFormLoading, setPublicFormLoading] = useState(false);
   const [publicFormError, setPublicFormError] = useState<string | null>(null);
 
-  // ⭐ Popup actif (publicité / annonce)
+  // Popup actif (publicité / annonce)
   const [activePopup, setActivePopup] = useState<PopupCampaign | null>(null);
 
   // Automatic redirect to dashboard upon connection
@@ -182,7 +182,7 @@ function AppContent() {
   };
 
   const handleAskAiWithSession = (sessionId: string) => {
-    // ⭐ Sauvegarder l'onglet actuel avant de basculer sur l'IA
+    // Sauvegarder l'onglet actuel avant de basculer sur l'IA
     if (currentTab !== "student_ai") {
       setPreviousTab(currentTab);
     }
@@ -205,7 +205,7 @@ function AppContent() {
       .finally(() => setPublicFormLoading(false));
   }, [publicFormId]);
 
-  // ⭐ Charger le popup actif à chaque changement de page
+  // Charger le popup actif à chaque changement de page
   React.useEffect(() => {
     // Ne rien faire si on est sur un formulaire public
     if (publicFormId) return;
@@ -221,7 +221,7 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [currentTab, publicFormId]);
 
-  // ⭐ PRIORITÉ ABSOLUE : si un formulaire public est demandé, on l'affiche seul
+  // PRIORITÉ ABSOLUE : si un formulaire public est demandé, on l'affiche seul
   if (publicFormId) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#F0F2F5] dark:bg-[#0B141A] p-4">
@@ -268,7 +268,7 @@ function AppContent() {
     );
   }
 
-  // ⭐ Splash screen initial (chargement de la session)
+  // Splash screen initial (chargement de la session)
   if (loading) {
     return <AppSplashScreen visible={true} />;
   }
@@ -276,7 +276,7 @@ function AppContent() {
   // Choose appropriate view based on authentication & currentTab
   // Choose appropriate view based on authentication & currentTab
   const renderMainView = () => {
-    // ⭐ GARDE : si pas d'utilisateur, aucune vue admin/student n'est accessible
+    // GARDE : si pas d'utilisateur, aucune vue admin/student n'est accessible
     if (
       !user &&
       (currentTab === "admin" || currentTab.startsWith("student_"))
@@ -376,7 +376,7 @@ function AppContent() {
             <AiAssistantView
               initialSessionContextId={aiContextSessionId}
               onClose={() => {
-                // ⭐ Retourner à l'onglet d'origine, ou fallback sur student_home
+                // Retourner à l'onglet d'origine, ou fallback sur student_home
                 const returnTab = previousTab || "student_home";
                 setCurrentTab(returnTab);
                 setPreviousTab(null);
@@ -627,10 +627,8 @@ function AppContent() {
         type={legalModalType}
         onClose={() => setLegalModalType(null)}
       />
-      {/* ⭐ Popup actif (publicités / annonces) */}
+      {/* Popup actif (publicités / annonces) */}
       <ActivePopup popup={activePopup} currentPage={currentTab} />
-      // Dans AppContent, juste avant la fermeture de la div principale
-      {user && <InstallPwaButton />}
     </div>
   );
 }

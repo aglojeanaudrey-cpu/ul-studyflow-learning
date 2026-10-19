@@ -4,6 +4,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { UlStudyFlowLogo } from "../brand/UlStudyFlowLogo";
 import { DownloadLogoModal } from "../brand/DownloadLogoModal";
 import { NotificationBell } from "../notifications/NotificationBell";
+import { useInstallPrompt } from "../../hooks/useInstallPrompt";
 import {
   Menu,
   X,
@@ -25,6 +26,7 @@ import {
   Coins,
   HelpCircle,
   Info,
+  Smartphone,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -58,6 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     setMobileMenuOpen(false);
     logout();
   };
+  const { canInstall, isInstalled, promptInstall } = useInstallPrompt();
 
   // Fermer le dropdown si on clique en dehors
   useEffect(() => {
@@ -231,98 +234,102 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* ============ TABLET NAV (md → lg) : icônes compactes ============ */}
-<nav className="hidden md:flex lg:hidden items-center gap-0.5 text-emerald-100">
-  {!user ? (
-    <>
-      <button
-        onClick={() => handleNav("home")}
-        title="Accueil"
-        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
-          currentTab === "home" ? "text-[#25D366] bg-white/5" : ""
-        }`}
-      >
-        <Home className="w-4 h-4" />
-      </button>
-      <button
-        onClick={() => handleNav("features")}
-        title="Fonctionnalités"
-        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
-          currentTab === "features" ? "text-[#25D366] bg-white/5" : ""
-        }`}
-      >
-        <Sparkles className="w-4 h-4" />
-      </button>
-      <button
-        onClick={() => handleNav("how_it_works")}
-        title="Comment ça marche"
-        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
-          currentTab === "how_it_works" ? "text-[#25D366] bg-white/5" : ""
-        }`}
-      >
-        <Route className="w-4 h-4" />
-      </button>
-      <button
-        onClick={() => handleNav("pricing")}
-        title="Tarifs"
-        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
-          currentTab === "pricing" ? "text-[#25D366] bg-white/5" : ""
-        }`}
-      >
-        <Coins className="w-4 h-4" />
-      </button>
-      <button
-        onClick={() => handleNav("faq")}
-        title="FAQ"
-        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
-          currentTab === "faq" ? "text-[#25D366] bg-white/5" : ""
-        }`}
-      >
-        <HelpCircle className="w-4 h-4" />
-      </button>
-      <button
-        onClick={() => handleNav("about")}
-        title="À propos"
-        className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
-          currentTab === "about" ? "text-[#25D366] bg-white/5" : ""
-        }`}
-      >
-        <Info className="w-4 h-4" />
-      </button>
-    </>
-  ) : (
-    <>
-      {studentNavItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = currentTab === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => handleNav(item.id)}
-            title={item.label}
-            className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
-              isActive ? "text-[#25D366] bg-white/5" : ""
-            }`}
-          >
-            <Icon
-              className={`w-4 h-4 ${item.isHighlight ? "text-[#25D366]" : ""}`}
-            />
-          </button>
-        );
-      })}
-      {(user.role === "STAFF" || user.role === "SUPERUSER") && (
-        <button
-          onClick={() => handleNav("admin")}
-          title="Administration"
-          className={`p-2 rounded-lg bg-[#128C7E] dark:bg-[#1F2C34] text-white hover:bg-emerald-600 transition-colors ${
-            currentTab.startsWith("admin") ? "ring-1 ring-[#25D366]" : ""
-          }`}
-        >
-          <Shield className="w-4 h-4 text-[#25D366]" />
-        </button>
-      )}
-    </>
-  )}
-</nav>
+          <nav className="hidden md:flex lg:hidden items-center gap-0.5 text-emerald-100">
+            {!user ? (
+              <>
+                <button
+                  onClick={() => handleNav("home")}
+                  title="Accueil"
+                  className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                    currentTab === "home" ? "text-[#25D366] bg-white/5" : ""
+                  }`}
+                >
+                  <Home className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleNav("features")}
+                  title="Fonctionnalités"
+                  className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                    currentTab === "features" ? "text-[#25D366] bg-white/5" : ""
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleNav("how_it_works")}
+                  title="Comment ça marche"
+                  className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                    currentTab === "how_it_works"
+                      ? "text-[#25D366] bg-white/5"
+                      : ""
+                  }`}
+                >
+                  <Route className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleNav("pricing")}
+                  title="Tarifs"
+                  className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                    currentTab === "pricing" ? "text-[#25D366] bg-white/5" : ""
+                  }`}
+                >
+                  <Coins className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleNav("faq")}
+                  title="FAQ"
+                  className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                    currentTab === "faq" ? "text-[#25D366] bg-white/5" : ""
+                  }`}
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleNav("about")}
+                  title="À propos"
+                  className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                    currentTab === "about" ? "text-[#25D366] bg-white/5" : ""
+                  }`}
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <>
+                {studentNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNav(item.id)}
+                      title={item.label}
+                      className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${
+                        isActive ? "text-[#25D366] bg-white/5" : ""
+                      }`}
+                    >
+                      <Icon
+                        className={`w-4 h-4 ${item.isHighlight ? "text-[#25D366]" : ""}`}
+                      />
+                    </button>
+                  );
+                })}
+                {(user.role === "STAFF" || user.role === "SUPERUSER") && (
+                  <button
+                    onClick={() => handleNav("admin")}
+                    title="Administration"
+                    className={`p-2 rounded-lg bg-[#128C7E] dark:bg-[#1F2C34] text-white hover:bg-emerald-600 transition-colors ${
+                      currentTab.startsWith("admin")
+                        ? "ring-1 ring-[#25D366]"
+                        : ""
+                    }`}
+                  >
+                    <Shield className="w-4 h-4 text-[#25D366]" />
+                  </button>
+                )}
+              </>
+            )}
+          </nav>
 
           {/* ============ RIGHT SIDE (Desktop md+) ============ */}
           <div className="hidden md:flex items-center gap-1.5 lg:gap-2">
@@ -364,7 +371,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </>
             ) : (
-              /* ⭐ DROPDOWN PROFIL */
+              /* DROPDOWN PROFIL */
               <div className="relative" ref={profileDropdownRef}>
                 <button
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
@@ -422,6 +429,29 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     {/* Actions */}
                     <div className="p-2">
+                      {/* Bouton Installer l'application */}
+                      {canInstall && !isInstalled && (
+                        <button
+                          onClick={() => {
+                            promptInstall();
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#111B21] dark:text-white hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34] transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-[#25D366]/15 text-[#075E54] dark:text-[#25D366] flex items-center justify-center shrink-0">
+                            <Smartphone className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="block">
+                              Installer l'application
+                            </span>
+                            <span className="block text-[10px] font-normal text-[#667781] dark:text-[#8696A0]">
+                              Accès rapide + hors ligne
+                            </span>
+                          </div>
+                          <Download className="w-3 h-3 text-[#25D366] shrink-0" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleNav("student_profile")}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#111B21] dark:text-white hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34] transition-colors text-left"
@@ -630,6 +660,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <UserIcon className="w-4 h-4 text-[#25D366]" />
                       Mon Profil ({user.firstName})
                     </button>
+
+                    {/* Ajoute le bouton ici */}
+                    {canInstall && !isInstalled && (
+                      <button
+                        onClick={() => {
+                          promptInstall();
+                          setMobileMenuOpen(false);
+                        }}
+                        className="w-full text-left py-2.5 px-3 rounded-xl text-sm font-medium text-emerald-100 hover:bg-[#128C7E] dark:hover:bg-[#1F2C34] transition-colors flex items-center gap-3"
+                      >
+                        <Smartphone className="w-4 h-4 text-[#25D366]" />
+                        Installer l'application
+                      </button>
+                    )}
 
                     {user.role === "SUPERUSER" && (
                       <button
