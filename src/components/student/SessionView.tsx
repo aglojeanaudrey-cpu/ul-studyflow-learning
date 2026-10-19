@@ -26,6 +26,7 @@ import { QuizModal } from "./QuizModal";
 import { UnlockUeModal } from "./UnlockUeModal";
 import { SecureVideoPlayer } from "./SecureVideoPlayer";
 import { SecureAudioPlayer } from "./SecureAudioPlayer";
+import { useOnlineStatus } from "@/src/hooks/useOnlineStatus";
 
 interface SessionViewProps {
   sessionId: string;
@@ -76,10 +77,12 @@ export const SessionView: React.FC<SessionViewProps> = ({
   // Anti-Screen Recording Warning State
   const [recordingWarning, setRecordingWarning] = useState(false);
 
-  // ⭐ URLs média sécurisées (chargées à la demande)
+  // URLs média sécurisées (chargées à la demande)
   const [secureMedia, setSecureMedia] = useState<SecureMedia | null>(null);
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+
+  const isOnline = useOnlineStatus();
 
   // Chargement de la séance
   useEffect(() => {
@@ -315,7 +318,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
   const currentFlashcard = flashcards[currentFlashcardIndex] || flashcards[0];
   const activeQuiz = currentChapter.quiz || session.quiz;
 
-  // ⭐ Helper : récupérer l'URL média finale (signée si protégée, sinon directe)
+  // Helper : récupérer l'URL média finale (signée si protégée, sinon directe)
   const getVideoSrc = (): string | null => {
     if (currentChapter.video?.isProtected) {
       return secureMedia?.videoUrl || null;
@@ -341,7 +344,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
   const audioSrc = getAudioSrc();
   const pdfSrc = getPdfSrc();
 
-  // ⭐ Watermark à transmettre aux players
+  // Watermark à transmettre aux players
   const watermarkName = user
     ? `${user.firstName} ${user.lastName?.[0] || ""}.`
     : undefined;
@@ -349,6 +352,11 @@ export const SessionView: React.FC<SessionViewProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6 select-none">
+      {!isOnline && (
+        <div className="bg-amber-100 text-amber-800 text-xs p-2 text-center">
+          Mode hors ligne. Les vidéos et audios nécessitent une connexion.
+        </div>
+      )}
       {/* Anti-Screen Recording Warning Banner */}
       {recordingWarning && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 p-4 bg-rose-900 text-white text-xs rounded-2xl shadow-2xl border-2 border-rose-500 max-w-md w-full animate-bounce flex items-center gap-3">
@@ -376,7 +384,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
         <div className="flex items-center gap-2">
           {session.sessionNumber === 1 && (
             <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2.5 py-1 rounded-full border border-emerald-300 dark:border-emerald-800">
-              ⭐ Séance 01 Gratuite (Tous chapitres libres)
+              Séance 01 Gratuite (Tous chapitres libres)
             </span>
           )}
 

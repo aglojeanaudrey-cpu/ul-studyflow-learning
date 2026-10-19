@@ -31,6 +31,7 @@ import { AppSplashScreen } from "./components/ui/AppSplashScreen";
 import { useLoading, LoadingProvider } from "./context/LoadingContext";
 import { PartnershipModal } from "./components/marketing/PartnershipModal";
 import { trackEvent, ANALYTICS_EVENTS } from "./lib/analytics";
+import { InstallPwaButton } from "./components/ui/InstallPwaButton";
 
 // Mobile Bottom Nav Icons
 import {
@@ -475,7 +476,6 @@ function AppContent() {
     <div className="min-h-screen flex flex-col bg-[#F0F2F5] dark:bg-[#0B141A] text-[#111B21] dark:text-[#E9EDEF] font-sans pb-16 lg:pb-0 transition-colors duration-200">
       {/* Barre de progression globale en haut */}
       <PageProgressBar loading={isLoading} />
-
       {/* Top Navbar */}
       <Navbar
         currentTab={currentTab}
@@ -490,7 +490,6 @@ function AppContent() {
         onOpenLogin={() => setLoginOpen(true)}
         onOpenRegister={() => setRegisterOpen(true)}
       />
-
       {/* Main Container */}
       <main className="flex-1">
         <Suspense
@@ -503,7 +502,6 @@ function AppContent() {
           {renderMainView()}
         </Suspense>
       </main>
-
       {/* Mobile & Tablet Bottom Navigation (visible on < lg: screens, < 15% height) */}
       {user && currentTab !== "admin" && (
         <div className="fixed bottom-0 inset-x-0 bg-white dark:bg-[#111B21] border-t border-[#E9EDEF] dark:border-[#222E35] z-40 lg:hidden flex items-center justify-around h-14 px-2 shadow-lg transition-colors">
@@ -580,7 +578,6 @@ function AppContent() {
           </button>
         </div>
       )}
-
       {/* Footer (Rendered ONLY when user is NOT logged in) */}
       {!user && (
         <Footer
@@ -595,7 +592,6 @@ function AppContent() {
           onOpenContact={() => setContactOpen(true)}
         />
       )}
-
       {/* Auth Modals */}
       <LoginModal
         isOpen={loginOpen}
@@ -608,7 +604,6 @@ function AppContent() {
           setCurrentTab("student_home");
         }}
       />
-
       <RegisterModal
         isOpen={registerOpen}
         onClose={() => setRegisterOpen(false)}
@@ -617,7 +612,6 @@ function AppContent() {
           setLoginOpen(true);
         }}
       />
-
       {/* Contact Modal */}
       <ContactModal
         isOpen={contactOpen}
@@ -628,15 +622,15 @@ function AppContent() {
         isOpen={partnershipOpen}
         onClose={() => setPartnershipOpen(false)}
       />
-
       {/* Legal Modal */}
       <LegalModal
         type={legalModalType}
         onClose={() => setLegalModalType(null)}
       />
-
       {/* ⭐ Popup actif (publicités / annonces) */}
       <ActivePopup popup={activePopup} currentPage={currentTab} />
+      // Dans AppContent, juste avant la fermeture de la div principale
+      {user && <InstallPwaButton />}
     </div>
   );
 }
