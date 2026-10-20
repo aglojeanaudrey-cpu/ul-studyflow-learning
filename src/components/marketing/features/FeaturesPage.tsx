@@ -6,6 +6,7 @@ import { FacultiesSpecSection } from "./sections/FacultiesSpecSection";
 import { FeaturesTestimonial } from "./sections/FeaturesTestimonial";
 import { FeaturesFinalCta } from "./sections/FeaturesFinalCta";
 import { useSEO } from "@/src/hooks/useSEO";
+import { InstallAppSection } from "../sections/InstallAppSection";
 
 interface FeaturesPageProps {
   onGetStarted: () => void;
@@ -34,7 +35,10 @@ export const FeaturesPage: React.FC<FeaturesPageProps> = ({ onGetStarted }) => {
       {/* 5. Témoignage étudiant */}
       <FeaturesTestimonial />
 
-      {/* 6. CTA final */}
+      {/* 6. Ul studyflow learning apk download btn */}
+      <InstallAppSection />
+
+      {/* 7. CTA final */}
       <FeaturesFinalCta onGetStarted={onGetStarted} />
     </div>
   );

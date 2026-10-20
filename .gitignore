@@ -74,3 +74,4 @@ build/
 *.keystore
 *.jks
 twa-manifest.json.bak
+*.idsig

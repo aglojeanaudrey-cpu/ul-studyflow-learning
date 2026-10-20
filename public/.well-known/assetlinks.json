@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.pages.ul_studyflow_learning.twa",
+      "sha256_cert_fingerprints": [
+        "3D:54:48:8A:71:0B:01:86:54:08:E9:F7:8E:77:C0:F6:81:84:F3:37:AB:D9:3D:2E:9F:45:5A:79:B5:F9:12:7D"
+      ]
+    }
+  }
+]

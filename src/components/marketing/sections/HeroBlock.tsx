@@ -3,6 +3,7 @@ import { ArrowRight, Play, CheckCircle2, GraduationCap } from "lucide-react";
 import { Container } from "../ui/Container";
 import { STATS, PRICING } from "@/src/lib/constants";
 import heroImage from "@/src/assets/images/hero_ul_student_1790533845064.webp";
+import { DownloadApkButton } from "../DownloadApkButton";
 
 interface HeroBlockProps {
   onGetStarted: () => void;
@@ -66,6 +67,7 @@ export const HeroBlock: React.FC<HeroBlockProps> = ({
                 <span>Commencer maintenant</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
+              <DownloadApkButton variant="secondary" />
 
               <button
                 onClick={onExploreCourses}
