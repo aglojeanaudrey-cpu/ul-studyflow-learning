@@ -139,7 +139,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   const isSuperuser = user.role === "SUPERUSER";
 
-  // ⭐ Permission granulaire par onglet
+  // Permission granulaire par onglet
   const hasAccessToTab = (tabId: string): boolean => {
     if (isSuperuser) return true;
     const perms = user.adminPermissions || [];
@@ -167,23 +167,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8 space-y-6">
-      {/* Bandeau retour espace étudiant */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onBackToStudent}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#075E54] dark:text-[#25D366] hover:underline transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour à l'Espace Étudiant
-        </button>
-        <span className="text-xs bg-[#075E54] dark:bg-[#1F2C34] text-white px-3 py-1 rounded-full font-semibold border border-emerald-400/20">
-          Connecté en tant que{" "}
-          {user.role === "SUPERUSER"
-            ? "Super-Administrateur UL"
-            : "Personnel Enseignant / Staff"}
-        </span>
-      </div>
-
       {/* Navigation admin horizontale */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-[#E9EDEF] dark:border-[#222E35]">
         {visibleTabs.map((tab) => {

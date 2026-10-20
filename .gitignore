@@ -65,3 +65,12 @@ data/database.json
 contexte.txt
 arbre.txt
 architecture.txt
+
+# Bubblewrap / Android
+build/
+.gradle/
+*.apk
+*.aab
+*.keystore
+*.jks
+twa-manifest.json.bak

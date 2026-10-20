@@ -28,6 +28,7 @@ import {
   HelpCircle,
   Info,
   Smartphone,
+  ArrowLeft,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -611,6 +612,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               /* ============ CONNECTÉ ============ */
               <>
+                {currentTab.startsWith("admin") && (
+                  <button
+                    onClick={() => handleNav("student_home")}
+                    className="w-full text-left py-2.5 px-3 rounded-xl text-sm font-medium text-emerald-100 hover:bg-[#128C7E] dark:hover:bg-[#1F2C34] transition-colors flex items-center gap-3"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-[#25D366]" />
+                    Retour à l'Espace Étudiant
+                  </button>
+                )}
                 {/* Section Navigation */}
                 <div>
                   <p className="text-[10px] font-bold text-emerald-300/70 uppercase tracking-wider px-2 mb-2">
@@ -640,25 +650,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                {/* Section Admin (si applicable) */}
-                {(user.role === "STAFF" || user.role === "SUPERUSER") && (
-                  <div>
-                    <p className="text-[10px] font-bold text-emerald-300/70 uppercase tracking-wider px-2 mb-2">
-                      Espace Admin
-                    </p>
-                    <button
-                      onClick={() => handleNav("admin")}
-                      className={`w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors ${
-                        currentTab.startsWith("admin")
-                          ? "bg-[#25D366] text-[#075E54]"
-                          : "bg-[#128C7E]/60 dark:bg-[#1F2C34] text-[#25D366] hover:bg-[#128C7E]"
-                      }`}
-                    >
-                      <Shield className="w-4 h-4 text-[#25D366]" />
-                      Administration
-                    </button>
-                  </div>
-                )}
+                {/* Section Admin (uniquement si admin/staff ET pas déjà sur l'admin) */}
+                {(user.role === "STAFF" || user.role === "SUPERUSER") &&
+                  !currentTab.startsWith("admin") && (
+                    <div>
+                      <p className="text-[10px] font-bold text-emerald-300/70 uppercase tracking-wider px-2 mb-2">
+                        Espace Admin
+                      </p>
+                      <button
+                        onClick={() => handleNav("admin")}
+                        className="w-full py-2.5 px-3 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors bg-[#25D366] text-[#075E54] hover:bg-[#1faa54]"
+                      >
+                        <Shield className="w-4 h-4 text-[#075E54]" />
+                        Administration
+                      </button>
+                    </div>
+                  )}
 
                 {/* Section Compte */}
                 <div>

@@ -71,19 +71,13 @@ export default defineConfig(() => {
           scope: "/",
           icons: [
             {
-              src: "/ul_studyflow_icon.webp",
-              sizes: "720x720",
-              type: "image/webp",
-              purpose: "any",
-            },
-            {
-              src: "/ul_studyflow_icon.png",
+              src: "/ul_studyflow_icon.png", // Fond transparent
               sizes: "512x512",
               type: "image/png",
               purpose: "any",
             },
             {
-              src: "/ul_studyflow_icon.png",
+              src: "/ul_studyflow_icon_maskable.png", // Fond opaque (#075E54)
               sizes: "512x512",
               type: "image/png",
               purpose: "maskable",
