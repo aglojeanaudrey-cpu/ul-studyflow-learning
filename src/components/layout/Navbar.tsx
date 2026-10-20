@@ -5,6 +5,7 @@ import { UlStudyFlowLogo } from "../brand/UlStudyFlowLogo";
 import { DownloadLogoModal } from "../brand/DownloadLogoModal";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { useInstallPrompt } from "../../hooks/useInstallPrompt";
+import { InstallInstructionsModal } from "../ui/InstallInstructionsModal";
 import {
   Menu,
   X,
@@ -60,7 +61,26 @@ export const Navbar: React.FC<NavbarProps> = ({
     setMobileMenuOpen(false);
     logout();
   };
-  const { canInstall, isInstalled, promptInstall } = useInstallPrompt();
+
+  const handleInstallClick = async () => {
+    if (canInstall) {
+      // Chrome/Edge supportent le prompt natif → on tente
+      const accepted = await promptInstall();
+      if (!accepted) {
+        // L'utilisateur a refusé le prompt natif → on propose les instructions
+        setInstallModalOpen(true);
+      }
+    } else {
+      // Pas de prompt natif (iOS, ou Chrome bloque) → on affiche le modal
+      setInstallModalOpen(true);
+    }
+    setProfileDropdownOpen(false);
+    setMobileMenuOpen(false);
+  };
+
+  const { canInstall, isInstalled, promptInstall, platform } =
+    useInstallPrompt();
+  const [installModalOpen, setInstallModalOpen] = useState(false);
 
   // Fermer le dropdown si on clique en dehors
   useEffect(() => {
@@ -386,7 +406,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="w-6 h-6 rounded-lg bg-[#25D366]/20 flex items-center justify-center shrink-0">
                     <UserIcon className="w-3.5 h-3.5 text-[#25D366]" />
                   </div>
-                  <span className="font-medium text-xs max-w-[100px] truncate hidden lg:inline">
+                  <span className="font-medium text-xs max-w-25 truncate hidden lg:inline">
                     {user.firstName}
                   </span>
                   <ChevronDown
@@ -400,7 +420,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {profileDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#111B21] rounded-2xl shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
                     {/* Header profil */}
-                    <div className="p-4 bg-gradient-to-br from-[#075E54] to-[#128C7E] dark:from-[#1F2C34] dark:to-[#222E35] text-white">
+                    <div className="p-4 bg-linear-to-br from-[#075E54] to-[#128C7E] dark:from-[#1F2C34] dark:to-[#222E35] text-white">
                       <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-2xl bg-[#25D366]/25 flex items-center justify-center shrink-0">
                           <UserIcon className="w-5 h-5 text-[#25D366]" />
@@ -430,12 +450,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {/* Actions */}
                     <div className="p-2">
                       {/* Bouton Installer l'application */}
-                      {canInstall && !isInstalled && (
+                      {!isInstalled && (
                         <button
-                          onClick={() => {
-                            promptInstall();
-                            setProfileDropdownOpen(false);
-                          }}
+                          onClick={handleInstallClick}
                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-[#111B21] dark:text-white hover:bg-[#F0F2F5] dark:hover:bg-[#1F2C34] transition-colors text-left"
                         >
                           <div className="w-7 h-7 rounded-lg bg-[#25D366]/15 text-[#075E54] dark:text-[#25D366] flex items-center justify-center shrink-0">
@@ -661,13 +678,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                       Mon Profil ({user.firstName})
                     </button>
 
-                    {/* Ajoute le bouton ici */}
-                    {canInstall && !isInstalled && (
+                    {/* le bouton */}
+                    {!isInstalled && (
                       <button
-                        onClick={() => {
-                          promptInstall();
-                          setMobileMenuOpen(false);
-                        }}
+                        onClick={handleInstallClick}
                         className="w-full text-left py-2.5 px-3 rounded-xl text-sm font-medium text-emerald-100 hover:bg-[#128C7E] dark:hover:bg-[#1F2C34] transition-colors flex items-center gap-3"
                       >
                         <Smartphone className="w-4 h-4 text-[#25D366]" />
@@ -710,6 +724,13 @@ export const Navbar: React.FC<NavbarProps> = ({
       <DownloadLogoModal
         isOpen={logoModalOpen}
         onClose={() => setLogoModalOpen(false)}
+      />
+
+      {/* Modal des instructions d'installation */}
+      <InstallInstructionsModal
+        isOpen={installModalOpen}
+        onClose={() => setInstallModalOpen(false)}
+        platform={platform}
       />
     </header>
   );

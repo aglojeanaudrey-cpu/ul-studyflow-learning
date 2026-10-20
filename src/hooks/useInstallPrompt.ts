@@ -14,15 +14,24 @@ export function useInstallPrompt() {
     useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
 
+  // Détection de la plateforme
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
+  const isAndroid = /android/i.test(ua);
+  const platform: "android" | "ios" | "desktop" = isIOS
+    ? "ios"
+    : isAndroid
+      ? "android"
+      : "desktop";
+
   useEffect(() => {
-    // Détecte si l'app tourne déjà en mode standalone (installée)
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
       return;
     }
 
     const handler = (e: Event) => {
-      e.preventDefault(); // Empêche la barre par défaut
+      e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
@@ -41,14 +50,20 @@ export function useInstallPrompt() {
   }, []);
 
   const promptInstall = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) return false;
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
       setIsInstalled(true);
     }
-    setDeferredPrompt(null); // L'événement ne peut être utilisé qu'une fois
+    setDeferredPrompt(null);
+    return outcome === "accepted";
   };
 
-  return { canInstall: !!deferredPrompt, isInstalled, promptInstall };
+  return {
+    canInstall: !!deferredPrompt,
+    isInstalled,
+    promptInstall,
+    platform,
+  };
 }
