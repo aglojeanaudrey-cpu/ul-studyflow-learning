@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Lock,
 } from "lucide-react";
+import { APK_DOWNLOAD_URL } from "@/src/lib/constants";
 
 interface InstallInstructionsModalProps {
   isOpen: boolean;
@@ -124,7 +125,7 @@ export const InstallInstructionsModal: React.FC<
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
@@ -132,7 +133,7 @@ export const InstallInstructionsModal: React.FC<
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-br from-[#075E54] to-[#128C7E] p-5 text-white relative shrink-0">
+        <div className="bg-linear-to-br from-[#075E54] to-[#128C7E] p-5 text-white relative shrink-0">
           <button
             onClick={onClose}
             className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-white/10 transition-colors"
@@ -188,12 +189,13 @@ export const InstallInstructionsModal: React.FC<
         <div className="p-4 border-t border-[#E9EDEF] dark:border-[#222E35] bg-[#F0F2F5] dark:bg-[#1F2C34]/40 shrink-0">
           {platform === "android" && (
             <a
-              href="/app-release-signed.apk"
-              download
-              className="w-full py-3 rounded-xl bg-[#25D366] text-[#075E54] text-sm font-bold hover:bg-[#1faa54] transition-colors flex items-center justify-center gap-2 mb-2 shadow-sm active:scale-[0.98]"
+              href={APK_DOWNLOAD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="..."
             >
-              <Download className="w-4 h-4" />
-              Télécharger l'APK (Android)
+              <Download className="w-3.5 h-3.5" />
+              Télécharger l'APK
             </a>
           )}
           <div className="flex items-start gap-2 text-[11px] text-[#667781] dark:text-[#8696A0] mb-3">

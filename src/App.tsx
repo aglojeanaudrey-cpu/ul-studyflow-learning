@@ -31,7 +31,6 @@ import { AppSplashScreen } from "./components/ui/AppSplashScreen";
 import { useLoading, LoadingProvider } from "./context/LoadingContext";
 import { PartnershipModal } from "./components/marketing/PartnershipModal";
 import { trackEvent, ANALYTICS_EVENTS } from "./lib/analytics";
-import { InstallPwaButton } from "./components/ui/InstallPwaButton";
 
 // Mobile Bottom Nav Icons
 import {
