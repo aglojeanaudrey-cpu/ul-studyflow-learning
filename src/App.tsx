@@ -31,6 +31,7 @@ import { AppSplashScreen } from "./components/ui/AppSplashScreen";
 import { useLoading, LoadingProvider } from "./context/LoadingContext";
 import { PartnershipModal } from "./components/marketing/PartnershipModal";
 import { trackEvent, ANALYTICS_EVENTS } from "./lib/analytics";
+import { useBackButton } from "./hooks/useBackButton";
 
 // Mobile Bottom Nav Icons
 import {
@@ -40,6 +41,7 @@ import {
   Sparkles,
   User as UserIcon,
   AlertCircle,
+  Smartphone,
 } from "lucide-react";
 
 import { DynamicFormModal } from "./components/student/DynamicFormModal";
@@ -189,6 +191,67 @@ function AppContent() {
     setCurrentTab("student_ai");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  useBackButton({
+    onBack: () => {
+      // 1. Si on est dans une session → retour à l'UE
+      if (currentTab === "student_session") {
+        setCurrentTab(activeUeId ? "student_ue_detail" : "student_courses");
+        return true; // géré
+      }
+
+      // 2. Si on est dans le détail d'une UE → retour à la liste des cours
+      if (currentTab === "student_ue_detail") {
+        setCurrentTab("student_courses");
+        return true;
+      }
+
+      // 3. Si on est dans l'IA → retour à l'onglet précédent
+      if (currentTab === "student_ai") {
+        const returnTab = previousTab || "student_home";
+        setCurrentTab(returnTab);
+        setPreviousTab(null);
+        setAiContextSessionId(undefined);
+        return true;
+      }
+
+      // 4. Si on est dans l'admin → retour au dashboard étudiant
+      if (currentTab.startsWith("admin")) {
+        setCurrentTab("student_home");
+        return true;
+      }
+
+      // 5. Si on est sur une sous-page étudiante (profil, progression, etc.)
+      //    → retour au dashboard
+      if (currentTab.startsWith("student_") && currentTab !== "student_home") {
+        setCurrentTab("student_home");
+        return true;
+      }
+
+      // 6. Si on est sur une page marketing (features, pricing, faq...)
+      //    → retour à l'accueil
+      if (
+        ["features", "pricing", "faq", "about", "how_it_works"].includes(
+          currentTab,
+        )
+      ) {
+        setCurrentTab("home");
+        return true;
+      }
+
+      // 7. Sur la home → demander confirmation avant de quitter
+      if (currentTab === "home" || currentTab === "student_home") {
+        if (window.confirm("Quitter UL Study Flow ?")) {
+          return false; // laisse fermer
+        }
+        return true; // l'utilisateur a annulé → reste dans l'app
+      }
+
+      return false;
+    },
+    enabled: !!user, // N'active le garde-fou que si connecté (sur marketing, on laisse le comportement natif)
+  });
+
   // Load public form from URL if present
   React.useEffect(() => {
     if (!publicFormId) return;
@@ -271,6 +334,13 @@ function AppContent() {
   if (loading) {
     return <AppSplashScreen visible={true} />;
   }
+
+  // Détecte si l'app tourne en mode standalone (installée)
+  const isStandalone =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      // iOS Safari utilise navigator.standalone
+      (navigator as any).standalone === true);
 
   // Choose appropriate view based on authentication & currentTab
   // Choose appropriate view based on authentication & currentTab
@@ -407,6 +477,34 @@ function AppContent() {
       }
     }
 
+    if (isStandalone && !user) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[70vh] p-6 text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#25D366]/15 flex items-center justify-center">
+            <Smartphone className="w-8 h-8 text-[#25D366]" />
+          </div>
+          <h2 className="text-xl font-bold text-[#111B21] dark:text-white">
+            Connecte-toi pour accéder à tes cours
+          </h2>
+          <p className="text-sm text-[#667781] dark:text-[#8696A0] max-w-sm">
+            Une fois connecté, ton dashboard et tes chapitres déjà consultés
+            resteront accessibles même sans connexion internet.
+          </p>
+          <button
+            onClick={() => setLoginOpen(true)}
+            className="px-6 py-3 bg-[#25D366] text-[#075E54] rounded-xl font-bold hover:bg-[#1faa54] transition-colors"
+          >
+            Se connecter
+          </button>
+          <button
+            onClick={() => setRegisterOpen(true)}
+            className="text-sm font-semibold text-[#075E54] dark:text-[#25D366] underline"
+          >
+            Créer un compte
+          </button>
+        </div>
+      );
+    }
     // 3. Public Marketing Mode
     switch (currentTab) {
       case "features":

@@ -77,7 +77,7 @@ export default defineConfig(() => {
               purpose: "any",
             },
             {
-              src: "/ul_studyflow_icon_maskable.png", // Fond opaque (#075E54)
+              src: "/ul_studyflow_icon_maskable.png", // Fond blanc
               sizes: "512x512",
               type: "image/png",
               purpose: "maskable",
