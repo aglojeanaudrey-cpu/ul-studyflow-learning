@@ -48,6 +48,7 @@ import { RichTextEditor } from "./rich-text";
 import { RenderedContent } from "../student/RenderedContent";
 import { estimatePdfPages, countWords } from "../../lib/pdf/estimatePages";
 import { BlockStyle } from "../../types";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 
 export const CourseManagement: React.FC = () => {
   const [courses, setCourses] = useState<UE[]>([]);
@@ -57,6 +58,9 @@ export const CourseManagement: React.FC = () => {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingUe, setSavingUe] = useState(false);
+  const [savingSession, setSavingSession] = useState(false);
+  const [savingChapter, setSavingChapter] = useState(false);
 
   // Success / Error alerts
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -67,9 +71,9 @@ export const CourseManagement: React.FC = () => {
     Record<string, boolean>
   >({});
 
-  // ⭐ Vue mobile : 'list' = liste UE, 'detail' = séances de l'UE sélectionnée
+  // Vue mobile : 'list' = liste UE, 'detail' = séances de l'UE sélectionnée
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
-  // ⭐ Vue : 'courses' = gestion UE/séances/chapitres, 'reviews' = modération des avis
+  // Vue : 'courses' = gestion UE/séances/chapitres, 'reviews' = modération des avis
   const [adminView, setAdminView] = useState<"courses" | "reviews">("courses");
 
   // UE Modal State
@@ -110,7 +114,7 @@ export const CourseManagement: React.FC = () => {
   >(null);
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
   const [chapterStep, setChapterStep] = useState<1 | 2 | 3>(1);
-  // ⭐ Mode plein écran pour l'édition de chapitre
+  // Mode plein écran pour l'édition de chapitre
   const [chapterFullscreen, setChapterFullscreen] = useState(true);
 
   const [chapterForm, setChapterForm] = useState({
@@ -271,6 +275,8 @@ export const CourseManagement: React.FC = () => {
 
   const handleSaveUe = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingUe) return;
+    setSavingUe(true);
     try {
       const payload: any = {
         ...ueForm,
@@ -286,6 +292,8 @@ export const CourseManagement: React.FC = () => {
       await loadData();
     } catch (err: any) {
       showError(err.message || "Erreur lors de l'enregistrement de l'UE.");
+    } finally {
+      setSavingUe(false);
     }
   };
 
@@ -319,7 +327,12 @@ export const CourseManagement: React.FC = () => {
   const openCreateSessionModal = () => {
     if (!selectedUe) return;
     setEditingSessionId(null);
-    const nextNum = sessions.length + 1;
+    // Utiliser max(sessionNumber) + 1 au lieu de length + 1
+    const maxNum = sessions.reduce(
+      (max, s) => Math.max(max, s.sessionNumber || 0),
+      0,
+    );
+    const nextNum = maxNum + 1;
     setSessionForm({
       sessionNumber: nextNum,
       estimatedMinutes: 45,
@@ -348,8 +361,8 @@ export const CourseManagement: React.FC = () => {
 
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUe) return;
-
+    if (!selectedUe || savingSession) return;
+    setSavingSession(true);
     try {
       const payload: any = {
         id: editingSessionId || undefined,
@@ -373,6 +386,8 @@ export const CourseManagement: React.FC = () => {
       await loadSessionsForUe(selectedUe.id);
     } catch (err: any) {
       showError(err.message || "Erreur lors de l'enregistrement de la séance.");
+    } finally {
+      setSavingSession(false);
     }
   };
 
@@ -557,7 +572,8 @@ export const CourseManagement: React.FC = () => {
       return;
     }
     if (!chapterParentSessionId || !selectedUe) return;
-
+    if (savingChapter) return;
+    setSavingChapter(true);
     try {
       const payload: any = {
         id: editingChapterId || undefined,
@@ -625,6 +641,8 @@ export const CourseManagement: React.FC = () => {
       console.error("❌ Erreur saveChapter:", err);
       console.error("   Message:", err.message);
       showError(err.message || "Erreur lors de l'enregistrement du chapitre.");
+    } finally {
+      setSavingChapter(false);
     }
   };
 
@@ -760,7 +778,7 @@ export const CourseManagement: React.FC = () => {
           <span>{errorMsg}</span>
         </div>
       )}
-      {/* ⭐ Navigation entre les 2 vues */}
+      {/* Navigation entre les 2 vues */}
       <div className="flex items-center gap-1 bg-white dark:bg-[#111B21] p-1 rounded-xl border border-[#E9EDEF] dark:border-[#222E35] w-fit">
         <button
           onClick={() => setAdminView("courses")}
@@ -786,10 +804,10 @@ export const CourseManagement: React.FC = () => {
         </button>
       </div>
 
-      {/* ⭐ VUE 1 : Modération des avis */}
+      {/* VUE 1 : Modération des avis */}
       {adminView === "reviews" && <ReviewsModerationView />}
 
-      {/* ⭐ VUE 2 : Layout responsive : mobile = 1 vue à la fois, desktop = 2 colonnes */}
+      {/* VUE 2 : Layout responsive : mobile = 1 vue à la fois, desktop = 2 colonnes */}
       {adminView === "courses" && (
         <div className="lg:grid lg:grid-cols-12 lg:gap-6 lg:items-start">
           {/* ============================================================ */}
@@ -936,7 +954,7 @@ export const CourseManagement: React.FC = () => {
               mobileView === "list" ? "hidden lg:block" : "block"
             }`}
           >
-            {/* ⭐ BOUTON RETOUR (mobile uniquement) */}
+            {/* BOUTON RETOUR (mobile uniquement) */}
             {selectedUe && (
               <button
                 onClick={() => setMobileView("list")}
@@ -1454,9 +1472,15 @@ export const CourseManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
+                  disabled={savingUe}
+                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 min-w-36"
                 >
-                  {editingUeId ? "Mettre à jour l'UE" : "Créer l'UE"}
+                  {savingUe && <InlineSpinner className="text-[#075E54]" />}
+                  {savingUe
+                    ? "Enregistrement..."
+                    : editingUeId
+                      ? "Mettre à jour l'UE"
+                      : "Créer l'UE"}
                 </button>
               </div>
             </form>
@@ -1624,11 +1648,17 @@ export const CourseManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
+                  disabled={savingSession}
+                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 min-w-44"
                 >
-                  {editingSessionId
-                    ? "Mettre à jour la séance"
-                    : "Créer la séance"}
+                  {savingSession && (
+                    <InlineSpinner className="text-[#075E54]" />
+                  )}
+                  {savingSession
+                    ? "Enregistrement..."
+                    : editingSessionId
+                      ? "Mettre à jour la séance"
+                      : "Créer la séance"}
                 </button>
               </div>
             </form>
@@ -1940,7 +1970,7 @@ export const CourseManagement: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* ⭐ Uploader Cloudinary */}
+                            {/* Uploader Cloudinary */}
                             <MediaUploader
                               kind="audio"
                               currentUrl={chapterForm.audioUrl}
@@ -2039,7 +2069,7 @@ export const CourseManagement: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* ⭐ Uploader Cloudinary */}
+                            {/* Uploader Cloudinary */}
                             <MediaUploader
                               kind="video"
                               currentUrl={chapterForm.videoUrl}
@@ -2331,59 +2361,106 @@ export const CourseManagement: React.FC = () => {
             </form>
 
             {/* ============ FOOTER ACTIONS (sticky bottom) ============ */}
-            <footer className="border-t border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] px-4 py-3 shrink-0">
-              <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  {chapterStep > 1 && (
+            <footer className="border-t border-[#E9EDEF] dark:border-[#222E35] bg-white dark:bg-[#111B21] px-3 sm:px-4 py-3 shrink-0">
+              <div className="max-w-4xl mx-auto space-y-2">
+                {/* ============ LIGNE 1 : Navigation entre étapes (mobile) ============ */}
+                <div className="flex items-center gap-2 sm:hidden">
+                  {chapterStep > 1 ? (
                     <button
                       type="button"
                       onClick={() =>
                         setChapterStep((prev) => (prev - 1) as any)
                       }
-                      className="px-3 py-1.5 font-semibold text-[#667781] dark:text-[#8696A0] bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-gray-200"
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-xs font-semibold text-[#667781] dark:text-[#8696A0] bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
-                      ← Étape précédente
+                      ← Précédent
                     </button>
+                  ) : (
+                    <div className="flex-1" />
                   )}
-                  {chapterStep < 3 && (
+
+                  {chapterStep < 3 ? (
                     <button
                       type="button"
                       onClick={() =>
                         setChapterStep((prev) => (prev + 1) as any)
                       }
-                      className="px-3 py-1.5 font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 rounded-xl hover:bg-blue-200"
+                      className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900 transition-colors"
                     >
-                      Étape suivante →
+                      Suivant →
                     </button>
+                  ) : (
+                    <div className="flex-1" />
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
-                    title="Voir comment l'étudiant verra ce chapitre"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    Aperçu étudiant
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChapterModalOpen(false)}
-                    className="px-4 py-2 font-semibold text-[#667781] dark:text-[#8696A0]"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    form="chapter-form"
-                    className="px-5 py-2 font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-xs"
-                  >
-                    {editingChapterId
-                      ? "Enregistrer le chapitre"
-                      : "Créer le chapitre"}
-                  </button>
+                {/* ============ LIGNE 2 : Actions principales ============ */}
+                <div className="flex items-center justify-between gap-2">
+                  {/* Gauche : navigation entre étapes (desktop uniquement) */}
+                  <div className="hidden sm:flex items-center gap-2">
+                    {chapterStep > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChapterStep((prev) => (prev - 1) as any)
+                        }
+                        className="px-3 py-1.5 font-semibold text-[#667781] dark:text-[#8696A0] bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-gray-200 transition-colors text-xs"
+                      >
+                        ← Étape précédente
+                      </button>
+                    )}
+                    {chapterStep < 3 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChapterStep((prev) => (prev + 1) as any)
+                        }
+                        className="px-3 py-1.5 font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950 rounded-xl hover:bg-blue-200 transition-colors text-xs"
+                      >
+                        Étape suivante →
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Droite : actions */}
+                  <div className="flex items-center gap-2 ml-auto w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
+                      title="Voir comment l'étudiant verra ce chapitre"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Aperçu étudiant</span>
+                      <span className="sm:hidden">Aperçu</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setChapterModalOpen(false)}
+                      className="px-3 sm:px-4 py-2 text-xs font-semibold text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white transition-colors"
+                    >
+                      Annuler
+                    </button>
+
+                    <button
+                      type="submit"
+                      form="chapter-form"
+                      disabled={savingChapter}
+                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 shadow-xs disabled:opacity-60 transition-colors min-w-0"
+                    >
+                      {savingChapter && (
+                        <InlineSpinner className="text-white" />
+                      )}
+                      <span className="truncate">
+                        {savingChapter
+                          ? "Enregistrement..."
+                          : editingChapterId
+                            ? "Enregistrer"
+                            : "Créer le chapitre"}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </footer>
@@ -2391,9 +2468,9 @@ export const CourseManagement: React.FC = () => {
         </div>
       )}
 
-      {/* ⭐ MODAL APERÇU ÉTUDIANT */}
+      {/* MODAL APERÇU ÉTUDIANT */}
       {previewOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex flex-col">
+        <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex flex-col">
           <header className="bg-[#075E54] dark:bg-[#111B21] text-white px-4 py-3 flex items-center justify-between shadow-md shrink-0 border-b border-[#128C7E] dark:border-[#222E35]">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">

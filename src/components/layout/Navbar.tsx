@@ -6,6 +6,7 @@ import { DownloadLogoModal } from "../brand/DownloadLogoModal";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { useInstallPrompt } from "../../hooks/useInstallPrompt";
 import { InstallInstructionsModal } from "../ui/InstallInstructionsModal";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 import {
   Menu,
   X,
@@ -49,6 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoModalOpen, setLogoModalOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleNav = (tab: string) => {
@@ -57,10 +59,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     setProfileDropdownOpen(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     setProfileDropdownOpen(false);
     setMobileMenuOpen(false);
-    logout();
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const handleInstallClick = async () => {
@@ -500,12 +508,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <div className="p-2 border-t border-[#E9EDEF] dark:border-[#222E35]">
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-left"
+                        disabled={loggingOut}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors text-left disabled:opacity-60"
                       >
                         <div className="w-7 h-7 rounded-lg bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-                          <LogOut className="w-3.5 h-3.5" />
+                          {loggingOut ? (
+                            <InlineSpinner className="text-rose-600" />
+                          ) : (
+                            <LogOut className="w-3.5 h-3.5" />
+                          )}
                         </div>
-                        Se déconnecter
+                        {loggingOut ? "Déconnexion..." : "Se déconnecter"}
                       </button>
                     </div>
                   </div>
@@ -715,10 +728,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="pt-2 border-t border-[#128C7E] dark:border-[#222E35]">
                   <button
                     onClick={handleLogout}
-                    className="w-full py-2.5 px-3 rounded-xl text-left text-sm font-semibold text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 flex items-center gap-3 transition-colors"
+                    disabled={loggingOut}
+                    className="w-full py-2.5 px-3 rounded-xl text-left text-sm font-semibold text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 flex items-center gap-3 transition-colors disabled:opacity-60"
                   >
-                    <LogOut className="w-4 h-4" />
-                    Se déconnecter
+                    {loggingOut ? (
+                      <InlineSpinner className="text-rose-300" />
+                    ) : (
+                      <LogOut className="w-4 h-4" />
+                    )}
+                    {loggingOut ? "Déconnexion..." : "Se déconnecter"}
                   </button>
                 </div>
               </>

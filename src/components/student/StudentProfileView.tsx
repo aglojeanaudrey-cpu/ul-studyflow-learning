@@ -23,18 +23,20 @@ import {
 } from "lucide-react";
 import { DynamicFormModal } from "./DynamicFormModal";
 import { PasswordInput } from "../ui/PasswordInput";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 
 export const StudentProfileView: React.FC = () => {
   const { user, logout, refreshUser } = useAuth();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [forms, setForms] = useState<DynamicForm[]>([]);
   const [selectedForm, setSelectedForm] = useState<DynamicForm | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  // ⭐ Meta académique
+  // Meta académique
   const [departments, setDepartments] = useState<Department[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
 
-  // ⭐ Modal d'édition
+  // Modal d'édition
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     firstName: "",
@@ -114,6 +116,16 @@ export const StudentProfileView: React.FC = () => {
     }
   };
 
+  const handleLogoutClick = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   const filteredPrograms = programs.filter((p) => {
     const dept = departments.find((d) => d.code === editForm.department);
     return dept ? p.departmentId === dept.id : true;
@@ -171,7 +183,7 @@ export const StudentProfileView: React.FC = () => {
             </div>
           </div>
 
-          {/* ⭐ Bouton Modifier */}
+          {/* Bouton Modifier */}
           <button
             onClick={openEditModal}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 rounded-xl transition-colors shrink-0"
@@ -182,7 +194,10 @@ export const StudentProfileView: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] text-xs">
+        <div
+          className={`grid grid-cols-1 ${user.role !== "USER" ? "sm:grid-cols-2" : ""} gap-3 pt-3 border-t border-[#E9EDEF] dark:border-[#222E35] text-xs`}
+        >
+          {/* Statut du compte — toujours visible */}
           <div className="p-3 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl space-y-1">
             <span className="text-[#667781] dark:text-[#8696A0]">
               Statut du compte :
@@ -192,14 +207,18 @@ export const StudentProfileView: React.FC = () => {
               (Lomé)
             </p>
           </div>
-          <div className="p-3 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl space-y-1">
-            <span className="text-[#667781] dark:text-[#8696A0]">
-              Rôle système :
-            </span>
-            <p className="font-bold text-[#075E54] dark:text-emerald-400">
-              {user.role}
-            </p>
-          </div>
+
+          {/* Rôle — uniquement pour STAFF/SUPERUSER */}
+          {(user.role === "STAFF" || user.role === "SUPERUSER") && (
+            <div className="p-3 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl space-y-1">
+              <span className="text-[#667781] dark:text-[#8696A0]">
+                Rôle système :
+              </span>
+              <p className="font-bold text-[#075E54] dark:text-emerald-400">
+                {user.role === "SUPERUSER" ? "Super-Admin" : "Staff / Tuteur"}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -298,15 +317,20 @@ export const StudentProfileView: React.FC = () => {
       {/* Disconnect Button */}
       <div className="pt-4 border-t border-[#E9EDEF] dark:border-[#222E35]">
         <button
-          onClick={logout}
-          className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors"
+          onClick={handleLogoutClick}
+          disabled={loggingOut}
+          className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors disabled:opacity-60"
         >
-          <LogOut className="w-4 h-4" />
-          Se déconnecter de mon compte
+          {loggingOut ? (
+            <InlineSpinner className="text-rose-700 dark:text-rose-300" />
+          ) : (
+            <LogOut className="w-4 h-4" />
+          )}
+          {loggingOut ? "Déconnexion..." : "Se déconnecter de mon compte"}
         </button>
       </div>
 
-      {/* ⭐ Modal d'édition de profil */}
+      {/* Modal d'édition de profil */}
       {editModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
           <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 my-8 max-h-[90vh] overflow-y-auto">
@@ -501,9 +525,13 @@ export const StudentProfileView: React.FC = () => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 px-5 py-2 font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-xl transition-all disabled:opacity-50"
+                  className="inline-flex px-5 py-2 font-bold text-[#075E54] bg-[#25D366] hover:bg-[#1faa54] rounded-xl transition-all disabled:opacity-50 items-center justify-center gap-2 min-w-36"
                 >
-                  <Save className="w-3.5 h-3.5" />
+                  {saving ? (
+                    <InlineSpinner className="text-[#075E54]" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
                   {saving ? "Enregistrement..." : "Enregistrer"}
                 </button>
               </div>

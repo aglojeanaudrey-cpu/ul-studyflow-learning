@@ -169,7 +169,11 @@ class AdminExportView(APIView):
     permission_classes = [require_admin_permission('export')]
 
     def get(self, request, export_type):
-        fmt = request.GET.get('format', 'json').lower()
+        fmt = (
+            request.GET.get('export_format')
+            or request.GET.get('format')  # rétrocompatibilité
+            or 'json'
+        ).lower()
         filename = f"ul_study_flow_{export_type}_{int(timezone.now().timestamp())}"
         data = []
 
@@ -256,11 +260,11 @@ class AdminExportView(APIView):
 
             response = HttpResponse(output.getvalue(), content_type='text/csv; charset=utf-8')
             response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-            # ⭐ CORS : permet au navigateur de lire le nom du fichier
+            # CORS : permet au navigateur de lire le nom du fichier
             response['Access-Control-Expose-Headers'] = 'Content-Disposition'
             return response
 
-        # ⭐ JSON : retour direct
+        # JSON : retour direct
         return Response(data)
 
 
@@ -361,6 +365,11 @@ class AdminTrashDeleteView(APIView):
 
     def delete(self, request, trash_id):
         from .models import TrashBin
+        if trash_id in ('purge-all', 'trash-bulk-action'):
+            return Response(
+                {'error': 'Route réservée. Utilisez les endpoints dédiés.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             entry = TrashBin.objects.get(id=trash_id)

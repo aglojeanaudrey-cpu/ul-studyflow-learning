@@ -515,7 +515,13 @@ class AdminSessionSaveView(APIView):
             if 'title' in data: session.title = data['title']
             if 'description' in data: session.description = data['description']
             if 'objective' in data: session.objective = data['objective']
-            if 'sessionNumber' in data: session.session_number = int(data['sessionNumber'])
+            if 'sessionNumber' in data:
+                try:
+                    new_num = int(data['sessionNumber'])
+                    if new_num > 0:
+                        session.session_number = new_num
+                except (ValueError, TypeError):
+                    pass  # ignorer si invalide, garder l'existant
             if 'estimatedMinutes' in data: session.estimated_minutes = int(data['estimatedMinutes'])
             if 'order' in data: session.order = int(data['order'])
             if 'isPublished' in data: session.is_published = bool(data['isPublished'])
@@ -527,7 +533,26 @@ class AdminSessionSaveView(APIView):
             except UE.DoesNotExist:
                 return Response({'error': 'UE parente introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
-            sess_num = int(data.get('sessionNumber', 1))
+            # Auto-attribution du numéro si non fourni ou invalide
+            try:
+                sess_num = int(data.get('sessionNumber') or 0)
+            except (ValueError, TypeError):
+                sess_num = 0
+
+            if sess_num <= 0:
+                # Prendre le max existant + 1, pas le count + 1 (plus fiable)
+                last = Session.objects.filter(ue=ue).order_by('-session_number').first()
+                sess_num = (last.session_number + 1) if last else 1
+
+            # Idem pour order
+            try:
+                sess_order = int(data.get('order') or 0)
+            except (ValueError, TypeError):
+                sess_order = 0
+            if sess_order <= 0:
+                last_ordered = Session.objects.filter(ue=ue).order_by('-order').first()
+                sess_order = (last_ordered.order + 1) if last_ordered else sess_num
+
             session = Session.objects.create(
                 ue=ue,
                 session_number=sess_num,
@@ -535,11 +560,10 @@ class AdminSessionSaveView(APIView):
                 description=data.get('description', ''),
                 objective=data.get('objective', 'Objectif pédagogique de la séance.'),
                 estimated_minutes=int(data.get('estimatedMinutes', 45)),
-                order=sess_num,
+                order=sess_order,
                 is_published=bool(data.get('isPublished', True)),
                 is_suspended=bool(data.get('isSuspended', False))
             )
-
         return Response({'success': True, 'session': SessionSerializer(session, context={'request': request}).data})
 
 

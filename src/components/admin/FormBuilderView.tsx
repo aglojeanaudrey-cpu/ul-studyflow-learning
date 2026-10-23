@@ -350,7 +350,7 @@ export const FormBuilderView: React.FC = () => {
                     Nombre de champs : <strong>{form.fields.length}</strong>
                   </p>
 
-                  {/* ⭐ Compteur de réponses cliquable */}
+                  {/* Compteur de réponses cliquable */}
                   <button
                     type="button"
                     onClick={() => handleViewSubmissions(form)}
@@ -366,7 +366,7 @@ export const FormBuilderView: React.FC = () => {
                     {(form.submissionsCount || 0) > 1 ? "s" : ""}
                   </button>
 
-                  {/* ⭐ Dernière soumission */}
+                  {/* Dernière soumission */}
                   {form.lastSubmissionAt && (
                     <p className="flex items-center gap-1 text-[10px] text-[#667781] dark:text-[#8696A0] italic">
                       <Clock className="w-3 h-3" />
@@ -429,7 +429,7 @@ export const FormBuilderView: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* ⭐ Bouton "Voir les réponses" (revient ici) */}
+                  {/* Bouton "Voir les réponses" (revient ici) */}
                   <button
                     onClick={() => handleViewSubmissions(form)}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
@@ -466,7 +466,7 @@ export const FormBuilderView: React.FC = () => {
       {/* CREATE / EDIT FORM MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-2xl w-full pt-12 px-6 pb-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setModalOpen(false)}
               className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
@@ -709,7 +709,7 @@ export const FormBuilderView: React.FC = () => {
       {/* VIEW SUBMISSIONS MODAL */}
       {selectedFormForSubmissions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-3xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-3xl w-full pt-12 pb-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] space-y-4 my-8 max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setSelectedFormForSubmissions(null)}
               className="absolute top-4 right-4 text-[#667781] dark:text-[#8696A0] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"

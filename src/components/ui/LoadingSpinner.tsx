@@ -46,7 +46,7 @@ export const LoadingOverlay: React.FC<{ visible: boolean; label?: string }> = ({
 }) => {
   if (!visible) return null;
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="bg-white dark:bg-[#111B21] rounded-2xl p-6 shadow-2xl border border-[#E9EDEF] dark:border-[#222E35]">
         <LoadingSpinner size="lg" label={label || "Chargement..."} />
       </div>

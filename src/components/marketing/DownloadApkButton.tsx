@@ -28,7 +28,7 @@ export const DownloadApkButton: React.FC<DownloadApkButtonProps> = ({
   if (platform === "android") {
     return (
       <a
-        href={APK_DOWNLOAD_URL}
+        href={"/download.html"}
         target="_blank"
         rel="noopener noreferrer"
         className={`${baseClass} ${variants[variant]} ${className}`}

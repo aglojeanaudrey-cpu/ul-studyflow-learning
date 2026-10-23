@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { UlStudyFlowLogo } from "../brand/UlStudyFlowLogo";
 import { PasswordInput } from "../ui/PasswordInput";
 import { trackEvent, ANALYTICS_EVENTS } from "../../lib/analytics";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -110,12 +111,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <Lock className="w-4 h-4 text-[#667781] dark:text-[#8696A0] absolute left-2.5 top-3 pointer-events-none" />
               </div>
             </div>
-
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] transition-all shadow-sm active:scale-95 disabled:opacity-50 mt-2"
+              className="w-full py-3 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2 flex items-center justify-center gap-2"
             >
+              {loading && <InlineSpinner className="text-[#075E54]" />}
               {loading ? "Connexion en cours..." : "Se connecter"}
             </button>
           </form>

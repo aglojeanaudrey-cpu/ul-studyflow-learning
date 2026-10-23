@@ -274,7 +274,6 @@ def _snapshot_chapter(chapter):
         }
     }
 
-
 def _snapshot_user(user):
     """Snapshot d'un utilisateur (sans mot de passe)."""
     return {
@@ -841,3 +840,37 @@ def purge_expired_trash():
     count = expired.count()
     expired.delete()
     return count
+
+def _delete_snapshot_cloudinary_media(snapshot, object_type):
+    """Supprime les médias Cloudinary référencés dans un snapshot de corbeille."""
+    from courses.cloudinary_service import delete_media
+    import logging
+    logger = logging.getLogger(__name__)
+
+    def _delete_chapter_media(chap_data):
+        if not isinstance(chap_data, dict):
+            return
+        for field_name, resource_type in [
+            ('video', 'video'),
+            ('audio', 'video'),
+            ('pdf', 'raw'),
+        ]:
+            media = chap_data.get(field_name) or {}
+            public_id = media.get('public_id') if isinstance(media, dict) else None
+            if public_id:
+                try:
+                    delete_media(public_id, resource_type=resource_type)
+                except Exception as e:
+                    logger.warning(
+                        f"Impossible de supprimer {field_name} {public_id} : {e}"
+                    )
+
+    if object_type == 'ue':
+        for sess in snapshot.get('sessions', []):
+            for chap in sess.get('chapters', []):
+                _delete_chapter_media(chap)
+    elif object_type == 'session':
+        for chap in snapshot.get('chapters', []):
+            _delete_chapter_media(chap)
+    elif object_type == 'chapter':
+        _delete_chapter_media(snapshot.get('chapter', {}))

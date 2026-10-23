@@ -85,8 +85,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setExporting(`${type}-${format}`);
     try {
       if (format === "csv") {
-        // ⭐ Téléchargement binaire via Blob
         const blob = await api.downloadExportCsv(type);
+        // Vérifier que le blob n'est pas vide
+        if (!blob || blob.size === 0) {
+          throw new Error("Le fichier CSV est vide. Vérifiez vos permissions.");
+        }
+        // Vérifier que ce n'est pas un JSON d'erreur déguisé
+        if (blob.type === "application/json") {
+          const text = await blob.text();
+          let errMsg = "Erreur lors de l'export CSV.";
+          try {
+            const parsed = JSON.parse(text);
+            errMsg = parsed.error || parsed.detail || errMsg;
+          } catch (_) {}
+          throw new Error(errMsg);
+        }
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -98,7 +111,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         URL.revokeObjectURL(url);
         showSuccess(`Export CSV « ${type} » téléchargé avec succès.`);
       } else {
-        // ⭐ JSON : récupérer les données et ouvrir dans un nouvel onglet
+        // JSON : récupérer les données et ouvrir dans un nouvel onglet
         const data = await api.getExportJson(type);
         const jsonStr = JSON.stringify(data, null, 2);
         const blob = new Blob([jsonStr], { type: "application/json" });

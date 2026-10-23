@@ -19,6 +19,7 @@ import {
 import { UnlockUeModal } from "./UnlockUeModal";
 import { SkeletonCourseCard } from "../ui/SkeletonLoader";
 import { usePageLoading } from "../../hooks/usePageLoading";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 interface MyCoursesViewProps {
   onOpenUe: (ueId: string) => void;
@@ -34,8 +35,9 @@ export const MyCoursesView: React.FC<MyCoursesViewProps> = ({ onOpenUe }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"my" | "catalog">("my");
   const [unlockModalOpen, setUnlockModalOpen] = useState(false);
+  const isOnline = useOnlineStatus();
 
-  // ⭐ État du dropdown
+  // État du dropdown
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filtersRef = useRef<HTMLDivElement>(null);
 
@@ -51,15 +53,25 @@ export const MyCoursesView: React.FC<MyCoursesViewProps> = ({ onOpenUe }) => {
 
   const loadData = async () => {
     try {
-      const [coursesRes, metaRes] = await Promise.all([
+      const results = await Promise.allSettled([
         api.getCourses(),
         api.getAcademicMeta(),
       ]);
-      setCourses(coursesRes.courses);
-      setDepartments(metaRes.departments || []);
-      setPrograms(metaRes.programs || []);
+
+      if (results[0].status === "fulfilled") {
+        setCourses(results[0].value.courses || []);
+      } else {
+        console.warn("Courses indisponibles (offline ?)");
+      }
+
+      if (results[1].status === "fulfilled") {
+        setDepartments(results[1].value.departments || []);
+        setPrograms(results[1].value.programs || []);
+      } else {
+        console.warn("Meta académique indisponible (offline ?)");
+      }
     } catch (err) {
-      console.error("Error fetching courses and meta:", err);
+      console.error("Error fetching courses:", err);
     } finally {
       setLoading(false);
     }
@@ -69,7 +81,7 @@ export const MyCoursesView: React.FC<MyCoursesViewProps> = ({ onOpenUe }) => {
     loadData();
   }, []);
 
-  // ⭐ Fermer le dropdown si clic en dehors
+  // Fermer le dropdown si clic en dehors
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -87,7 +99,7 @@ export const MyCoursesView: React.FC<MyCoursesViewProps> = ({ onOpenUe }) => {
     };
   }, [filtersOpen]);
 
-  // ⭐ Fermer avec ESC
+  // Fermer avec ESC
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setFiltersOpen(false);
@@ -215,6 +227,15 @@ export const MyCoursesView: React.FC<MyCoursesViewProps> = ({ onOpenUe }) => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+      {!isOnline && (
+        <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs rounded-xl border border-amber-200 dark:border-amber-800 flex items-center gap-2">
+          <span>📡</span>
+          <span>
+            Mode hors ligne : les données affichées sont celles de ta dernière
+            visite. Certains filtres peuvent être indisponibles.
+          </span>
+        </div>
+      )}
       {/* Header avec bouton déblocage */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="space-y-1">

@@ -349,6 +349,11 @@ export const UeDetailView: React.FC<UeDetailViewProps> = ({
           ) : (
             sessions.map((session) => {
               const isFirstSession = session.sessionNumber === 1;
+              // Fallback : si le backend a mal numéroté, on utilise index + 1
+              const displayNumber =
+                session.sessionNumber && session.sessionNumber > 0
+                  ? session.sessionNumber
+                  : index + 1;
               // Session 1 is NEVER locked for anyone.
               // For other sessions:
               // If superuser/staff: not locked for them to preview.

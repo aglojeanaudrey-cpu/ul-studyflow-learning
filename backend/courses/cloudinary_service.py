@@ -142,16 +142,22 @@ def delete_media(public_id, resource_type='video'):
     if not is_cloudinary_configured():
         return {'success': False, 'error': 'Cloudinary non configuré'}
     try:
-        result = cloudinary.uploader.destroy(
-            public_id,
-            resource_type=resource_type,
-            type=PROTECTED_DELIVERY_TYPE,   # ⭐ important
-            invalidate=True,
-        )
-        return {'success': result.get('result') == 'ok', 'result': result}
+        # Essayer 'authenticated' (nouveaux médias), puis 'upload' (anciens)
+        for delivery_type in (PROTECTED_DELIVERY_TYPE, 'upload'):
+            try:
+                result = cloudinary.uploader.destroy(
+                    public_id,
+                    resource_type=resource_type,
+                    type=delivery_type,
+                    invalidate=True,
+                )
+                if result.get('result') == 'ok':
+                    return {'success': True, 'result': result}
+            except Exception:
+                continue
+        return {'success': False, 'error': 'Fichier introuvable dans Cloudinary'}
     except Exception as e:
         return {'success': False, 'error': str(e)}
-
 
 # ═══════════════════════════════════════════════════════════════
 # SÉCURITÉ : URL SIGNÉE + WATERMARK GRAVÉ

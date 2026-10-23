@@ -19,40 +19,11 @@ export default defineConfig(() => {
       }),
       VitePWA({
         registerType: "autoUpdate",
-        workbox: {
+        strategies: "injectManifest",
+        srcDir: "src",
+        filename: "sw.ts",
+        injectManifest: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
-          runtimeCaching: [
-            {
-              // endpoints API pour les données de cours
-              // Adapte l'URL si ton backend est sur un autre domaine en prod
-              urlPattern:
-                /^https:\/\/ul-studyflow-learning\.onrender\.com\/api\/(courses|sessions|progress|notifications).*/i,
-              handler: "NetworkFirst",
-              options: {
-                cacheName: "ul-studyflow-api-cache",
-                networkTimeoutSeconds: 10, // Si le réseau met > 10s, on sert le cache
-                expiration: {
-                  maxEntries: 100, // Garde les 100 dernières réponses
-                  maxAgeSeconds: 60 * 60 * 24 * 7, // 1 semaine
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-            // mettre en cache les images des cours (pas les vidéos)
-            {
-              urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-              handler: "CacheFirst",
-              options: {
-                cacheName: "ul-studyflow-images",
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 jours
-                },
-              },
-            },
-          ],
         },
         includeAssets: [
           "ul_studyflow_icon.webp",
@@ -71,20 +42,20 @@ export default defineConfig(() => {
           scope: "/",
           icons: [
             {
-              src: "/ul_studyflow_icon.png", // Fond transparent
+              src: "/ul_studyflow_icon.png",
               sizes: "512x512",
               type: "image/png",
               purpose: "any",
             },
             {
-              src: "/ul_studyflow_icon_maskable.png", // Fond blanc
+              src: "/ul_studyflow_icon_maskable.png",
               sizes: "512x512",
               type: "image/png",
               purpose: "maskable",
             },
           ],
         },
-      }),
+      })
     ],
     resolve: {
       alias: {

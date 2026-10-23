@@ -229,7 +229,7 @@ export const UnlockUeModal: React.FC<UnlockUeModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl relative border border-[#E9EDEF] my-8 max-h-[92vh] overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-2xl w-full pt-12 pb-6 sm:p-7 shadow-2xl relative border border-[#E9EDEF] my-8 max-h-[92vh] overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute top-5 right-5 text-[#667781] hover:text-[#111B21] p-1.5 rounded-lg hover:bg-[#F0F2F5]"

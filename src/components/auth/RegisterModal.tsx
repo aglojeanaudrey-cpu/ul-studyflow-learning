@@ -15,6 +15,7 @@ import { Department, Program } from "../../types";
 import { UlStudyFlowLogo } from "../brand/UlStudyFlowLogo";
 import { PasswordInput } from "../ui/PasswordInput";
 import { trackEvent, ANALYTICS_EVENTS } from "../../lib/analytics";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -363,8 +364,9 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
             <button
               type="submit"
               disabled={loading || metaLoading || !programId}
-              className="w-full py-3 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] transition-all disabled:opacity-50 mt-2 shadow-sm active:scale-95"
+              className="w-full py-3 text-xs font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2 shadow-sm active:scale-95 flex items-center justify-center gap-2"
             >
+              {loading && <InlineSpinner className="text-[#075E54]" />}
               {loading
                 ? "Création du compte..."
                 : "Créer mon compte et accéder aux cours"}

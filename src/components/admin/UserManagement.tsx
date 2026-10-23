@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { User, UE, Department, Program } from "../../types";
 import { api } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 import {
   Users,
   Search,
@@ -71,7 +72,6 @@ const ALL_ADMIN_PERMISSIONS = [
     label: "Publicités & Annonces",
     desc: "Création et gestion des popups ciblés (annonces, promos, pubs)",
   },
-  // ⭐ NOUVELLES PERMISSIONS
   {
     id: "partnerships",
     label: "Partenariats",
@@ -113,6 +113,10 @@ export const UserManagement: React.FC = () => {
   const [userAccessLoading, setUserAccessLoading] = useState(false);
   const [grantedUeIds, setGrantedUeIds] = useState<Set<string>>(new Set());
   const [accessInitialLoading, setAccessInitialLoading] = useState(false);
+
+  const [creating, setCreating] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Create User Modal State
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -191,6 +195,8 @@ export const UserManagement: React.FC = () => {
   // Handle Create User
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (creating) return;
+    setCreating(true);
     try {
       await api.createAdminUser(createForm);
       showSuccess(
@@ -214,6 +220,8 @@ export const UserManagement: React.FC = () => {
       await loadData();
     } catch (err: any) {
       showError(err.message || "Erreur lors de la création du compte.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -258,7 +266,8 @@ export const UserManagement: React.FC = () => {
   // Handle Edit Submit
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editModalUser) return;
+    if (!editModalUser || savingEdit) return;
+    setSavingEdit(true);
     try {
       const payload: any = {
         firstName: editForm.firstName,
@@ -288,12 +297,15 @@ export const UserManagement: React.FC = () => {
       await loadData();
     } catch (err: any) {
       showError(err.message || "Erreur lors de la modification.");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
   // Handle Delete User
   const handleDeleteSubmit = async () => {
-    if (!deleteConfirmUser) return;
+    if (!deleteConfirmUser || deleting) return;
+    setDeleting(true);
     try {
       await api.deleteAdminUser(deleteConfirmUser.id);
       showSuccess(
@@ -303,6 +315,8 @@ export const UserManagement: React.FC = () => {
       await loadData();
     } catch (err: any) {
       showError(err.message || "Impossible de supprimer cet utilisateur.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1078,9 +1092,11 @@ export const UserManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
+                  disabled={creating}
+                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 min-w-32"
                 >
-                  Créer le compte
+                  {creating && <InlineSpinner className="text-[#075E54]" />}
+                  {creating ? "Création..." : "Créer le compte"}
                 </button>
               </div>
             </form>
@@ -1460,9 +1476,13 @@ export const UserManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
+                  disabled={savingEdit}
+                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 min-w-40"
                 >
-                  Enregistrer les modifications
+                  {savingEdit && <InlineSpinner className="text-[#075E54]" />}
+                  {savingEdit
+                    ? "Enregistrement..."
+                    : "Enregistrer les modifications"}
                 </button>
               </div>
             </form>
@@ -1503,9 +1523,11 @@ export const UserManagement: React.FC = () => {
               <button
                 type="button"
                 onClick={handleDeleteSubmit}
-                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-xs"
+                disabled={deleting}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 min-w-40"
               >
-                Supprimer le compte
+                {deleting && <InlineSpinner className="text-white" />}
+                {deleting ? "Suppression..." : "Supprimer le compte"}
               </button>
             </div>
           </div>

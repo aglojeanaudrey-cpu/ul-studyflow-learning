@@ -169,6 +169,10 @@ APP_URL = os.getenv('APP_URL', 'https://ul-studyflow-learning.pages.dev').rstrip
 CORS_ALLOWED_ORIGINS = [
     APP_URL,
 ]
+CORS_EXPOSE_HEADERS = [
+    'Content-Disposition',
+    'Content-Type',
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # Django REST Framework configuration

@@ -739,14 +739,14 @@ export const api = {
     return res.blob();
   },
 
-  // ⭐ Exports admin (users, progress, quiz_attempts, submissions, audit)
+  // Exports admin (users, progress, quiz_attempts, submissions, audit)
   async getExportJson(exportType: string): Promise<any> {
-    return request(`/api/admin/export/${exportType}/?format=json`);
+    return request(`/api/admin/export/${exportType}/?export_format=json`);
   },
 
   async downloadExportCsv(exportType: string): Promise<Blob> {
     const res = await fetch(
-      `${API_URL}/api/admin/export/${exportType}/?format=csv`,
+      `${API_URL}/api/admin/export/${exportType}/?export_format=csv`,
       {
         method: "GET",
         credentials: "include",
@@ -765,6 +765,19 @@ export const api = {
         throw err;
       }
       throw new Error("Erreur lors de l'export CSV.");
+    }
+
+    // Vérifier que la réponse est bien un CSV
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("text/csv") && !contentType.includes("application/csv")) {
+      // Ce n'est pas un CSV → probablement une erreur JSON
+      const text = await res.text();
+      try {
+        const parsed = JSON.parse(text);
+        throw new Error(parsed.error || "Erreur lors de l'export CSV.");
+      } catch (e: any) {
+        throw new Error(e.message || "Le serveur n'a pas renvoyé un fichier CSV valide.");
+      }
     }
 
     return res.blob();
