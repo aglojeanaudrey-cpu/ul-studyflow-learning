@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AdminStudentProgress, AdminProgressSummary } from "../../types";
 import { api } from "../../lib/api";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 import {
   TrendingUp,
   Search,
@@ -25,6 +26,7 @@ export const UserProgressView: React.FC = () => {
   const [levelFilter, setLevelFilter] = useState("ALL");
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
   // Student Detail Modal
   const [selectedStudentDetail, setSelectedStudentDetail] = useState<{
     student: any;
@@ -66,14 +68,14 @@ export const UserProgressView: React.FC = () => {
   };
 
   const handleOpenDetail = async (userId: string) => {
-    setDetailLoading(true);
+    setLoadingDetailId(userId);
     try {
       const res = await api.getAdminUserProgressDetail(userId);
       setSelectedStudentDetail(res);
     } catch (err) {
       console.error("Error loading student detail progress:", err);
     } finally {
-      setDetailLoading(false);
+      setLoadingDetailId(null);
     }
   };
 
@@ -415,13 +417,12 @@ export const UserProgressView: React.FC = () => {
                     </td>
 
                     <td className="p-3.5 text-right">
-                      <button
-                        onClick={() => handleOpenDetail(st.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold text-[#075E54] dark:text-[#25D366] bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors"
-                      >
+                      {loadingDetailId === st.id ? (
+                        <InlineSpinner className="text-[#075E54] dark:text-[#25D366]" />
+                      ) : (
                         <Eye className="w-3.5 h-3.5" />
-                        Détails
-                      </button>
+                      )}
+                      {loadingDetailId === st.id ? "Chargement..." : "Détails"}
                     </td>
                   </tr>
                 ))}

@@ -31,4 +31,4 @@ export const STATS = {
 
 // URL de téléchargement de l'APK hébergé sur GitHub Releases
 export const APK_DOWNLOAD_URL =
-  "https://github.com/aglojeanaudrey-cpu/ul-studyflow-learning/releases/download/v2.0.0/ul-studyflow-Learning.apk";
+  "https://github.com/aglojeanaudrey-cpu/ul-studyflow-learning/releases/download/v3.0.0/Ul-StudyFlow-Learning.apk";

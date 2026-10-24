@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { DynamicForm, FormField, FormSubmission } from "../../types";
 import { api } from "../../lib/api";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 import {
   Plus,
   Trash2,
@@ -593,58 +594,66 @@ export const FormBuilderView: React.FC = () => {
                       key={f.id}
                       className="p-3 bg-[#F0F2F5] dark:bg-[#1F2C34] rounded-xl space-y-2 border border-[#E9EDEF] dark:border-[#222E35]"
                     >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={f.label}
-                          placeholder="Intitulé du champ..."
-                          onChange={(e) =>
-                            handleFieldChange(f.id, "label", e.target.value)
-                          }
-                          className="flex-1 p-2 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222E35] font-semibold"
-                        />
-                        <select
-                          value={f.type}
-                          onChange={(e) =>
-                            handleFieldChange(f.id, "type", e.target.value)
-                          }
-                          className="p-2 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222E35] font-medium"
-                        >
-                          <option value="text">Texte court</option>
-                          <option value="textarea">Texte long</option>
-                          <option value="number">Nombre</option>
-                          <option value="phone">Téléphone</option>
-                          <option value="email">Email</option>
-                          <option value="select">Liste déroulante</option>
-                          <option value="options">
-                            ☑ Champ d'Options (Choix multiple)
-                          </option>
-                          <option value="emoji_rating">
-                            😍 Champ Réaction Emoji
-                          </option>
-                        </select>
-                        <label className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer shrink-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        {/* Ligne 1 sur mobile : label + bouton supprimer */}
+                        <div className="flex items-center gap-2">
                           <input
-                            type="checkbox"
-                            checked={f.required}
+                            type="text"
+                            value={f.label}
+                            placeholder="Intitulé du champ..."
                             onChange={(e) =>
-                              handleFieldChange(
-                                f.id,
-                                "required",
-                                e.target.checked,
-                              )
+                              handleFieldChange(f.id, "label", e.target.value)
                             }
-                            className="w-3.5 h-3.5 text-[#25D366] rounded"
+                            className="flex-1 min-w-0 p-2 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222E35] font-semibold"
                           />
-                          Obligatoire
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveField(f.id)}
-                          className="text-rose-600 hover:text-rose-800 p-1.5"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveField(f.id)}
+                            className="text-rose-600 hover:text-rose-800 p-1.5 shrink-0"
+                            aria-label="Supprimer ce champ"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Ligne 2 sur mobile : select type + checkbox obligatoire */}
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={f.type}
+                            onChange={(e) =>
+                              handleFieldChange(f.id, "type", e.target.value)
+                            }
+                            className="flex-1 min-w-0 p-2 rounded-lg bg-white dark:bg-[#111B21] border border-[#E9EDEF] dark:border-[#222E35] font-medium"
+                          >
+                            <option value="text">Texte court</option>
+                            <option value="textarea">Texte long</option>
+                            <option value="number">Nombre</option>
+                            <option value="phone">Téléphone</option>
+                            <option value="email">Email</option>
+                            <option value="select">Liste déroulante</option>
+                            <option value="options">
+                              ☑ Champ d'Options (Choix multiple)
+                            </option>
+                            <option value="emoji_rating">
+                              😍 Champ Réaction Emoji
+                            </option>
+                          </select>
+                          <label className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={f.required}
+                              onChange={(e) =>
+                                handleFieldChange(
+                                  f.id,
+                                  "required",
+                                  e.target.checked,
+                                )
+                              }
+                              className="w-3.5 h-3.5 text-[#25D366] rounded"
+                            />
+                            Obligatoire
+                          </label>
+                        </div>
                       </div>
 
                       {/* If type is options or select or emoji_rating, allow editing choices */}

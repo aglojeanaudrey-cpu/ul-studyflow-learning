@@ -62,11 +62,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
-    setProfileDropdownOpen(false);
-    setMobileMenuOpen(false);
     try {
       await logout();
     } finally {
+      setProfileDropdownOpen(false);
+      setMobileMenuOpen(false);
       setLoggingOut(false);
     }
   };

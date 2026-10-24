@@ -1236,7 +1236,7 @@ export const ConfigPricingView: React.FC = () => {
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-between">
+              <div className="pt-2 flex items-center justify-between sm:block">
                 <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-[#111B21] dark:text-white">
                   <input
                     type="checkbox"
@@ -1252,7 +1252,7 @@ export const ConfigPricingView: React.FC = () => {
                   Actif (Visible par les étudiants)
                 </label>
 
-                <div className="flex items-center gap-2">
+                <div className="flex w-full justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => setIsPaymentModalOpen(false)}

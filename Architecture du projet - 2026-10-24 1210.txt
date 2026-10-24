@@ -1,0 +1,465 @@
+Architecture du projet - 2026-10-24 12:10
+Racine : C:\Users\user\Desktop\projet\ulstudyflow
+
+├── app/
+│   ├── src/
+│   │   └── main/
+│   │       ├── java/
+│   │       │   └── dev/
+│   │       │       └── pages/
+│   │       │           └── ul_studyflow_learning/
+│   │       │               └── twa/
+│   │       │                   ├── Application.java
+│   │       │                   ├── DelegationService.java
+│   │       │                   └── LauncherActivity.java
+│   │       ├── res/
+│   │       │   ├── drawable-anydpi/
+│   │       │   │   └── shortcut_legacy_background.xml
+│   │       │   ├── drawable-hdpi/
+│   │       │   │   ├── ic_notification_icon.png
+│   │       │   │   └── splash.png
+│   │       │   ├── drawable-mdpi/
+│   │       │   │   ├── ic_notification_icon.png
+│   │       │   │   └── splash.png
+│   │       │   ├── drawable-xhdpi/
+│   │       │   │   ├── ic_notification_icon.png
+│   │       │   │   └── splash.png
+│   │       │   ├── drawable-xxhdpi/
+│   │       │   │   ├── ic_notification_icon.png
+│   │       │   │   └── splash.png
+│   │       │   ├── drawable-xxxhdpi/
+│   │       │   │   ├── ic_notification_icon.png
+│   │       │   │   └── splash.png
+│   │       │   ├── mipmap-anydpi-v26/
+│   │       │   │   └── ic_launcher.xml
+│   │       │   ├── mipmap-hdpi/
+│   │       │   │   ├── ic_launcher.png
+│   │       │   │   └── ic_maskable.png
+│   │       │   ├── mipmap-mdpi/
+│   │       │   │   ├── ic_launcher.png
+│   │       │   │   └── ic_maskable.png
+│   │       │   ├── mipmap-xhdpi/
+│   │       │   │   ├── ic_launcher.png
+│   │       │   │   └── ic_maskable.png
+│   │       │   ├── mipmap-xxhdpi/
+│   │       │   │   ├── ic_launcher.png
+│   │       │   │   └── ic_maskable.png
+│   │       │   ├── mipmap-xxxhdpi/
+│   │       │   │   ├── ic_launcher.png
+│   │       │   │   └── ic_maskable.png
+│   │       │   ├── raw/
+│   │       │   │   └── web_app_manifest.json
+│   │       │   ├── values/
+│   │       │   │   ├── colors.xml
+│   │       │   │   └── strings.xml
+│   │       │   └── xml/
+│   │       │       ├── filepaths.xml
+│   │       │       └── shortcuts.xml
+│   │       └── AndroidManifest.xml
+│   └── build.gradle
+├── backend/
+│   ├── academic/
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   └── 0001_initial.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   └── views.py
+│   ├── accounts/
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_user_admin_permissions.py
+│   │   │   └── 0003_contactmessage_partnershiprequest.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── authentication.py
+│   │   ├── models.py
+│   │   ├── permissions.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   ├── throttles.py
+│   │   ├── utils.py
+│   │   └── views.py
+│   ├── ads/
+│   │   ├── management/
+│   │   │   ├── commands/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── seed_popup_templates.py
+│   │   │   └── __init__.py
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   ├── 0001_initial.py
+│   │   │   └── 0002_popuptemplate_popupcampaign_schedule_days_and_more.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   ├── utils.py
+│   │   └── views.py
+│   ├── assistant_ai/
+│   │   ├── migrations/
+│   │   │   └── __init__.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── prompts.py
+│   │   ├── service.py
+│   │   ├── tests.py
+│   │   └── views.py
+│   ├── audit/
+│   │   ├── management/
+│   │   │   ├── commands/
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── purge_trash.py
+│   │   │   └── __init__.py
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   ├── 0001_initial.py
+│   │   │   └── 0002_trashbin.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── signals.py
+│   │   ├── tests.py
+│   │   ├── trash_service.py
+│   │   ├── urls.py
+│   │   ├── utils.py
+│   │   └── views.py
+│   ├── courses/
+│   │   ├── management/
+│   │   │   ├── commands/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── seed_data.py
+│   │   │   │   └── seed_demo_data.py
+│   │   │   └── __init__.py
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_remove_session_audio_remove_session_flashcards_and_more.py
+│   │   │   ├── 0003_userueaccess_expires_at_alter_userueaccess_status.py
+│   │   │   ├── 0004_alter_chapter_unique_together.py
+│   │   │   ├── 0005_uereview.py
+│   │   │   ├── 0006_chapter_summary_html_chapter_summary_json_and_more.py
+│   │   │   └── 0007_chapter_summary_blocks_style.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── cloudinary_service.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   └── views.py
+│   ├── forms_builder/
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   └── 0001_initial.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   └── views.py
+│   ├── monetization/
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   ├── 0001_initial.py
+│   │   │   ├── 0002_paymentmethod.py
+│   │   │   └── 0003_platformconfig_activities_retention_days.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   └── views.py
+│   ├── notifications/
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   └── 0001_initial.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── realtime_auth.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   ├── utils.py
+│   │   └── views.py
+│   ├── referrals/
+│   │   ├── management/
+│   │   │   ├── commands/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── expire_referrals.py
+│   │   │   │   ├── expire_sponsorships.py
+│   │   │   │   └── generate_referral_codes.py
+│   │   │   └── __init__.py
+│   │   ├── migrations/
+│   │   │   ├── __init__.py
+│   │   │   ├── 0001_initial.py
+│   │   │   └── 0002_referralreward_activated_at_and_more.py
+│   │   ├── __init__.py
+│   │   ├── admin.py
+│   │   ├── apps.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── tests.py
+│   │   ├── urls.py
+│   │   ├── utils.py
+│   │   └── views.py
+│   ├── studyflow/
+│   │   ├── __init__.py
+│   │   ├── asgi.py
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   └── wsgi.py
+│   └── manage.py
+├── gradle/
+│   └── wrapper/
+│       ├── gradle-wrapper.jar
+│       └── gradle-wrapper.properties
+├── public/
+│   ├── .well-known/
+│   │   └── assetlinks.json
+│   ├── _headers
+│   ├── _redirects
+│   ├── 404.html
+│   ├── download.html
+│   ├── favicon.ico
+│   ├── robots.txt
+│   ├── ul_studyflow_icon.png
+│   ├── ul_studyflow_icon_maskable.png
+│   └── ul_studyflow_logo.png
+├── src/
+│   ├── assets/
+│   │   └── images/
+│   │       ├── afiwa.webp
+│   │       ├── campus_university_lome_1790533866163.webp
+│   │       ├── ela.webp
+│   │       ├── hero_ul_student_1790533845064.webp
+│   │       ├── hero_ul_student_comment_ca_marche.webp
+│   │       ├── hero_ul_student_fonctionnalite.webp
+│   │       ├── koffi.webp
+│   │       ├── Reality.webp
+│   │       ├── ul_study_icon_1790588282181.webp
+│   │       └── ul_study_logo_1790588296770.webp
+│   ├── components/
+│   │   ├── admin/
+│   │   │   ├── rich-text/
+│   │   │   │   ├── nodes/
+│   │   │   │   │   ├── Callout.ts
+│   │   │   │   │   ├── CalloutNodeView.tsx
+│   │   │   │   │   ├── ResizableImage.ts
+│   │   │   │   │   └── ResizableImageView.tsx
+│   │   │   │   ├── BlockControls.tsx
+│   │   │   │   ├── extensions.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── rich-text.css
+│   │   │   │   ├── RichTextEditor.tsx
+│   │   │   │   └── RichTextToolbar.tsx
+│   │   │   ├── AcademicStructureView.tsx
+│   │   │   ├── AdminContactsView.tsx
+│   │   │   ├── AdminDashboard.tsx
+│   │   │   ├── AdminPartnershipsView.tsx
+│   │   │   ├── AdminReferralsView.tsx
+│   │   │   ├── AdminView.tsx
+│   │   │   ├── AdsManagerView.tsx
+│   │   │   ├── AdsStatsView.tsx
+│   │   │   ├── AdsTemplatesView.tsx
+│   │   │   ├── AuditLogsView.tsx
+│   │   │   ├── ConfigPricingView.tsx
+│   │   │   ├── CourseManagement.tsx
+│   │   │   ├── FormBuilderView.tsx
+│   │   │   ├── MediaUploader.tsx
+│   │   │   ├── NotificationManagementView.tsx
+│   │   │   ├── ReviewsModerationView.tsx
+│   │   │   ├── TrashBinView.tsx
+│   │   │   ├── UserManagement.tsx
+│   │   │   └── UserProgressView.tsx
+│   │   ├── auth/
+│   │   │   ├── LoginModal.tsx
+│   │   │   └── RegisterModal.tsx
+│   │   ├── brand/
+│   │   │   ├── DownloadLogoModal.tsx
+│   │   │   ├── UlStudyFlowIcon.tsx
+│   │   │   └── UlStudyFlowLogo.tsx
+│   │   ├── layout/
+│   │   │   ├── Footer.tsx
+│   │   │   └── Navbar.tsx
+│   │   ├── marketing/
+│   │   │   ├── about/
+│   │   │   │   ├── data/
+│   │   │   │   │   ├── constatData.tsx
+│   │   │   │   │   ├── rulesData.tsx
+│   │   │   │   │   ├── teamData.tsx
+│   │   │   │   │   └── valuesData.tsx
+│   │   │   │   ├── sections/
+│   │   │   │   │   ├── AboutFinalCta.tsx
+│   │   │   │   │   ├── AboutHero.tsx
+│   │   │   │   │   ├── ConstatSection.tsx
+│   │   │   │   │   ├── TeamSection.tsx
+│   │   │   │   │   ├── TransparencySection.tsx
+│   │   │   │   │   └── ValuesSection.tsx
+│   │   │   │   └── AboutPage.tsx
+│   │   │   ├── faq/
+│   │   │   │   ├── data/
+│   │   │   │   │   └── FaqData.tsx
+│   │   │   │   ├── sections/
+│   │   │   │   │   ├── FaqContent.tsx
+│   │   │   │   │   ├── FaqFinalCta.tsx
+│   │   │   │   │   └── FaqHero.tsx
+│   │   │   │   ├── ui/
+│   │   │   │   │   ├── FaqAccordionItem.tsx
+│   │   │   │   │   └── FaqCategoryPill.tsx
+│   │   │   │   └── FaqPage.tsx
+│   │   │   ├── features/
+│   │   │   │   ├── sections/
+│   │   │   │   │   ├── CampusRealitySection.tsx
+│   │   │   │   │   ├── FacultiesSpecSection.tsx
+│   │   │   │   │   ├── FeaturesFinalCta.tsx
+│   │   │   │   │   ├── FeaturesHero.tsx
+│   │   │   │   │   ├── FeaturesTestimonial.tsx
+│   │   │   │   │   └── PillarsSection.tsx
+│   │   │   │   ├── ui/
+│   │   │   │   │   ├── ComparisonPair.tsx
+│   │   │   │   │   └── PillarCard.tsx
+│   │   │   │   └── FeaturesPage.tsx
+│   │   │   ├── howitworks/
+│   │   │   │   ├── data/
+│   │   │   │   │   └── stepsData.tsx
+│   │   │   │   ├── sections/
+│   │   │   │   │   ├── ComparisonSection.tsx
+│   │   │   │   │   ├── HowItWorksFinalCta.tsx
+│   │   │   │   │   ├── HowItWorksHero.tsx
+│   │   │   │   │   ├── MiniFaqSection.tsx
+│   │   │   │   │   ├── StepsSection.tsx
+│   │   │   │   │   └── TogoRealitiesSection.tsx
+│   │   │   │   └── HowItWorksPage.tsx
+│   │   │   ├── pricing/
+│   │   │   │   ├── sections/
+│   │   │   │   │   ├── BookingWidget.tsx
+│   │   │   │   │   ├── ComparisonTable.tsx
+│   │   │   │   │   ├── MobileMoneySection.tsx
+│   │   │   │   │   ├── PricingCardsSection.tsx
+│   │   │   │   │   ├── PricingFaqSection.tsx
+│   │   │   │   │   ├── PricingFinalCta.tsx
+│   │   │   │   │   ├── PricingHero.tsx
+│   │   │   │   │   ├── TestimonialSection.tsx
+│   │   │   │   │   └── TutoratSection.tsx
+│   │   │   │   └── ui/
+│   │   │   │       ├── FeatureRow.tsx
+│   │   │   │       ├── PricingCard.tsx
+│   │   │   │       └── PricingPage.tsx
+│   │   │   ├── sections/
+│   │   │   │   ├── FacultiesSection.tsx
+│   │   │   │   ├── FaqSection.tsx
+│   │   │   │   ├── FeaturesPillarsSection.tsx
+│   │   │   │   ├── FinalCtaSection.tsx
+│   │   │   │   ├── HeroBlock.tsx
+│   │   │   │   ├── HowItWorksSection.tsx
+│   │   │   │   ├── InstallAppSection.tsx
+│   │   │   │   ├── PricingBannerSection.tsx
+│   │   │   │   ├── SignUpCtaSection.tsx
+│   │   │   │   ├── SocialProofBar.tsx
+│   │   │   │   ├── TestimonialsSection.tsx
+│   │   │   │   └── WhySection.tsx
+│   │   │   ├── ui/
+│   │   │   │   ├── Container.tsx
+│   │   │   │   ├── SectionBadge.tsx
+│   │   │   │   └── SectionHeader.tsx
+│   │   │   ├── ActivePopup.tsx
+│   │   │   ├── ContactModal.tsx
+│   │   │   ├── DownloadApkButton.tsx
+│   │   │   ├── HeroSection.tsx
+│   │   │   ├── LegalModal.tsx
+│   │   │   └── PartnershipModal.tsx
+│   │   ├── notifications/
+│   │   │   └── NotificationBell.tsx
+│   │   ├── student/
+│   │   │   ├── AiAssistantView.tsx
+│   │   │   ├── ChapterPDFDocument.tsx
+│   │   │   ├── DynamicFormModal.tsx
+│   │   │   ├── MyCoursesView.tsx
+│   │   │   ├── PDFDownloadButton.tsx
+│   │   │   ├── ProgressView.tsx
+│   │   │   ├── QuizModal.tsx
+│   │   │   ├── ReferralView.tsx
+│   │   │   ├── RenderedContent.tsx
+│   │   │   ├── SecureAudioPlayer.tsx
+│   │   │   ├── SecureVideoPlayer.tsx
+│   │   │   ├── SessionView.tsx
+│   │   │   ├── StudentDashboard.tsx
+│   │   │   ├── StudentProfileView.tsx
+│   │   │   ├── UeDetailView.tsx
+│   │   │   ├── UeReviewsSection.tsx
+│   │   │   └── UnlockUeModal.tsx
+│   │   └── ui/
+│   │       ├── AppSplashScreen.tsx
+│   │       ├── InstallInstructionsModal.tsx
+│   │       ├── LoadingSpinner.tsx
+│   │       ├── PageProgressBar.tsx
+│   │       ├── PasswordInput.tsx
+│   │       └── SkeletonLoader.tsx
+│   ├── context/
+│   │   ├── AuthContext.tsx
+│   │   ├── LoadingContext.tsx
+│   │   └── ThemeContext.tsx
+│   ├── hooks/
+│   │   ├── useAntiCapture.ts
+│   │   ├── useBackButton.ts
+│   │   ├── useInstallPrompt.ts
+│   │   ├── useOnlineStatus.ts
+│   │   ├── usePageLoading.ts
+│   │   ├── usePopupTrigger.ts
+│   │   ├── useRealtimeNotifications.ts
+│   │   └── useSEO.ts
+│   ├── lib/
+│   │   ├── pdf/
+│   │   │   ├── estimatePages.ts
+│   │   │   └── tipTapToReactPdf.tsx
+│   │   ├── analytics.ts
+│   │   ├── api.ts
+│   │   ├── constants.ts
+│   │   ├── imageUtils.ts
+│   │   └── supabaseRealtime.ts
+│   ├── types/
+│   │   ├── index.ts
+│   │   └── umami.d.ts
+│   ├── App.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   ├── routes-list.js
+│   └── sw.ts
+├── .antigravityrules
+├── .env.example
+├── .gitignore
+├── architecture.txt
+├── build.gradle
+├── gradle.properties
+├── gradlew
+├── gradlew.bat
+├── index.html
+├── manage.py
+├── manifest-checksum.txt
+├── metadata.json
+├── package.json
+├── README.md
+├── README_DJANGO.md
+├── requirements.txt
+├── settings.gradle
+├── store_icon.png
+├── tsconfig.json
+├── twa-manifest.json
+└── vite.config.ts

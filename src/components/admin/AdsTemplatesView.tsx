@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PopupTemplate, PopupCampaign } from "../../types";
 import { api } from "../../lib/api";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 import {
   Plus,
   Edit2,
@@ -48,6 +49,8 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState<Partial<PopupTemplate>>({
     name: "",
     description: "",
@@ -118,6 +121,8 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+
     if (!form.name?.trim()) {
       showError("Le nom du template est obligatoire.");
       return;
@@ -139,6 +144,7 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
       is_system: form.is_system || false,
     };
 
+    setSaving(true);
     try {
       if (editingId) {
         await api.updateAdminPopupTemplate(editingId, payload);
@@ -151,11 +157,14 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
       await loadTemplates();
     } catch (err: any) {
       showError(err.message || "Erreur lors de l'enregistrement.");
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!deleteConfirm) return;
+    if (!deleteConfirm || deleting) return;
+    setDeleting(true);
     try {
       await api.deleteAdminPopupTemplate(deleteConfirm.id);
       showSuccess(`Template « ${deleteConfirm.name} » supprimé.`);
@@ -163,6 +172,8 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
       await loadTemplates();
     } catch (err: any) {
       showError(err.message || "Erreur de suppression.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -329,7 +340,7 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
       {/* Modal Création / Édition */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] my-8 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-2xl w-full pt-12 px-6 pb-6 shadow-2xl relative border border-[#E9EDEF] dark:border-[#222E35] my-8 max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setModalOpen(false)}
               className="absolute top-4 right-4 text-[#667781] hover:text-[#111B21] dark:hover:text-white p-1 rounded-lg"
@@ -439,10 +450,19 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs disabled:opacity-60 disabled:cursor-not-allowed min-w-36 justify-center"
                 >
-                  <Save className="w-3.5 h-3.5" />
-                  {editingId ? "Enregistrer" : "Créer le template"}
+                  {saving ? (
+                    <InlineSpinner className="text-[#075E54]" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
+                  {saving
+                    ? "Enregistrement..."
+                    : editingId
+                      ? "Enregistrer"
+                      : "Créer le template"}
                 </button>
               </div>
             </form>
@@ -453,7 +473,7 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
       {/* Modal suppression */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
+          <div className="bg-white dark:bg-[#111B21] rounded-2xl max-w-md w-full pt-12 px-6 pb-6 shadow-2xl border border-[#E9EDEF] dark:border-[#222E35] space-y-4">
             <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950 text-rose-600 flex items-center justify-center">
               <Trash2 className="w-6 h-6" />
             </div>
@@ -481,9 +501,11 @@ export const AdsTemplatesView: React.FC<AdsTemplatesViewProps> = ({
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl"
+                disabled={deleting}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl disabled:opacity-60 inline-flex items-center gap-2"
               >
-                Confirmer la suppression
+                {deleting && <InlineSpinner className="text-white" />}
+                {deleting ? "Suppression..." : "Confirmer la suppression"}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PopupCampaign, Department, Program, PopupTemplate } from "../../types";
 import { api } from "../../lib/api";
+import { InlineSpinner } from "../ui/LoadingSpinner";
 import {
   Megaphone,
   Plus,
@@ -14,10 +15,7 @@ import {
   AlertCircle,
   Eye,
   MousePointerClick,
-  Lock,
-  Unlock,
   Image as ImageIcon,
-  Video,
   Link as LinkIcon,
   Target,
   Users as UsersIcon,
@@ -93,7 +91,7 @@ const EMPTY_FORM: Partial<PopupCampaign> = {
   frequency_custom_hours: 24,
   is_active: true,
   priority: 0,
-  // ⭐ Programmation avancée
+  // Programmation avancée
   schedule_days: [],
   schedule_hours_start: "",
   schedule_hours_end: "",
@@ -101,7 +99,15 @@ const EMPTY_FORM: Partial<PopupCampaign> = {
   schedule_timezone: "Africa/Lome",
 };
 
-export const AdsManagerView: React.FC = () => {
+interface AdsManagerViewProps {
+  externalTemplate?: PopupTemplate | null;
+  onConsumeExternalTemplate?: () => void;
+}
+
+export const AdsManagerView: React.FC<AdsManagerViewProps> = ({
+  externalTemplate,
+  onConsumeExternalTemplate,
+}) => {
   const [popups, setPopups] = useState<PopupCampaign[]>([]);
   const [templates, setTemplates] = useState<PopupTemplate[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -117,6 +123,9 @@ export const AdsManagerView: React.FC = () => {
   const [statsPopupId, setStatsPopupId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -151,6 +160,23 @@ export const AdsManagerView: React.FC = () => {
     loadAll();
   }, []);
 
+  // Consommer le template injecté depuis AdsTemplatesView
+  useEffect(() => {
+    if (!externalTemplate) return;
+
+    const preset = (externalTemplate.preset || {}) as Partial<PopupCampaign>;
+    setEditingId(null);
+    setForm({
+      ...EMPTY_FORM,
+      ...preset,
+      template_used: externalTemplate.id,
+    });
+    setModalOpen(true);
+
+    // Vider le state côté parent après consommation
+    onConsumeExternalTemplate?.();
+  }, [externalTemplate]);
+
   const openCreate = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
@@ -163,19 +189,10 @@ export const AdsManagerView: React.FC = () => {
     setModalOpen(true);
   };
 
-  const applyTemplate = (tpl: PopupTemplate) => {
-    const preset = (tpl.preset || {}) as Partial<PopupCampaign>;
-    setEditingId(null);
-    setForm({
-      ...EMPTY_FORM,
-      ...preset,
-      template_used: tpl.id,
-    });
-    setModalOpen(true);
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+
     if (!form.title?.trim()) {
       showError("Le titre est obligatoire.");
       return;
@@ -185,6 +202,7 @@ export const AdsManagerView: React.FC = () => {
       return;
     }
 
+    setSaving(true);
     try {
       if (editingId) {
         await api.updateAdminPopup(editingId, form);
@@ -197,10 +215,14 @@ export const AdsManagerView: React.FC = () => {
       await loadAll();
     } catch (err: any) {
       showError(err.message || "Erreur lors de l'enregistrement.");
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleToggle = async (popup: PopupCampaign) => {
+    if (togglingId) return;
+    setTogglingId(popup.id);
     try {
       const res = await api.toggleAdminPopup(popup.id);
       showSuccess(
@@ -209,11 +231,14 @@ export const AdsManagerView: React.FC = () => {
       await loadAll();
     } catch (err: any) {
       showError(err.message || "Action impossible.");
+    } finally {
+      setTogglingId(null);
     }
   };
 
   const handleDelete = async () => {
-    if (!deleteConfirm) return;
+    if (!deleteConfirm || deleting) return;
+    setDeleting(true);
     try {
       await api.deleteAdminPopup(deleteConfirm.id);
       showSuccess(`Campagne « ${deleteConfirm.title} » supprimée.`);
@@ -221,6 +246,8 @@ export const AdsManagerView: React.FC = () => {
       await loadAll();
     } catch (err: any) {
       showError(err.message || "Erreur de suppression.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -247,7 +274,7 @@ export const AdsManagerView: React.FC = () => {
     );
   }
 
-  // ⭐ Vue Stats (modal plein écran)
+  // Vue Stats (modal plein écran)
   if (statsPopupId) {
     return (
       <AdsStatsView
@@ -485,14 +512,17 @@ export const AdsManagerView: React.FC = () => {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleToggle(popup)}
+                      disabled={togglingId === popup.id}
                       title={popup.is_active ? "Désactiver" : "Activer"}
-                      className={`p-1.5 rounded-lg transition-colors ${
+                      className={`p-1.5 rounded-lg transition-colors disabled:opacity-60 ${
                         popup.is_active
                           ? "text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950"
                           : "text-emerald-700 dark:text-[#25D366] hover:bg-emerald-50 dark:hover:bg-emerald-950"
                       }`}
                     >
-                      {popup.is_active ? (
+                      {togglingId === popup.id ? (
+                        <InlineSpinner className="text-current" />
+                      ) : popup.is_active ? (
                         <PowerOff className="w-3.5 h-3.5" />
                       ) : (
                         <Power className="w-3.5 h-3.5" />
@@ -553,7 +583,7 @@ export const AdsManagerView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-5 text-xs">
-              {/* ⭐ Partir d'un template */}
+              {/* Partir d'un template */}
               {!editingId && templates.length > 0 && (
                 <section className="space-y-2 p-4 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800">
                   <h4 className="font-bold uppercase tracking-wider text-[#075E54] dark:text-[#25D366] flex items-center gap-1.5">
@@ -1373,11 +1403,15 @@ export const AdsManagerView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs"
+                  disabled={saving}
+                  className="px-5 py-2 font-bold text-[#075E54] bg-[#25D366] rounded-xl hover:bg-[#1faa54] shadow-xs disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 min-w-44"
                 >
-                  {editingId
-                    ? "Enregistrer les modifications"
-                    : "Créer la campagne"}
+                  {saving && <InlineSpinner className="text-[#075E54]" />}
+                  {saving
+                    ? "Enregistrement..."
+                    : editingId
+                      ? "Enregistrer les modifications"
+                      : "Créer la campagne"}
                 </button>
               </div>
             </form>
@@ -1411,9 +1445,11 @@ export const AdsManagerView: React.FC = () => {
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl"
+                disabled={deleting}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl disabled:opacity-60 inline-flex items-center gap-2"
               >
-                Confirmer la suppression
+                {deleting && <InlineSpinner className="text-white" />}
+                {deleting ? "Suppression..." : "Confirmer la suppression"}
               </button>
             </div>
           </div>

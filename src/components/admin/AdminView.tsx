@@ -67,6 +67,8 @@ type AdsSubTab = "campaigns" | "templates";
 
 const AdsSection: React.FC = () => {
   const [subTab, setSubTab] = useState<AdsSubTab>("campaigns");
+  // Template à pré-remplir dans AdsManagerView
+  const [pendingTemplate, setPendingTemplate] = useState<any>(null);
 
   return (
     <div className="space-y-5">
@@ -96,8 +98,20 @@ const AdsSection: React.FC = () => {
         </button>
       </div>
 
-      {subTab === "campaigns" && <AdsManagerView />}
-      {subTab === "templates" && <AdsTemplatesView />}
+      {subTab === "campaigns" && (
+        <AdsManagerView
+          externalTemplate={pendingTemplate}
+          onConsumeExternalTemplate={() => setPendingTemplate(null)}
+        />
+      )}
+      {subTab === "templates" && (
+        <AdsTemplatesView
+          onUseTemplate={(tpl) => {
+            setPendingTemplate(tpl);
+            setSubTab("campaigns");
+          }}
+        />
+      )}
     </div>
   );
 };
